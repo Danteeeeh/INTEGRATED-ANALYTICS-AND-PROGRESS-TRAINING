@@ -1,0 +1,92 @@
+/* Dashboard palette — final color layer for normal and SMS role pages.
+   Dark is the default; toggling `body.light-mode` flips every surface via the
+   `--dash-*` variables below, plus a few explicit light overrides for the
+   hardcoded literals. */
+:root { --dash-bg:#101625; --dash-surface:#151c2c; --dash-surface-raised:#1b2437; --dash-blue:#2449c6; --dash-blue-light:#4d8ff0; --dash-cyan:#62c9f5; --dash-text:#eef4ff; --dash-muted:#98a7c4; --dash-line:rgba(153,174,214,.18); }
+
+/* ── Light-mode variable flip (knocks out every var(--dash-*) surface) ── */
+body.light-mode {
+    --dash-bg:#eef2f9;
+    --dash-surface:#ffffff;
+    --dash-surface-raised:#f2f6fc;
+    --dash-blue-light:#4d8ff0;
+    --dash-cyan:#0e7490;
+    --dash-text:#16233c;
+    --dash-muted:#5f708c;
+    --dash-line:rgba(31,52,88,.14);
+    --bcp-navy-900:#f3f6fb;
+    --bcp-navy-850:#ffffff;
+    --bcp-navy-800:#eaf0f8;
+    --bcp-ink:#12203a;
+    --bcp-muted:#5f708c;
+    --bcp-line:rgba(31,52,88,.14);
+    --bcp-card:#ffffff;
+}
+
+html, body { background:var(--dash-bg) !important; color:var(--dash-text) !important; }
+/* The root element does not inherit variables declared on body.light-mode. */
+html:has(body.light-mode), html.light-mode { background:#eef2f9 !important; color:#16233c !important; }
+body:not(.light-mode) { background:var(--dash-bg) !important; color:var(--dash-text) !important; }
+.main, .content { background:var(--dash-bg) !important; }
+
+/* Topbar */
+.topbar { background:rgba(11,17,30,.94) !important; border-color:var(--dash-line) !important; }
+body.light-mode .topbar { background:rgba(255,255,255,.88) !important; border-color:var(--dash-line) !important; }
+
+/* Sidebar */
+.sidebar { background:linear-gradient(180deg,#080e1b,#0b1220 42%,#0d1422) !important; border-color:var(--dash-line) !important; }
+body.light-mode .sidebar { background:linear-gradient(180deg,#ffffff,#f3f7fd 52%,#eaf1fb) !important; border-color:var(--dash-line) !important; }
+.sidebar-header { background:linear-gradient(180deg,rgba(23,58,168,.17),transparent) !important; border-color:rgba(98,201,245,.12) !important; }
+body.light-mode .sidebar-header { background:linear-gradient(180deg,rgba(36,73,198,.08),transparent) !important; border-color:var(--dash-line) !important; }
+.sidebar-header h2 { color:var(--dash-text) !important; }
+.sidebar-subtitle { color:var(--dash-cyan) !important; }
+.sidebar-nav .nav-link { color:#c7d4ec !important; }
+.sidebar-nav .nav-link i { color:#9db0d1 !important; }
+.sidebar-nav .nav-link:hover { color:#fff !important; background:linear-gradient(90deg,rgba(77,143,240,.17),rgba(77,143,240,.04)) !important; border-color:rgba(98,201,245,.22) !important; }
+.sidebar-nav .nav-item.active .nav-link, .sidebar-item.active { color:#fff !important; background:linear-gradient(90deg,rgba(36,73,198,.72),rgba(36,73,198,.2) 70%,transparent) !important; border-color:rgba(98,201,245,.32) !important; }
+body.light-mode .sidebar-nav .nav-link { color:#526584 !important; }
+body.light-mode .sidebar-nav .nav-link i { color:#7185a5 !important; }
+body.light-mode .sidebar-nav .nav-link:hover { color:#173aa8 !important; background:linear-gradient(90deg,rgba(36,73,198,.12),rgba(77,143,240,.04)) !important; border-color:rgba(36,73,198,.2) !important; }
+body.light-mode .sidebar-nav .nav-item.active .nav-link { color:#173aa8 !important; background:linear-gradient(90deg,rgba(36,73,198,.18),rgba(77,143,240,.07) 70%,transparent) !important; border-color:rgba(36,73,198,.28) !important; }
+
+/* Cards & panels */
+.crud-card, .card, .panel, .dash-panel, .table-card, .content-card, .chart-card, .info-card, .main-content, .content-header, .form-card, .form-grid, .footer { background:var(--dash-surface) !important; color:var(--dash-text) !important; border-color:var(--dash-line) !important; }
+.crud-header, .card-header, .dash-panel-head, .chart-header { background:linear-gradient(90deg,rgba(77,143,240,.1),transparent) !important; border-color:var(--dash-line) !important; }
+.crud-header h3, .card-header h3, .dash-panel h3, .dash-panel h4, .content-header h2, .page-title { color:var(--dash-text) !important; }
+
+/* Menus / modals / dropdowns */
+.search-box, .filter-menu, .user-menu, .dropdown-menu, .modal-content, .modal, .notification-dropdown { background:var(--dash-surface-raised) !important; color:var(--dash-text) !important; border-color:var(--dash-line) !important; }
+body.light-mode .user-menu { box-shadow:0 18px 40px rgba(31,52,88,.16) !important; }
+
+/* Inputs */
+.search-box input, .table-toolbar input, .table-toolbar select, .form-control, .filter-item select, .filter-item input, input, select, textarea, .form-field input, .form-field select, .form-field textarea { color:var(--dash-text) !important; background:#101625 !important; border-color:var(--dash-line) !important; }
+body.light-mode .search-box input, body.light-mode .table-toolbar input, body.light-mode .table-toolbar select, body.light-mode .form-control, body.light-mode .filter-item select, body.light-mode .filter-item input, body.light-mode input, body.light-mode select, body.light-mode textarea, body.light-mode .form-field input, body.light-mode .form-field select, body.light-mode .form-field textarea { background:#ffffff !important; border-color:var(--dash-line) !important; color:var(--dash-text) !important; }
+input::placeholder, textarea::placeholder { color:var(--dash-muted) !important; }
+
+/* Tables */
+.table thead, .crud-table thead, .dash-table thead, .data-table thead { background:linear-gradient(135deg,#2449c6,#173aa8) !important; color:#fff !important; }
+.table th, .crud-table th, .dash-table th, .data-table th { color:#dbeafe !important; border-color:rgba(191,219,254,.2) !important; }
+.table td, .crud-table td, .dash-table td, .data-table td { color:var(--dash-text) !important; border-color:var(--dash-line) !important; }
+.table tbody tr, .crud-table tbody tr, .dash-table tbody tr, .data-table tbody tr { background:transparent !important; }
+.table tbody tr:nth-child(even), .crud-table tbody tr:nth-child(even), .data-table tbody tr:nth-child(even) { background:rgba(77,143,240,.025) !important; }
+.table tbody tr:hover, .crud-table tbody tr:hover, .dash-table tbody tr:hover, .data-table tbody tr:hover { background:rgba(77,143,240,.11) !important; }
+body.light-mode .table tbody tr:nth-child(even), body.light-mode .crud-table tbody tr:nth-child(even), body.light-mode .data-table tbody tr:nth-child(even) { background:#f6f9ff !important; }
+body.light-mode .table tbody tr:hover, body.light-mode .crud-table tbody tr:hover, body.light-mode .dash-table tbody tr:hover, body.light-mode .data-table tbody tr:hover { background:rgba(36,73,198,.06) !important; }
+
+/* Buttons */
+.btn-primary, .btn-add, .btn-submit, .export-btn, .apply-filter, .card-btn, .pg-btn.active { color:#fff !important; background:linear-gradient(135deg,#2449c6,#173aa8) !important; border-color:#3159d1 !important; }
+.btn-primary:hover, .btn-add:hover, .btn-submit:hover, .export-btn:hover, .apply-filter:hover, .card-btn:hover, .pg-btn.active:hover { color:#fff !important; background:linear-gradient(135deg,#4d8ff0,#2449c6) !important; }
+.btn-secondary, .filter-btn, .btn-back, .btn-cancel, .pg-btn { color:var(--dash-text) !important; background:var(--dash-surface-raised) !important; border-color:var(--dash-line) !important; }
+.btn-secondary:hover, .filter-btn:hover, .btn-back:hover, .btn-cancel:hover, .pg-btn:hover { color:var(--dash-cyan) !important; background:rgba(77,143,240,.15) !important; border-color:rgba(98,201,245,.4) !important; }
+
+/* Avatar / hamburger */
+.avatar, .hamburger { color:#fff !important; background:linear-gradient(135deg,#2449c6,#173aa8) !important; border-color:rgba(98,201,245,.28) !important; }
+
+/* Muted text */
+.info-card .card-label, .info-card .card-status, .info-card .card-detail, .text-muted, small { color:var(--dash-muted) !important; }
+.info-card .amount, .info-card .card-amount, .info-card .card-name { color:var(--dash-text) !important; }
+body.light-mode .info-card .card-label, body.light-mode .info-card .card-status, body.light-mode .info-card .card-detail { color:var(--dash-muted) !important; }
+
+/* Pagination / toast */
+.pagination, .crud-pagination { background:var(--dash-surface) !important; border-color:var(--dash-line) !important; }
+.toast { color:var(--dash-text) !important; background:var(--dash-surface-raised) !important; border-color:var(--dash-line) !important; }

@@ -1,0 +1,107 @@
+/* Shared role UI system: one shell, distinct workflows. */
+:root {
+    --user-accent: var(--dash-blue-light, #4d8ff0);
+    --user-accent-strong: var(--dash-blue, #2449c6);
+    --user-accent-soft: rgba(77, 143, 240, .14);
+    --user-success: #34d399;
+    --user-warning: #fbbf24;
+    --user-danger: #fb7185;
+    --user-radius: 16px;
+}
+body.role-admin { --user-accent: #62c9f5; --user-accent-strong: #2449c6; --user-accent-soft: rgba(77,143,240,.16); }
+body.role-instructor { --user-accent: #c4b5fd; --user-accent-strong: #7c3aed; --user-accent-soft: rgba(139,92,246,.16); }
+body.role-student { --user-accent: #6ee7b7; --user-accent-strong: #059669; --user-accent-soft: rgba(16,185,129,.16); }
+body.role-registrar { --user-accent: #67e8f9; --user-accent-strong: #0e7490; --user-accent-soft: rgba(34,211,238,.16); }
+
+.user-page { display: grid; gap: 18px; }
+.user-hero {
+    position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: space-between; gap: 22px;
+    min-height: 150px; padding: 24px 26px; border: 1px solid var(--dash-line); border-radius: var(--user-radius);
+    background: linear-gradient(135deg, rgba(36,73,198,.94), rgba(15,31,75,.96) 58%, rgba(20,76,105,.9));
+    box-shadow: 0 18px 42px rgba(3,8,20,.28); isolation: isolate;
+}
+.user-hero::after { content:""; position:absolute; right:-5%; bottom:-70%; width:52%; height:200%; border-radius:50%; background:radial-gradient(circle, var(--user-accent-soft), transparent 64%); z-index:-1; }
+.user-hero-copy { min-width:0; }
+.user-kicker { display:flex; align-items:center; gap:7px; margin-bottom:8px; color:var(--user-accent); font-size:.64rem; font-weight:850; letter-spacing:.12em; text-transform:uppercase; }
+.user-hero h1 { margin:0; color:#fff; font-size:clamp(1.45rem, 2.4vw, 2.2rem); line-height:1.08; letter-spacing:-.035em; }
+.user-hero p { max-width:660px; margin:9px 0 0; color:rgba(238,244,255,.76); font-size:.82rem; }
+.user-hero-meta { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-top:15px; color:rgba(219,234,254,.84); font-size:.68rem; }
+.user-hero-meta .live-dot { width:7px; height:7px; border-radius:50%; background:var(--user-success); box-shadow:0 0 0 4px rgba(52,211,153,.13); }
+.user-hero-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; flex:0 0 auto; }
+.user-hero-actions .btn, .user-hero-actions a { border-color:rgba(219,234,254,.25); box-shadow:0 7px 18px rgba(3,8,20,.18); }
+
+.user-stat-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+.user-stat-card { min-width:0; padding:15px; border:1px solid var(--dash-line); border-radius:14px; background:var(--dash-surface); box-shadow:0 10px 26px rgba(3,8,20,.12); }
+.user-stat-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.user-stat-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; color:var(--user-accent); background:var(--user-accent-soft); }
+.user-stat-label { display:block; margin-top:13px; color:var(--dash-muted); font-size:.68rem; font-weight:750; letter-spacing:.055em; text-transform:uppercase; }
+.user-stat-value { display:block; margin-top:3px; color:var(--dash-text); font-size:1.55rem; font-weight:850; letter-spacing:-.04em; }
+.user-stat-foot { display:block; margin-top:8px; color:var(--dash-muted); font-size:.68rem; }
+.user-stat-trend { padding:3px 8px; border-radius:999px; color:var(--user-accent); background:var(--user-accent-soft); font-size:.62rem; font-weight:800; }
+
+.user-panel { overflow:hidden; border:1px solid var(--dash-line); border-radius:14px; background:var(--dash-surface); box-shadow:0 10px 26px rgba(3,8,20,.12); }
+.user-panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 15px; border-bottom:1px solid var(--dash-line); background:linear-gradient(90deg,var(--user-accent-soft),transparent); }
+.user-panel-head h3, .user-panel-head h4 { margin:0; color:var(--dash-text); font-size:.84rem; font-weight:850; }
+.user-panel-body { padding:15px; }
+.user-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:9px; padding:12px; border-bottom:1px solid var(--dash-line); background:rgba(77,143,240,.035); }
+.user-toolbar > * { min-height:36px; }
+.user-table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.user-table-wrap table { min-width:680px; }
+.user-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; }
+.user-actions form { display:inline-flex; margin:0; }
+.user-empty { display:grid; place-items:center; min-height:190px; padding:24px; color:var(--dash-muted); text-align:center; }
+.user-empty i { margin-bottom:10px; color:var(--user-accent); font-size:2rem; }
+.user-empty h3 { margin:0 0 5px; color:var(--dash-text); font-size:.95rem; }
+.user-empty p { max-width:420px; margin:0 0 14px; font-size:.75rem; }
+.user-status { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px; font-size:.64rem; font-weight:800; }
+.user-status.active, .user-status.published, .user-status.completed { color:#6ee7b7; background:rgba(16,185,129,.13); }
+.user-status.pending, .user-status.draft { color:#fcd34d; background:rgba(251,191,36,.13); }
+.user-status.inactive, .user-status.archived, .user-status.dropped { color:#cbd5e1; background:rgba(148,163,184,.14); }
+.user-status.suspended, .user-status.rejected { color:#fda4af; background:rgba(244,63,94,.13); }
+.user-focus:focus-visible, .user-hero a:focus-visible, .user-hero button:focus-visible, .user-actions a:focus-visible, .user-actions button:focus-visible { outline:3px solid var(--user-accent); outline-offset:2px; }
+
+/* Sidebar: shared spacing, visible focus, and an explicit current-page marker. */
+.sidebar-nav .nav-link:focus-visible { outline:3px solid var(--user-accent); outline-offset:2px; border-radius:10px; }
+.sidebar-nav .nav-link[aria-current="page"] { position:relative; }
+.sidebar-nav .nav-link[aria-current="page"]::before { content:""; position:absolute; left:0; top:50%; width:3px; height:60%; transform:translateY(-50%); border-radius:0 3px 3px 0; background:var(--user-accent); }
+
+/* Light mode: the hero stays a dark accent surface (screenshot reference), but
+   shared surfaces and status text are re-tuned so contrast holds on white. */
+body.light-mode .user-stat-card,
+body.light-mode .user-panel,
+body.light-mode .learning-card { box-shadow:0 10px 26px rgba(31,52,88,.10); }
+body.light-mode .user-hero { box-shadow:0 18px 42px rgba(31,52,88,.18); }
+body.light-mode .user-hero p { color:rgba(238,244,255,.86); }
+body.light-mode .user-hero-meta { color:rgba(219,234,254,.9); }
+body.light-mode .user-hero-meta .live-dot { box-shadow:0 0 0 4px rgba(52,211,153,.22); }
+body.light-mode .user-stat-label,
+body.light-mode .user-stat-foot,
+body.light-mode .user-empty,
+body.light-mode .learning-card p,
+body.light-mode .learning-next-action span { color:#5f708c; }
+body.light-mode .user-toolbar { background:rgba(36,73,198,.04); }
+body.light-mode .learning-progress { background:rgba(31,52,88,.10); }
+body.light-mode .learning-next-action { background:rgba(5,150,105,.07); border-color:rgba(5,150,105,.22); }
+body.light-mode .user-status.active, body.light-mode .user-status.published, body.light-mode .user-status.completed { color:#047857; background:rgba(5,150,105,.12); }
+body.light-mode .user-status.pending, body.light-mode .user-status.draft { color:#a16207; background:rgba(217,119,6,.13); }
+body.light-mode .user-status.inactive, body.light-mode .user-status.archived, body.light-mode .user-status.dropped { color:#475569; background:rgba(100,116,139,.13); }
+body.light-mode .user-status.suspended, body.light-mode .user-status.rejected { color:#b91c1c; background:rgba(220,38,38,.11); }
+body.light-mode .user-stat-trend { color:var(--user-accent-strong); }
+
+/* Student is intentionally a learning surface rather than an admin table. */
+.learning-shell { display:grid; gap:16px; }
+.learning-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+.learning-card { display:flex; min-height:148px; flex-direction:column; justify-content:space-between; padding:16px; border:1px solid var(--dash-line); border-radius:16px; background:linear-gradient(145deg,var(--dash-surface),rgba(16,185,129,.055)); box-shadow:0 10px 24px rgba(3,8,20,.12); }
+.learning-card h3 { margin:0; color:var(--dash-text); font-size:.9rem; }
+.learning-card p { margin:7px 0 0; color:var(--dash-muted); font-size:.72rem; }
+.learning-progress { height:8px; overflow:hidden; margin-top:14px; border-radius:999px; background:rgba(153,174,214,.14); }
+.learning-progress > span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#059669,#6ee7b7); }
+.learning-next-action { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 15px; border:1px solid rgba(110,231,183,.22); border-radius:14px; background:rgba(16,185,129,.08); }
+.learning-next-action strong { color:var(--dash-text); font-size:.78rem; }
+.learning-next-action span { color:var(--dash-muted); font-size:.7rem; }
+.mobile-role-nav { display:none; }
+
+@media (max-width:1100px) { .user-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .learning-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:760px) { .user-hero { align-items:flex-start; flex-direction:column; padding:20px; } .user-hero-actions { width:100%; justify-content:flex-start; } .user-hero-actions .btn, .user-hero-actions a { flex:1 1 auto; } .user-stat-grid, .learning-grid { grid-template-columns:1fr; } .user-toolbar { align-items:stretch; flex-direction:column; } .user-toolbar > * { width:100%; } }
+@media (max-width:480px) { .user-hero h1 { font-size:1.35rem; } .user-hero-actions .btn, .user-hero-actions a { width:100%; } .user-stat-grid { gap:9px; } .user-stat-card { padding:13px; } }
+@media (prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.001ms !important; transition-duration:.001ms !important; } }

@@ -1,0 +1,28 @@
+/* Sidebar structure and interaction polish — shared by every role. */
+.sidebar { display:flex; flex-direction:column; height:auto !important; min-height:100vh !important; overflow:visible !important; }
+.sidebar-header { flex:0 0 auto; }
+.sidebar-brand-lockup { min-height:42px; }
+.sidebar-brand-lockup img { object-fit:contain; filter:drop-shadow(0 4px 8px rgba(0,0,0,.22)); }
+.sidebar-header h2 { max-width:126px; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:800; }
+.sidebar-subtitle { display:block; margin-top:3px; }
+.sidebar-nav { flex:0 0 auto; min-height:0; overflow:visible !important; padding:10px 8px 16px !important; }
+.sidebar-nav .nav-group { margin:0 0 12px; }
+.sidebar-nav .nav-group:last-child { margin-bottom:0; }
+.nav-group-label { width:100%; border:0; background:transparent; cursor:pointer; text-align:left; color:#7f91b0 !important; }
+.nav-group-label:hover { color:var(--bcp-cyan-400) !important; }
+.nav-group-label::after { opacity:.65; }
+.sidebar-nav .nav-list { padding:0; margin:0; list-style:none; }
+.sidebar-nav .nav-link { min-width:0; color:#c7d4ec !important; }
+.sidebar-nav .nav-link span:not(.link-hint):not(.soon-badge) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar-nav .nav-link:hover { color:#fff !important; }
+.sidebar-nav .nav-item.active .nav-link { color:#fff !important; font-weight:800; }
+.sidebar-nav .nav-item.active .nav-link i { color:var(--bcp-cyan-400) !important; }
+.sidebar-nav .nav-item.disabled .nav-link { opacity:.48; cursor:not-allowed; }
+.sidebar-nav .nav-item.disabled .nav-link:hover { background:transparent !important; border-color:transparent !important; box-shadow:none !important; }
+.sidebar-nav .nav-group.is-collapsed .nav-list { display:none; }
+.sidebar-nav .nav-group.is-collapsed .nav-group-label { margin-bottom:0; }
+.sidebar-nav::-webkit-scrollbar { width:5px; }
+.sidebar-nav::-webkit-scrollbar-track { background:transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background:rgba(77,143,240,.38); border-radius:999px; }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background:rgba(98,201,245,.64); }
+@media (max-width:900px) { .sidebar { height:100vh !important; overflow:hidden !important; box-shadow:14px 0 42px rgba(0,0,0,.42) !important; } .sidebar-nav { flex:1 1 auto; overflow-y:auto !important; overflow-x:hidden !important; } }

@@ -1,0 +1,29 @@
+/* One visual contract for legacy CRUD, dashboard panels, and standard admin cards. */
+.admin-ui .crud-card, .admin-ui .dash-panel, .admin-ui .card, .admin-ui .table-card {
+  overflow:hidden !important; margin:0 0 18px !important; border:1px solid var(--dash-line) !important;
+  border-radius:12px !important; background:var(--dash-surface) !important; box-shadow:0 10px 26px rgba(3,8,20,.16) !important;
+}
+.admin-ui .crud-header, .admin-ui .dash-panel-head, .admin-ui .card-header {
+  display:flex !important; align-items:center !important; justify-content:space-between !important; gap:10px !important;
+  min-height:50px !important; padding:10px 14px !important; background:linear-gradient(90deg,rgba(77,143,240,.12),rgba(77,143,240,.02)) !important;
+  border-bottom:1px solid var(--dash-line) !important;
+}
+.admin-ui .crud-header h3, .admin-ui .dash-panel-head h4, .admin-ui .card-header h3 { margin:0 !important; color:var(--dash-text) !important; font-size:.84rem !important; font-weight:800 !important; }
+.admin-ui .crud-actions { display:flex !important; align-items:center !important; justify-content:flex-end !important; flex-wrap:wrap !important; gap:7px !important; }
+.admin-ui .crud-table, .admin-ui .dash-table, .admin-ui .table { width:100% !important; border-collapse:separate !important; border-spacing:0 !important; }
+.admin-ui .crud-table thead, .admin-ui .dash-table thead, .admin-ui .table thead { background:linear-gradient(135deg,#2449c6,#173aa8) !important; }
+.admin-ui .crud-table th, .admin-ui .dash-table th, .admin-ui .table th { padding:9px 12px !important; color:#dbeafe !important; font-size:.61rem !important; font-weight:800 !important; letter-spacing:.07em !important; text-transform:uppercase !important; border:0 !important; }
+.admin-ui .crud-table td, .admin-ui .dash-table td, .admin-ui .table td { padding:10px 12px !important; color:var(--dash-text) !important; font-size:.75rem !important; border-bottom:1px solid rgba(153,174,214,.12) !important; vertical-align:middle !important; }
+.admin-ui .crud-table tbody tr:hover, .admin-ui .dash-table tbody tr:hover, .admin-ui .table tbody tr:hover { background:rgba(77,143,240,.1) !important; }
+.admin-ui .crud-table tbody tr:last-child td, .admin-ui .dash-table tbody tr:last-child td, .admin-ui .table tbody tr:last-child td { border-bottom:0 !important; }
+.admin-ui .actions-cell { display:table-cell !important; white-space:nowrap !important; }
+.admin-ui .actions-cell .btn-icon, .admin-ui .actions-cell > a, .admin-ui .actions-cell > form { margin-right:5px !important; }
+.admin-ui .search-box { display:flex !important; align-items:center !important; min-height:34px !important; padding:0 9px !important; background:#101625 !important; border:1px solid var(--dash-line) !important; border-radius:8px !important; }
+body.light-mode .admin-ui .search-box { background:#ffffff !important; border:1px solid var(--dash-line) !important; }
+.admin-ui .search-box input { width:155px !important; padding:0 !important; border:0 !important; background:transparent !important; }
+body.light-mode .admin-ui .search-box input { color:var(--dash-text) !important; }
+.admin-ui .search-box i { color:var(--dash-muted) !important; }
+.admin-ui .filter-dropdown .filter-menu { border:1px solid var(--dash-line) !important; background:var(--dash-surface-raised) !important; box-shadow:0 14px 30px rgba(0,0,0,.3) !important; }
+.admin-ui .bulk-toolbar { padding:9px 12px !important; background:rgba(77,143,240,.08) !important; border-bottom:1px solid var(--dash-line) !important; }
+.admin-ui .empty-state { min-height:180px !important; display:grid !important; place-content:center !important; }
+@media(max-width:760px) { .admin-ui .crud-header, .admin-ui .dash-panel-head { align-items:flex-start !important; flex-direction:column !important; } .admin-ui .crud-actions { width:100% !important; justify-content:flex-start !important; } .admin-ui .search-box { flex:1 1 100% !important; } .admin-ui .search-box input { width:100% !important; } }

@@ -1,0 +1,49 @@
+/* Global compact sizing — applies to admin, instructor, student and registrar layouts. */
+:root { --compact-sidebar: 196px; --compact-topbar: 56px; --compact-control: 34px; }
+.sidebar { width:var(--compact-sidebar) !important; height:100vh !important; min-height:100vh !important; }
+.main { margin-left:var(--compact-sidebar) !important; min-height:100vh; }
+.topbar { min-height:var(--compact-topbar) !important; padding:8px 20px !important; }
+.sidebar-header { padding:15px 14px 13px !important; }
+.sidebar-brand-lockup { gap:8px !important; }
+.sidebar-brand-lockup img { width:29px !important; height:33px !important; }
+.sidebar-header h2 { font-size:.88rem !important; }
+.sidebar-subtitle { font-size:.61rem !important; }
+.sidebar-nav { padding:8px !important; }
+.sidebar-nav .nav-list { gap:3px !important; }
+.sidebar-nav .nav-link { min-height:32px !important; padding:7px 9px !important; font-size:.73rem !important; border-radius:8px !important; }
+.sidebar-nav .nav-link i { width:17px !important; font-size:.78rem !important; }
+.nav-group-label { padding:10px 9px 5px !important; font-size:.6rem !important; }
+.content { max-width:1500px !important; padding:20px clamp(14px,2vw,30px) 30px !important; }
+.page-title-bar { padding-bottom:14px !important; margin-bottom:14px !important; }
+.page-title { font-size:1.25rem !important; }
+.page-actions { gap:6px !important; }
+.card, .panel, .table-card, .content-card, .dash-panel, .crud-card { border-radius:12px !important; }
+.card-header, .crud-header, .chart-header { padding:12px 14px !important; }
+.info-row, .stats-grid { gap:11px !important; }
+.info-card { min-height:0 !important; padding:14px !important; border-radius:12px !important; }
+.info-card .amount, .info-card .card-amount { font-size:1.35rem !important; }
+.btn, .btn-add, .btn-submit, .btn-cancel, .btn-back, .btn-done, .btn-delete, .btn-modal-cancel, .btn-modal-save, .btn-modal-submit, .export-btn, .filter-btn, .publish-btn, .card-btn { min-height:var(--compact-control) !important; padding:6px 10px !important; border-radius:8px !important; font-size:.71rem !important; }
+.btn-icon { width:30px !important; min-width:30px !important; height:30px !important; min-height:30px !important; border-radius:8px !important; }
+.btn-sm { min-height:27px !important; padding:4px 8px !important; font-size:.66rem !important; }
+.table-toolbar, .filter-form { gap:7px !important; padding:10px 12px !important; }
+.table-toolbar input, .table-toolbar select, .form-control, input.form-control, select.form-control { height:var(--compact-control) !important; min-height:var(--compact-control) !important; padding:0 9px !important; font-size:.72rem !important; border-radius:8px !important; }
+.table th, .dash-table th, .crud-table th { padding:9px 12px !important; font-size:.61rem !important; }
+.table td, .dash-table td, .crud-table td { padding:10px 12px !important; font-size:.75rem !important; }
+.badge, .status-badge, .dash-meta-chip { padding:4px 8px !important; font-size:.64rem !important; }
+.pagination, .crud-pagination { padding:10px 12px !important; }
+.modal-content { border-radius:12px !important; }
+.modal-body, .modal-footer { padding:13px !important; }
+/* Keep the admin layer compact too; it otherwise deliberately enlarges controls. */
+.admin-ui .content { padding:20px clamp(14px,2vw,30px) 30px !important; }
+.admin-ui .page-title-bar { min-height:52px !important; padding-bottom:14px !important; margin-bottom:14px !important; }
+.admin-ui .page-title { font-size:1.25rem !important; }
+.admin-ui .page-title > i { flex-basis:34px !important; width:34px !important; height:34px !important; border-radius:10px !important; font-size:.82rem !important; }
+.admin-ui .crud-header, .admin-ui .card-header { padding:12px 14px !important; }
+.admin-ui .table-toolbar, .admin-ui .filter-form { padding:10px 14px !important; }
+.admin-ui .table-toolbar input, .admin-ui .table-toolbar select, .admin-ui .filter-form input, .admin-ui .filter-form select, .admin-ui .form-control { min-height:34px !important; height:34px !important; }
+.admin-ui .btn, .admin-ui .btn-add, .admin-ui .btn-submit, .admin-ui .filter-btn { min-height:34px !important; padding:0 10px !important; }
+.admin-ui .table th, .admin-ui .crud-table th, .admin-ui .dash-table th { padding:9px 12px !important; }
+.admin-ui .table td, .admin-ui .crud-table td, .admin-ui .dash-table td { padding:10px 12px !important; }
+.admin-ui .btn-icon { width:30px !important; min-width:30px !important; height:30px !important; }
+@media (max-width:900px) { .sidebar { width:var(--compact-sidebar) !important; } .main { margin-left:0 !important; } .topbar { padding:7px 14px !important; } .content { padding:16px 13px 26px !important; } }
+@media (max-width:560px) { .topbar { min-height:50px !important; } .page-title { font-size:1.12rem !important; } .page-actions { width:100%; } .btn, .btn-add, .btn-submit, .filter-btn { flex:1 1 auto; } }

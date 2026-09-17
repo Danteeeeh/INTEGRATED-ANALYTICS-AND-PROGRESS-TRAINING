@@ -1,0 +1,17 @@
+/* Shared search and filter toolbar across all list pages. */
+.admin-ui .card-header:has(.table-toolbar), .admin-ui .card-header:has(.filter-form) { padding:0 !important; }
+.admin-ui .table-toolbar, .admin-ui .filter-form {
+  display:grid !important; grid-template-columns:minmax(220px,1.5fr) repeat(2,minmax(140px,.7fr)) auto auto;
+  align-items:center !important; gap:9px !important; width:100%; padding:12px 14px !important;
+  background:linear-gradient(90deg,rgba(77,143,240,.1),rgba(77,143,240,.025)) !important;
+}
+.admin-ui .table-toolbar .form-row, .admin-ui .filter-form .form-row { display:contents !important; }
+.admin-ui .table-toolbar .form-group, .admin-ui .filter-form .form-group { display:contents !important; min-width:0 !important; }
+.admin-ui .table-toolbar input, .admin-ui .table-toolbar select, .admin-ui .filter-form input, .admin-ui .filter-form select { width:100% !important; min-width:0 !important; margin:0 !important; }
+.admin-ui .table-toolbar .btn, .admin-ui .filter-form .btn { white-space:nowrap; }
+.admin-ui .table-toolbar label, .admin-ui .filter-form label { display:none !important; }
+/* Toolbars with only search + controls remain compact instead of stretching columns. */
+.admin-ui .table-toolbar:has(input):not(:has(select)) { grid-template-columns:minmax(220px,1fr) auto auto; }
+.admin-ui .table-toolbar:has(input):has(select:nth-of-type(1)):not(:has(select:nth-of-type(2))) { grid-template-columns:minmax(220px,1fr) minmax(150px,.55fr) auto auto; }
+@media(max-width:900px) { .admin-ui .table-toolbar, .admin-ui .filter-form { grid-template-columns:minmax(180px,1fr) minmax(140px,.65fr) auto auto; } }
+@media(max-width:640px) { .admin-ui .table-toolbar, .admin-ui .filter-form { grid-template-columns:1fr 1fr !important; padding:11px !important; } .admin-ui .table-toolbar input, .admin-ui .filter-form input { grid-column:1 / -1; } .admin-ui .table-toolbar .btn, .admin-ui .filter-form .btn { width:100%; } }

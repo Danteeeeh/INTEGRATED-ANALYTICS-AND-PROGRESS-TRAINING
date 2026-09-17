@@ -1,0 +1,7 @@
+@extends('layouts.admin')
+@section('title','Audit Logs')
+@php($activeNav='audit_logs')
+@section('content')
+<div class="dash-section"><div><h3><i class="fa-solid fa-shield-halved"></i> Audit Logs</h3><span class="dash-section-kicker">Track important system activity</span></div></div>
+<section class="dash-panel"><form class="table-toolbar" method="GET" action="{{ route('admin.audit_logs.index') }}"><input name="search" value="{{ request('search') }}" placeholder="Search activity..." aria-label="Search audit logs"><input name="resource_type" value="{{ request('resource_type') }}" placeholder="Resource type" aria-label="Filter resource type"><button class="btn btn-secondary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button><a class="btn btn-secondary" href="{{ route('admin.audit_logs.index') }}">Clear</a></form><table class="dash-table"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Resource</th><th>IP</th><th>View</th></tr></thead><tbody>@forelse($auditLogs as $log)<tr><td>{{ $log->created_at?->diffForHumans() }}</td><td>{{ $log->user?->name ?? $log->user?->email ?? 'System' }}</td><td>{{ $log->action }}</td><td>{{ $log->resource_type ?? '—' }}</td><td>{{ $log->ip_address ?? '—' }}</td><td><a class="btn btn-sm btn-secondary" href="{{ route('admin.audit_logs.show',$log) }}" title="View log"><i class="fa-solid fa-eye"></i></a></td></tr>@empty<tr><td colspan="6" class="search-no-results">No audit logs found.</td></tr>@endforelse</tbody></table>{{ $auditLogs->appends(request()->query())->links() }}</section>
+@endsection
