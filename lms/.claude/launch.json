@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lms-ui-preview",
+      "runtimeExecutable": "C:/xampp/php/php.exe",
+      "runtimeArgs": [
+        "-S",
+        "localhost:8000",
+        "-t",
+        "C:/xampp/htdocs/lms/public",
+        "C:/xampp/htdocs/lms/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+      ],
+      "port": 8000
+    }
+  ]
+}

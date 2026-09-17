@@ -1,0 +1,264 @@
+/* LMS-wide visual polish — loaded last so it can unify legacy page styles. */
+:root {
+    --lms-surface: rgba(20, 30, 50, .88);
+    --lms-surface-raised: rgba(28, 41, 67, .94);
+    --lms-border: rgba(148, 174, 222, .18);
+    --lms-border-strong: rgba(98, 201, 245, .42);
+    --lms-text-muted: #9eafca;
+    --lms-accent: #62c9f5;
+    --lms-accent-soft: rgba(98, 201, 245, .14);
+    --lms-gold: #f6c84a;
+    --lms-gold-soft: rgba(246, 200, 74, .14);
+    --lms-control-height: 38px;
+}
+
+body.light-mode {
+    --lms-surface: rgba(255, 255, 255, .94);
+    --lms-surface-raised: #ffffff;
+    --lms-border: rgba(35, 59, 101, .15);
+    --lms-border-strong: rgba(18, 119, 169, .38);
+    --lms-text-muted: #5d7090;
+    --lms-accent-soft: rgba(30, 146, 201, .11);
+    --lms-gold-soft: rgba(202, 138, 4, .12);
+}
+
+/* Shared navigation: clearer icon hierarchy, purposeful active state, and calmer motion. */
+.sidebar-nav .nav-link {
+    position: relative;
+    min-height: 38px;
+    margin: 1px 0;
+    padding: 7px 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
+    transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease !important;
+}
+
+.sidebar-nav .nav-link i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    display: inline-grid;
+    width: 24px !important;
+    height: 24px;
+    margin: 0 !important;
+    place-items: center;
+    flex: 0 0 24px;
+    color: #aabbd6;
+    background: rgba(118, 147, 198, .1);
+    border: 1px solid rgba(157, 185, 231, .1);
+    border-radius: 7px;
+    font-size: .72rem !important;
+    transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.sidebar-nav .nav-link:hover {
+    transform: translateX(2px);
+    background: linear-gradient(90deg, rgba(77, 143, 240, .18), rgba(77, 143, 240, .05)) !important;
+    border-color: rgba(125, 183, 255, .22) !important;
+    box-shadow: 0 8px 20px rgba(4, 10, 26, .16);
+}
+
+.sidebar-nav .nav-link:hover i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    color: var(--lms-accent);
+    background: var(--lms-accent-soft);
+    border-color: rgba(98, 201, 245, .26);
+    transform: scale(1.04);
+}
+
+.sidebar-nav .nav-item.active .nav-link {
+    background: linear-gradient(100deg, rgba(36, 73, 198, .78), rgba(49, 95, 226, .27)) !important;
+    border-color: rgba(98, 201, 245, .32) !important;
+    box-shadow: inset 3px 0 0 var(--lms-accent), 0 9px 20px rgba(4, 10, 28, .24) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    color: #d8f5ff !important;
+    background: rgba(98, 201, 245, .19);
+    border-color: rgba(151, 230, 255, .42);
+}
+
+.sidebar-nav .nav-link:focus-visible,
+.nav-group-label:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+/* Settings gets a distinct, recognizable gear control without losing the navigation pattern. */
+.sidebar-nav .nav-link--settings {
+    background: linear-gradient(90deg, rgba(246, 200, 74, .1), transparent) !important;
+    border-color: rgba(246, 200, 74, .16) !important;
+}
+
+.sidebar-nav .nav-link--settings i {
+    color: var(--lms-gold) !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .24), rgba(202, 138, 4, .12)) !important;
+    border-color: rgba(246, 200, 74, .32) !important;
+    box-shadow: 0 4px 12px rgba(202, 138, 4, .12);
+}
+
+.sidebar-nav .nav-link--settings:hover {
+    background: linear-gradient(90deg, rgba(246, 200, 74, .2), rgba(246, 200, 74, .04)) !important;
+    border-color: rgba(246, 200, 74, .35) !important;
+}
+
+.sidebar-nav .nav-link--settings:hover i {
+    color: #ffea91 !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .34), rgba(202, 138, 4, .18)) !important;
+    border-color: rgba(255, 231, 141, .5) !important;
+    transform: rotate(18deg) scale(1.08) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link--settings {
+    background: linear-gradient(100deg, rgba(184, 124, 15, .45), rgba(246, 200, 74, .12)) !important;
+    border-color: rgba(246, 200, 74, .44) !important;
+    box-shadow: inset 3px 0 0 var(--lms-gold), 0 9px 20px rgba(87, 57, 4, .22) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link--settings i {
+    color: #fff4c1 !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .42), rgba(202, 138, 4, .22)) !important;
+    border-color: rgba(255, 239, 170, .55) !important;
+}
+
+/* Topbar and common controls share one compact, tactile rhythm. */
+.topbar {
+    background: linear-gradient(105deg, rgba(8, 14, 29, .98), rgba(14, 26, 48, .96)) !important;
+    border-bottom-color: var(--lms-border) !important;
+}
+
+body.light-mode .topbar {
+    background: linear-gradient(105deg, rgba(255, 255, 255, .98), rgba(241, 247, 255, .97)) !important;
+}
+
+.hamburger,
+.theme-toggle,
+.avatar,
+.search-submit {
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+
+.hamburger:hover,
+.theme-toggle:hover,
+.avatar:hover,
+.search-submit:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.hamburger:focus-visible,
+.theme-toggle:focus-visible,
+.avatar:focus-visible,
+.search-submit:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+/* Consistent surfaces on page-level controls used across the role layouts. */
+.btn,
+.btn-primary,
+.btn-add,
+.btn-submit,
+.filter-btn,
+.action-btn,
+button[type="submit"] {
+    min-height: var(--lms-control-height);
+    border-radius: 9px !important;
+    font-weight: 750 !important;
+    letter-spacing: .01em;
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, border-color .18s ease !important;
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-add:hover,
+.btn-submit:hover,
+.filter-btn:hover,
+.action-btn:hover,
+button[type="submit"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 18px rgba(3, 12, 31, .2);
+}
+
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-add:focus-visible,
+.btn-submit:focus-visible,
+.filter-btn:focus-visible,
+.action-btn:focus-visible,
+button[type="submit"]:focus-visible,
+a:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.form-control {
+    border-color: var(--lms-border) !important;
+    border-radius: 9px !important;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+    border-color: var(--lms-border-strong) !important;
+    box-shadow: 0 0 0 3px var(--lms-accent-soft) !important;
+    outline: 0 !important;
+}
+
+.card,
+.panel,
+.table-card,
+.content-card,
+.user-panel,
+.form-card,
+.chart-card {
+    border-color: var(--lms-border) !important;
+    box-shadow: 0 12px 30px rgba(3, 10, 27, .14) !important;
+}
+
+.card:hover,
+.panel:hover,
+.table-card:hover,
+.content-card:hover,
+.user-panel:hover,
+.form-card:hover,
+.chart-card:hover {
+    border-color: rgba(98, 201, 245, .28) !important;
+}
+
+.table-card table thead th,
+thead th {
+    color: #c5d8f8 !important;
+    background: rgba(77, 143, 240, .08) !important;
+}
+
+.table-card tbody tr,
+tbody tr {
+    transition: background .16s ease;
+}
+
+.table-card tbody tr:hover,
+tbody tr:hover {
+    background: rgba(98, 201, 245, .045) !important;
+}
+
+body.light-mode .table-card table thead th,
+body.light-mode thead th {
+    color: #29436b !important;
+    background: rgba(36, 73, 198, .06) !important;
+}
+
+body.light-mode .table-card tbody tr:hover,
+body.light-mode tbody tr:hover {
+    background: rgba(36, 73, 198, .035) !important;
+}
+
+@media (max-width: 700px) {
+    .sidebar-nav .nav-link { min-height: 42px; padding: 8px 10px !important; }
+    .btn, .btn-primary, .btn-add, .btn-submit, .filter-btn, .action-btn, button[type="submit"] { min-height: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
