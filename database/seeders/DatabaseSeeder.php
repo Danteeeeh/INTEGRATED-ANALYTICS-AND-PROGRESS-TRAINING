@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             UserSeeder::class,
             PhaseTwoSeeder::class,
+            DemoDataSeeder::class,
         ]);
     }
 }

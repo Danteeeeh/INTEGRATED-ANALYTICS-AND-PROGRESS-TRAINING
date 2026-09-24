@@ -18,6 +18,7 @@ use App\Models\DiscussionPost;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeHistory;
+use App\Models\LearningPlan;
 use App\Models\Lesson;
 use App\Models\MediaFile;
 use App\Models\Module;
@@ -46,6 +47,7 @@ use App\Policies\DiscussionPostPolicy;
 use App\Policies\EnrollmentPolicy;
 use App\Policies\GradeHistoryPolicy;
 use App\Policies\GradePolicy;
+use App\Policies\LearningPlanPolicy;
 use App\Policies\LessonPolicy;
 use App\Policies\MediaFilePolicy;
 use App\Policies\ModulePolicy;
@@ -101,6 +103,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Badge::class, BadgePolicy::class);
         Gate::policy(Certificate::class, CertificatePolicy::class);
         Gate::policy(Competency::class, CompetencyPolicy::class);
+        Gate::policy(LearningPlan::class, LearningPlanPolicy::class);
         Gate::policy(UserPreference::class, UserPreferencePolicy::class);
 
         Gate::define('viewAuditLogs', function (User $user): bool {

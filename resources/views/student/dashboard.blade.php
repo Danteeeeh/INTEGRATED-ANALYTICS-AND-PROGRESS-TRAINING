@@ -183,6 +183,19 @@
                         </div>
                     </div>
                 </div>
+                <div class="student-assessment-cta" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:14px 16px;border:1px solid var(--assessment-border);border-radius:12px;background:linear-gradient(110deg,var(--assessment-soft),transparent 72%)">
+                    <div>
+                        <strong>Turn these signals into a plan</strong>
+                        <p style="margin:2px 0 0;font-size:.8rem;color:var(--dash-muted, #9aa9c7)">Generate a personalized learning plan with concrete next steps and targets.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex:0 0 auto">
+                        <a href="{{ route('student.learning-plans.index') }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-route"></i> My Plans</a>
+                        <form method="POST" action="{{ route('student.learning-plans.generate') }}">
+                            @csrf
+                            <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> Create Plan</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </section>
     @endif

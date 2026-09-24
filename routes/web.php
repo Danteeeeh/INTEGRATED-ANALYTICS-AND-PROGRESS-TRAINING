@@ -72,6 +72,7 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboard;
 use App\Http\Controllers\Student\DiscussionController as StudentDiscussionController;
 use App\Http\Controllers\Student\EnrollmentController as StudentEnrollmentController;
 use App\Http\Controllers\Student\GradebookController as StudentGradebookController;
+use App\Http\Controllers\Student\LearningPlanController as StudentLearningPlanController;
 use App\Http\Controllers\Student\LessonController as StudentLessonController;
 use App\Http\Controllers\Student\ModuleController as StudentModuleController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
@@ -470,6 +471,13 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
         Route::get('enrollments', [StudentEnrollmentController::class, 'index'])->name('enrollments.index');
         Route::get('enrollments/{enrollment}', [StudentEnrollmentController::class, 'show'])->name('enrollments.show');
+
+        Route::prefix('learning-plans')->name('learning-plans.')->group(function () {
+            Route::get('/', [StudentLearningPlanController::class, 'index'])->name('index');
+            Route::post('/generate', [StudentLearningPlanController::class, 'generate'])->name('generate');
+            Route::get('/{learningPlan}', [StudentLearningPlanController::class, 'show'])->name('show');
+            Route::patch('/{learningPlan}/items/{item}', [StudentLearningPlanController::class, 'updateItem'])->name('items.update');
+        });
 
         Route::prefix('courses')->name('courses.')->group(function () {
             Route::get('/', [StudentCourseController::class, 'index'])->name('index');
