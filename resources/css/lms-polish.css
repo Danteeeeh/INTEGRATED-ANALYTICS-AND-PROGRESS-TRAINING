@@ -1,0 +1,657 @@
+/* LMS-wide visual polish — loaded last so it can unify legacy page styles. */
+:root {
+    --lms-surface: rgba(20, 30, 50, .88);
+    --lms-surface-raised: rgba(28, 41, 67, .94);
+    --lms-border: rgba(148, 174, 222, .18);
+    --lms-border-strong: rgba(98, 201, 245, .42);
+    --lms-text-muted: #9eafca;
+    --lms-accent: #62c9f5;
+    --lms-accent-soft: rgba(98, 201, 245, .14);
+    --lms-gold: #f6c84a;
+    --lms-gold-soft: rgba(246, 200, 74, .14);
+    --lms-control-height: 38px;
+}
+
+body.light-mode {
+    --lms-surface: rgba(255, 255, 255, .94);
+    --lms-surface-raised: #ffffff;
+    --lms-border: rgba(35, 59, 101, .15);
+    --lms-border-strong: rgba(18, 119, 169, .38);
+    --lms-text-muted: #5d7090;
+    --lms-accent-soft: rgba(30, 146, 201, .11);
+    --lms-gold-soft: rgba(202, 138, 4, .12);
+}
+
+/* Shared navigation: clearer icon hierarchy, purposeful active state, and calmer motion. */
+.sidebar-nav .nav-link {
+    position: relative;
+    min-height: 38px;
+    margin: 1px 0;
+    padding: 7px 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
+    transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease !important;
+}
+
+.sidebar-nav .nav-link i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    display: inline-grid;
+    width: 24px !important;
+    height: 24px;
+    margin: 0 !important;
+    place-items: center;
+    flex: 0 0 24px;
+    color: #aabbd6;
+    background: rgba(118, 147, 198, .1);
+    border: 1px solid rgba(157, 185, 231, .1);
+    border-radius: 7px;
+    font-size: .72rem !important;
+    transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.sidebar-nav .nav-link:hover {
+    transform: translateX(2px);
+    background: linear-gradient(90deg, rgba(77, 143, 240, .18), rgba(77, 143, 240, .05)) !important;
+    border-color: rgba(125, 183, 255, .22) !important;
+    box-shadow: 0 8px 20px rgba(4, 10, 26, .16);
+}
+
+.sidebar-nav .nav-link:hover i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    color: var(--lms-accent);
+    background: var(--lms-accent-soft);
+    border-color: rgba(98, 201, 245, .26);
+    transform: scale(1.04);
+}
+
+.sidebar-nav .nav-item.active .nav-link {
+    background: linear-gradient(100deg, rgba(36, 73, 198, .78), rgba(49, 95, 226, .27)) !important;
+    border-color: rgba(98, 201, 245, .32) !important;
+    box-shadow: inset 3px 0 0 var(--lms-accent), 0 9px 20px rgba(4, 10, 28, .24) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link i:not(.fa-chevron-down):not(.fa-chevron-up) {
+    color: #d8f5ff !important;
+    background: rgba(98, 201, 245, .19);
+    border-color: rgba(151, 230, 255, .42);
+}
+
+.sidebar-nav .nav-link:focus-visible,
+.nav-group-label:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+/* Settings gets a distinct, recognizable gear control without losing the navigation pattern. */
+.sidebar-nav .nav-link--settings {
+    background: linear-gradient(90deg, rgba(246, 200, 74, .1), transparent) !important;
+    border-color: rgba(246, 200, 74, .16) !important;
+}
+
+.sidebar-nav .nav-link--settings i {
+    color: var(--lms-gold) !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .24), rgba(202, 138, 4, .12)) !important;
+    border-color: rgba(246, 200, 74, .32) !important;
+    box-shadow: 0 4px 12px rgba(202, 138, 4, .12);
+}
+
+.sidebar-nav .nav-link--settings:hover {
+    background: linear-gradient(90deg, rgba(246, 200, 74, .2), rgba(246, 200, 74, .04)) !important;
+    border-color: rgba(246, 200, 74, .35) !important;
+}
+
+.sidebar-nav .nav-link--settings:hover i {
+    color: #ffea91 !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .34), rgba(202, 138, 4, .18)) !important;
+    border-color: rgba(255, 231, 141, .5) !important;
+    transform: rotate(18deg) scale(1.08) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link--settings {
+    background: linear-gradient(100deg, rgba(184, 124, 15, .45), rgba(246, 200, 74, .12)) !important;
+    border-color: rgba(246, 200, 74, .44) !important;
+    box-shadow: inset 3px 0 0 var(--lms-gold), 0 9px 20px rgba(87, 57, 4, .22) !important;
+}
+
+.sidebar-nav .nav-item.active .nav-link--settings i {
+    color: #fff4c1 !important;
+    background: linear-gradient(135deg, rgba(246, 200, 74, .42), rgba(202, 138, 4, .22)) !important;
+    border-color: rgba(255, 239, 170, .55) !important;
+}
+
+/* Topbar and common controls share one compact, tactile rhythm. */
+.topbar {
+    background: linear-gradient(105deg, rgba(8, 14, 29, .98), rgba(14, 26, 48, .96)) !important;
+    border-bottom-color: var(--lms-border) !important;
+}
+
+body.light-mode .topbar {
+    background: linear-gradient(105deg, rgba(255, 255, 255, .98), rgba(241, 247, 255, .97)) !important;
+}
+
+.hamburger,
+.theme-toggle,
+.avatar,
+.search-submit {
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+
+.hamburger:hover,
+.theme-toggle:hover,
+.avatar:hover,
+.search-submit:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.hamburger:focus-visible,
+.theme-toggle:focus-visible,
+.avatar:focus-visible,
+.search-submit:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+/* Consistent surfaces on page-level controls used across the role layouts. */
+.btn,
+.btn-primary,
+.btn-add,
+.btn-submit,
+.filter-btn,
+.action-btn,
+button[type="submit"]:not(.search-submit):not(.hamburger):not(.theme-toggle) {
+    min-height: var(--lms-control-height);
+    border-radius: 9px !important;
+    font-weight: 750 !important;
+    letter-spacing: .01em;
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, border-color .18s ease !important;
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-add:hover,
+.btn-submit:hover,
+.filter-btn:hover,
+.action-btn:hover,
+button[type="submit"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 18px rgba(3, 12, 31, .2);
+}
+
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-add:focus-visible,
+.btn-submit:focus-visible,
+.filter-btn:focus-visible,
+.action-btn:focus-visible,
+button[type="submit"]:focus-visible,
+a:focus-visible {
+    outline: 3px solid var(--lms-accent) !important;
+    outline-offset: 2px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.form-control {
+    border-color: var(--lms-border) !important;
+    border-radius: 9px !important;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+    border-color: var(--lms-border-strong) !important;
+    box-shadow: 0 0 0 3px var(--lms-accent-soft) !important;
+    outline: 0 !important;
+}
+
+.card,
+.panel,
+.table-card,
+.content-card,
+.user-panel,
+.form-card,
+.chart-card {
+    border-color: var(--lms-border) !important;
+    box-shadow: 0 12px 30px rgba(3, 10, 27, .14) !important;
+}
+
+.card:hover,
+.panel:hover,
+.table-card:hover,
+.content-card:hover,
+.user-panel:hover,
+.form-card:hover,
+.chart-card:hover {
+    border-color: rgba(98, 201, 245, .28) !important;
+}
+
+.table-card table thead th,
+thead th {
+    color: #c5d8f8 !important;
+    background: rgba(77, 143, 240, .08) !important;
+}
+
+.table-card tbody tr,
+tbody tr {
+    transition: background .16s ease;
+}
+
+.table-card tbody tr:hover,
+tbody tr:hover {
+    background: rgba(98, 201, 245, .045) !important;
+}
+
+body.light-mode .table-card table thead th,
+body.light-mode thead th {
+    color: #29436b !important;
+    background: rgba(36, 73, 198, .06) !important;
+}
+
+body.light-mode .table-card tbody tr:hover,
+body.light-mode tbody tr:hover {
+    background: rgba(36, 73, 198, .035) !important;
+}
+
+@media (max-width: 700px) {
+    .sidebar-nav .nav-link { min-height: 42px; padding: 8px 10px !important; }
+    .btn, .btn-primary, .btn-add, .btn-submit, .filter-btn, .action-btn, button[type="submit"] { min-height: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UI REFINEMENT PASS — shared tokens, surfaces, motion, feedback
+   This layer loads last (lms-polish.css) so it normalizes every
+   page regardless of whether it uses modern or legacy anatomy.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Legacy surfaces get the same card language as modern dash panels. */
+.card, .panel, .table-card, .content-card, .info-card {
+    border-radius: var(--bcp-radius-md, 12px) !important;
+}
+
+/* Shared control hover: subtle lift + glow for every action control. */
+.btn, .btn-add, .btn-submit, .btn-secondary, .filter-btn, .export-btn,
+.card-btn, .dash-action, .btn-primary, button[type="submit"] {
+    transition: transform var(--bcp-transition, 180ms ease),
+                box-shadow var(--bcp-transition, 180ms ease),
+                filter var(--bcp-transition, 180ms ease),
+                background var(--bcp-transition, 180ms ease) !important;
+}
+.btn:not(:disabled):hover, .btn-add:not(:disabled):hover,
+.btn-submit:not(:disabled):hover, .btn-secondary:not(:disabled):hover,
+.filter-btn:not(:disabled):hover, .export-btn:not(:disabled):hover,
+.card-btn:not(:disabled):hover, .dash-action:hover,
+.btn-primary:not(:disabled):hover, button[type="submit"]:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+/* Shared table treatment: one look for .table, .user-table-wrap .table,
+   and .dash-table regardless of page. */
+.table th, .user-table-wrap .table th, .dash-table th {
+    padding: 12px 16px;
+    color: var(--bcp-muted, #98a7c4) !important;
+    font-size: .67rem;
+    font-weight: 800;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: rgba(77,143,240,.06) !important;
+    border-bottom: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+}
+.table td, .user-table-wrap .table td, .dash-table td {
+    padding: 13px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(153,174,214,.08);
+}
+.table tbody tr, .user-table-wrap .table tbody tr, .dash-table tbody tr {
+    transition: background .14s ease;
+}
+.table tbody tr:hover, .user-table-wrap .table tbody tr:hover, .dash-table tbody tr:hover {
+    background: rgba(77,143,240,.05);
+}
+.table tbody tr:last-child td, .user-table-wrap .table tbody tr:last-child td, .dash-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+body.light-mode .table th, body.light-mode .user-table-wrap .table th, body.light-mode .dash-table th {
+    color: #29436b !important;
+    background: rgba(36,73,198,.05) !important;
+}
+
+/* Uniform keyboard focus ring across the app. */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible,
+.nav-link:focus-visible, .search-wrap input:focus-visible {
+    outline: 3px solid var(--bcp-ring-color, rgba(98,201,245,.55)) !important;
+    outline-offset: 2px;
+}
+
+/* Interactive card hover: modern dash panels, stats, and list cards lift. */
+.qa-card, .dash-stat, .dash-panel, .info-card, .user-panel,
+.achieve-tile, .continue-card, .search-result-item, .announce-item {
+    transition: transform var(--bcp-transition, 180ms ease),
+                box-shadow var(--bcp-transition, 180ms ease),
+                border-color var(--bcp-transition, 180ms ease) !important;
+}
+.qa-card:hover, .dash-stat:hover, .dash-panel:hover, .info-card:hover,
+.user-panel:hover, .achieve-tile:hover, .continue-card:hover,
+.search-result-item:hover, .announce-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bcp-shadow-sm, 0 6px 16px rgba(3,8,20,.18));
+}
+
+/* Subtle authenticated page-load fade so navigation feels calmer. */
+body.admin-ui { animation: lmsPageFade var(--bcp-transition, 180ms ease) both; }
+@keyframes lmsPageFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Toast presentation — fixed, bottom-right, theme-aware. */
+#toast-root {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 99998;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+#toast-root > div {
+    pointer-events: auto;
+    min-width: 220px;
+    max-width: 360px;
+    padding: 11px 14px;
+    color: #fff;
+    background: var(--bcp-navy-800, #1b2437);
+    border: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+    border-left: 3px solid var(--bcp-cyan-400, #62c9f5);
+    border-radius: var(--bcp-radius-md, 12px);
+    box-shadow: 0 14px 34px rgba(3,8,20,.35);
+    font-size: .78rem;
+    line-height: 1.45;
+    animation: lmsToastIn 220ms ease both;
+}
+body.light-mode #toast-root > div { color: #12203a; background: #fff; border-color: rgba(31,52,88,.14); border-left-color: #1d4ed8; }
+@keyframes lmsToastIn {
+    from { opacity: 0; transform: translateX(14px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Skeleton loading placeholder. */
+.lms-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgba(153,174,214,.12);
+    border-radius: var(--bcp-radius-sm, 8px);
+}
+.lms-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
+    animation: lmsShimmer 1.4s infinite;
+}
+@keyframes lmsShimmer {
+    100% { transform: translateX(100%); }
+}
+
+/* Shared alert component (x-alert) — theme-aware, matches BCP tokens. */
+.lms-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    border: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+    border-radius: var(--bcp-radius-md, 12px);
+    background: var(--bcp-navy-850, #151c2c);
+    color: var(--bcp-ink, #eef4ff);
+    font-size: .8rem;
+    line-height: 1.5;
+}
+.lms-alert > i { margin-top: 2px; color: var(--bcp-cyan-400, #62c9f5); }
+.lms-alert-body { flex: 1; min-width: 0; }
+.lms-alert-dismiss {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 7px;
+    color: var(--bcp-muted, #98a7c4);
+    background: transparent;
+    cursor: pointer;
+}
+.lms-alert-dismiss:hover { color: var(--bcp-ink, #eef4ff); background: rgba(153,174,214,.12); }
+.lms-alert-success { border-color: rgba(16,185,129,.28); background: rgba(16,185,129,.08); }
+.lms-alert-success > i { color: #34d399; }
+.lms-alert-error { border-color: rgba(244,63,94,.3); background: rgba(244,63,94,.08); }
+.lms-alert-error > i { color: #fda4af; }
+.lms-alert-warning { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+.lms-alert-warning > i { color: #fbbf24; }
+.lms-alert-info { border-color: rgba(98,201,245,.28); background: rgba(98,201,245,.07); }
+.lms-alert-info > i { color: var(--bcp-cyan-400, #62c9f5); }
+body.light-mode .lms-alert { color: #12203a; background: #fff; }
+body.light-mode .lms-alert-success { background: #f0fdf4; border-color: rgba(16,185,129,.35); }
+body.light-mode .lms-alert-error { background: #fff1f2; border-color: rgba(244,63,94,.35); }
+body.light-mode .lms-alert-warning { background: #fffbeb; border-color: rgba(245,158,11,.4); }
+body.light-mode .lms-alert-info { background: #f0f9ff; border-color: rgba(98,201,245,.4); }
+body.light-mode .lms-alert-dismiss { color: #5d7090; }
+
+/* Legacy CRUD surfaces parity — .crud-card / .crud-header / .crud-table map
+   onto the modern card + table language so the ~70 form/list pages that still
+   use the old anatomy inherit the refined look with no per-file edits. */
+.crud-card {
+    border: 1px solid var(--bcp-line, rgba(153,174,214,.18)) !important;
+    border-radius: var(--bcp-radius-md, 12px) !important;
+    background: var(--bcp-card, rgba(16,22,37,.92)) !important;
+    box-shadow: var(--bcp-shadow-sm, 0 6px 16px rgba(3,8,20,.18)) !important;
+    overflow: hidden;
+}
+.crud-card .crud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+    background: linear-gradient(180deg, rgba(77,143,240,.06), transparent);
+}
+.crud-card .crud-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--bcp-ink, #eef4ff);
+    font-size: .9rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+.crud-card .crud-table { width: 100%; border-collapse: collapse; }
+.crud-card .crud-table th {
+    padding: 12px 16px;
+    color: var(--bcp-muted, #98a7c4) !important;
+    font-size: .67rem;
+    font-weight: 800;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+    text-align: left;
+    background: rgba(77,143,240,.06) !important;
+    border-bottom: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+}
+.crud-card .crud-table td {
+    padding: 13px 16px;
+    vertical-align: middle;
+    color: var(--bcp-ink, #eef4ff);
+    border-bottom: 1px solid rgba(153,174,214,.08);
+}
+.crud-card .crud-table tbody tr { transition: background .14s ease; }
+.crud-card .crud-table tbody tr:hover { background: rgba(77,143,240,.05); }
+.crud-card .crud-table tbody tr:last-child td { border-bottom: 0; }
+body.light-mode .crud-card { background: #fff !important; }
+body.light-mode .crud-card .crud-header h3 { color: #12203a; }
+body.light-mode .crud-card .crud-table th { color: #29436b !important; background: rgba(36,73,198,.05) !important; }
+body.light-mode .crud-card .crud-table td { color: #263753; }
+
+/* ── Sidebar toggle must win over the compact/legacy width overrides ──
+   compact-ui.css forces `.sidebar { width: var(--compact-sidebar) !important }`
+   which keeps the sidebar visible even when `.collapsed` is set. These rules
+   restore the hide behavior on every breakpoint. */
+.sidebar.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    border-right-width: 0 !important;
+}
+body:has(.sidebar.collapsed) .main {
+    margin-left: 0 !important;
+}
+@media (max-width: 900px) {
+    .sidebar.collapsed {
+        width: 0 !important;
+        transform: translateX(-100%) !important;
+    }
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+    }
+    body:has(.sidebar.collapsed) .main {
+        margin-left: 0 !important;
+    }
+}
+
+/* ── Topbar: always pinned while scrolling so the hamburger, theme
+   toggle, and account buttons stay visible at every scroll position. ── */
+.topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1200 !important;
+}
+
+/* ── Sidebar always stays visible on scroll (desktop) ──
+   The sidebar is position:fixed from the SMS template; this guards against
+   any later rule (zoom fallback, compact-ui) resetting it. */
+.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
+    z-index: 200 !important;
+}
+
+/* ── Hamburger + theme toggle always visible on scroll ── */
+.topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1200 !important;
+}
+.hamburger,
+.theme-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+}
+.hamburger i,
+.theme-toggle i {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1em !important;
+    height: 1em !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+}
+
+/* ── Shared sidebar contract ─────────────────────────────────────
+   Keep the sidebar fixed on desktop and make it a true overlay drawer on
+   mobile. Do not use a flex-row body here: that reserves sidebar width on
+   narrow screens and makes the hamburger appear broken. */
+body {
+    display: block !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    overflow-x: clip !important;
+}
+.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    display: flex !important;
+    flex: none !important;
+    flex-direction: column !important;
+    width: var(--compact-sidebar, 196px) !important;
+    max-width: var(--compact-sidebar, 196px) !important;
+    height: 100vh !important;
+    min-height: 0 !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    transform: translateX(0) !important;
+    transition: width .25s ease, transform .25s ease !important;
+    z-index: 1300 !important;
+}
+.sidebar-nav {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+.main {
+    min-width: 0 !important;
+    margin-left: var(--compact-sidebar, 196px) !important;
+}
+.sidebar.collapsed {
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    border-right-width: 0 !important;
+    transform: translateX(-100%) !important;
+}
+body:has(.sidebar.collapsed) .main {
+    margin-left: 0 !important;
+}
+
+@media (max-width: 900px) {
+    .sidebar,
+    .sidebar:not(.collapsed),
+    .sidebar.collapsed {
+        width: 248px !important;
+        max-width: 248px !important;
+        min-width: 248px !important;
+        height: 100vh !important;
+        min-height: 0 !important;
+        transform: translateX(-100%) !important;
+        overflow: hidden !important;
+        box-shadow: 14px 0 42px rgba(0, 0, 0, .42) !important;
+    }
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+    }
+    .sidebar-nav {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+    }
+    .main {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
+    body:has(.sidebar:not(.collapsed)) .sidebar-overlay.active {
+        display: block !important;
+    }
+}
