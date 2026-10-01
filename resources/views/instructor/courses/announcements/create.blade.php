@@ -2,7 +2,7 @@
 
 @section('title', 'Create Announcement')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'announcements';
     $pageTitle = 'Create Announcement';
     $pageIcon = '<i class="fa-solid fa-plus"></i>';
     $formAction = route('instructor.courses.announcements.store', $course);

@@ -78,6 +78,15 @@
             </div>
 
             <div class="form-section">
+                <h3>School Assignment</h3>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        @include('admin.users._hierarchy_fields', ['selected' => null])
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
                 <h3>Account Information</h3>
                 <div class="form-row">
                     <div class="form-group">

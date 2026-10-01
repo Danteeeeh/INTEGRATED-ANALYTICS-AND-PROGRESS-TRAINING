@@ -82,7 +82,6 @@ class PermissionSeeder extends Seeder
         $admin = Role::where('slug', Role::ADMIN)->first();
         $instructor = Role::where('slug', Role::INSTRUCTOR)->first();
         $student = Role::where('slug', Role::STUDENT)->first();
-        $registrar = Role::where('slug', Role::REGISTRAR)->first();
 
         // Admin: full institutional control (all permissions)
         $admin->permissions()->sync(array_values($ids));
@@ -163,26 +162,6 @@ class PermissionSeeder extends Seeder
         ];
         $student->permissions()->sync($this->resolveIds($ids, $studentAllowed));
 
-        $registrarAllowed = [
-            'students.view', 'students.create', 'students.update', 'students.import', 'students.export',
-            'enrollments.view', 'enrollments.create', 'enrollments.update', 'enrollments.delete',
-            'enrollments.drop', 'enrollments.transfer', 'enrollments.bulk', 'enrollments.export',
-            'classes.view', 'classes.roster',
-            'departments.view',
-            'programs.view',
-            'sections.view',
-            'courses.view', 'courses.create', 'courses.update',
-            'academic_periods.view',
-            'schedule.view',
-            'attendance.view', 'attendance.reports',
-            'progress.view',
-            'course_completion.view',
-            'grades.view', 'grades.history', 'grades.export',
-            'reports.view', 'reports.export',
-            'search.view',
-            'notifications.view',
-        ];
-        $registrar?->permissions()->sync($this->resolveIds($ids, $registrarAllowed));
     }
 
     protected function resolveIds(array $ids, array $names): array

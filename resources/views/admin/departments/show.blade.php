@@ -29,6 +29,25 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="crud-card" style="margin-top:16px">
+                <div class="crud-header"><h3><i class="fa-solid fa-book"></i> Courses ({{ $courses->count() }})</h3></div>
+                <table class="crud-table">
+                    <thead><tr><th>Code</th><th>Title</th><th>Program</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @forelse($courses as $course)
+                            <tr>
+                                <td><strong>{{ $course->code }}</strong></td>
+                                <td><a href="{{ route('admin.courses.show', $course) }}">{{ $course->title }}</a></td>
+                                <td>{{ $course->program?->name ?? '—' }}</td>
+                                <td><x-user-status-badge status="{{ $course->status ?? 'active' }}" /></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="search-no-results">No courses in this department.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

@@ -2,7 +2,7 @@
 
 @section('title', $virtualClass->title . ' - ' . $class->name)
 @php
-    $activeNav = 'classes';
+    $activeNav = 'virtual_classes';
     $pageTitle = 'Virtual Class Details';
     $pageIcon = '<i class="fa-solid fa-video"></i>';
 @endphp

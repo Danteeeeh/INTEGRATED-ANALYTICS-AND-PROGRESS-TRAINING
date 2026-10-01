@@ -346,14 +346,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 @stack('scripts')
 
-{{-- Topbar live search for non-admin roles (instructor / student / registrar) --}}
+{{-- Topbar live search for non-admin roles (instructor / student) --}}
 @auth
 @if(!auth()->user()->isAdmin())
 <script>
 @php
     $searchEndpoint = match (auth()->user()->role?->slug) {
         'instructor' => route('instructor.dashboard.search'),
-        'registrar' => route('registrar.dashboard.search'),
         default => route('student.dashboard.search'),
     };
 @endphp
@@ -389,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (r.entity === 'lesson') return 'lessons';
         if (r.entity === 'grade') return 'grades';
 
-        if (role === 'instructor' || role === 'registrar') {
+        if (role === 'instructor') {
             if (r.email) return 'students';
             if (r.class_code && r.due_date) return 'assignments';
             if (r.class_code && r.availability_from) return 'quizzes';
@@ -411,12 +410,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (type === 'courses') return '{{ url("instructor/courses") }}/' + r.id;
             if (type === 'classes') return '{{ url("instructor/classes") }}/' + r.id;
             return '{{ url("instructor/classes") }}';
-        }
-        if (role === 'registrar') {
-            if (type === 'students') return '{{ url("registrar/students") }}/' + r.id;
-            if (type === 'classes') return '{{ url("registrar/classes") }}/' + r.id;
-            if (type === 'courses') return '{{ url("registrar/courses") }}/' + r.id;
-            return '{{ url("registrar/enrollments") }}';
         }
         // student
         if (type === 'courses') return '{{ url("student/courses") }}/' + r.id;

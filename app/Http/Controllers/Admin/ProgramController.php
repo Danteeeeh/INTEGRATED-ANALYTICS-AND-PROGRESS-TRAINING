@@ -44,7 +44,11 @@ class ProgramController extends Controller
     {
         $program->load(['department', 'sections']);
 
-        return view('admin.programs.show', compact('program'));
+        $courses = $program->courses()->orderBy('code')->get();
+        $students = $program->students()->orderBy('last_name')->orderBy('first_name')->paginate(25);
+        $instructors = $program->instructors()->orderBy('last_name')->orderBy('first_name')->get();
+
+        return view('admin.programs.show', compact('program', 'courses', 'students', 'instructors'));
     }
 
     public function edit(Program $program): View

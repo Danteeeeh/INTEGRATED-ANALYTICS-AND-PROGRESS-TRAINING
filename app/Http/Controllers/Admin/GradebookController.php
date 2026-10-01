@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicPeriod;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeHistory;
 use App\Models\GradeItem;
@@ -112,6 +114,53 @@ class GradebookController extends Controller
         session()->flash('success', "Grades {$action} for {$count} grade item(s) successfully.");
 
         return back();
+    }
+
+    public function gradeStatus(Request $request): View
+    {
+        $this->authorize('viewAny', Grade::class);
+
+        $query = ClassModel::with(['course', 'instructor'])
+            ->withCount([
+                'enrollments as active_enrollments' => fn ($q) => $q->where('status', 'active'),
+                'enrollments as graded_enrollments' => fn ($q) => $q->where('status', '!=', 'dropped')->whereNotNull('final_grade'),
+            ])
+            ->orderBy('code');
+
+        if ($request->filled('academic_period_id')) {
+            $query->where('academic_period_id', $request->integer('academic_period_id'));
+        }
+
+        $classes = $query->paginate(15)->withQueryString();
+        $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
+
+        return view('admin.gradebook.status', compact('classes', 'academicPeriods'));
+    }
+
+    public function classGrades(ClassModel $class): View
+    {
+        $this->authorize('view', Grade::class);
+        $class->load(['course', 'instructor', 'enrollments.student']);
+
+        return view('admin.gradebook.status-class', compact('class'));
+    }
+
+    public function returnForCorrection(ClassModel $class): RedirectResponse
+    {
+        $this->authorize('update', Grade::class);
+        $enrollments = Enrollment::where('class_id', $class->id)
+            ->where('status', '!=', 'dropped')
+            ->whereNotNull('final_grade')
+            ->get();
+
+        foreach ($enrollments as $enrollment) {
+            $enrollment->update([
+                'final_grade' => null,
+                'notes' => trim(($enrollment->notes ?? '')."\nGrades returned for correction on ".now()->toDateTimeString()),
+            ]);
+        }
+
+        return back()->with('status', "Grades for {$class->code} were returned for correction.");
     }
 
     public function gradeHistory(Request $request): View

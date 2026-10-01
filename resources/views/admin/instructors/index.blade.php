@@ -38,6 +38,7 @@
                                 <th>Instructor</th>
                                 <th>Email</th>
                                 <th>Identifier</th>
+                                <th>Department</th>
                                 <th>Status</th>
                                 <th>Classes</th>
                                 <th>Actions</th>
@@ -57,6 +58,7 @@
                                     </td>
                                     <td>{{ $instructor->email }}</td>
                                     <td>{{ $instructor->identifier ?: '—' }}</td>
+                                    <td>{{ optional($instructor->department)->name ?: '—' }}</td>
                                     <td><x-user-status-badge status="{{ $instructor->status }}" /></td>
                                     <td>{{ $instructor->classesInstructing()->count() }}</td>
                                     <td>

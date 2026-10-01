@@ -5,8 +5,8 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
-                'resources/css/app.css', 
-                'resources/js/app.js', 
+                'resources/css/app.css',
+                'resources/js/app.js',
                 'resources/css/sms-template.css',
                 'resources/css/admin-ui.css',
                 'resources/css/compact-ui.css',
@@ -27,4 +27,8 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        outDir: 'dist',
+        emptyOutDir: true,
+    },
 });

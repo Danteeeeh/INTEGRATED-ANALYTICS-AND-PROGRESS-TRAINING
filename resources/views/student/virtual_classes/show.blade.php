@@ -2,7 +2,7 @@
 
 @section('title', 'Virtual Class')
 @php
-    $activeNav = 'virtual-classes';
+    $activeNav = 'virtual_classes';
     $pageTitle = 'Virtual Class';
     $pageIcon = '<i class="fa-solid fa-video"></i>';
 @endphp
@@ -14,7 +14,7 @@
             {{ $virtualClass->title }}
         </h2>
         <div style="display: flex; gap: 8px;">
-            <a href="{{ route('student.virtual-classes.index', $class) }}" 
+            <a href="{{ route('student.classes.virtual_classes.index', $class) }}"
                class="btn-modal-cancel" style="display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 6px; text-decoration: none;">
                 <i class="fa-solid fa-arrow-left"></i> Back to Classes
             </a>
@@ -48,9 +48,9 @@
                     @endif
                 </div>
             </div>
-            
+
             @if($virtualClass->status === 'ongoing' || ($virtualClass->status === 'scheduled' && now()->between($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time), $virtualClass->meeting_date->setTimeFromTimeString($virtualClass->end_time))))
-                <form action="{{ route('student.virtual-classes.join', [$class, $virtualClass]) }}" method="POST" style="display: inline;">
+                <form action="{{ route('student.classes.virtual_classes.join', [$class, $virtualClass]) }}" method="POST" style="display: inline;">
                     @csrf
                     <button type="submit" class="btn-add" style="background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; border: none;">
                         <i class="fa-solid fa-sign-in-alt"></i> Join Meeting
@@ -71,17 +71,17 @@
     <!-- Meeting Details -->
     <div class="form-card">
         <h3><i class="fa-solid fa-info-circle"></i> Meeting Details</h3>
-        
+
         <div class="modal-row">
             <span>Date:</span>
             <span>{{ $virtualClass->meeting_date->format('l, F d, Y') }}</span>
         </div>
-        
+
         <div class="modal-row">
             <span>Time:</span>
             <span>{{ $virtualClass->start_time }} - {{ $virtualClass->end_time }}</span>
         </div>
-        
+
         <div class="modal-row">
             <span>Duration:</span>
             <span>
@@ -93,12 +93,12 @@
                 {{ $duration->h }}h {{ $duration->i }}m
             </span>
         </div>
-        
+
         <div class="modal-row">
             <span>Instructor:</span>
             <span>{{ $virtualClass->instructor->full_name }}</span>
         </div>
-        
+
         <div class="modal-row">
             <span>Platform:</span>
             <span>
@@ -113,12 +113,12 @@
                 @endif
             </span>
         </div>
-        
+
         @if($virtualClass->description)
             <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-align-left"></i> Description</div>
             <div class="modal-row"><span></span><span>{{ $virtualClass->description }}</span></div>
         @endif
-        
+
         @if($virtualClass->meeting_password)
             <div class="modal-row" style="margin-top: 8px;">
                 <span>Password:</span>
@@ -139,7 +139,7 @@
                 <button type="button" onclick="copyMeetingLink()" class="btn-add" style="padding: 12px 20px; border-radius: 8px; cursor: pointer;">
                     <i class="fa-solid fa-copy"></i> Copy
                 </button>
-                <a href="{{ $virtualClass->meeting_url }}" target="_blank" 
+                <a href="{{ $virtualClass->meeting_url }}" target="_blank"
                    class="btn-add" style="padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center;">
                     <i class="fa-solid fa-external-link-alt"></i> Open
                 </a>
@@ -150,7 +150,7 @@
     <!-- Your Attendance -->
     <div class="form-card">
         <h3><i class="fa-solid fa-user-check"></i> Your Attendance</h3>
-        
+
         @if($myAttendance)
             <div style="padding: 16px; background: #f8fafc; border-radius: 8px; margin-top: 16px;">
                 <div class="modal-row">
@@ -171,21 +171,21 @@
                         @endif
                     </span>
                 </div>
-                
+
                 @if($myAttendance->joined_at)
                     <div class="modal-row">
                         <span>Joined At:</span>
                         <span>{{ $myAttendance->joined_at->format('M d, Y g:i A') }}</span>
                     </div>
                 @endif
-                
+
                 @if($myAttendance->left_at)
                     <div class="modal-row">
                         <span>Left At:</span>
                         <span>{{ $myAttendance->left_at->format('M d, Y g:i A') }}</span>
                     </div>
                 @endif
-                
+
                 @if($myAttendance->duration_minutes)
                     <div class="modal-row">
                         <span>Duration:</span>
@@ -225,14 +225,14 @@
                     <span>Frequency:</span>
                     <span>{{ ucfirst($virtualClass->recurrence['frequency'] ?? 'weekly') }}</span>
                 </div>
-                
+
                 @if(isset($virtualClass->recurrence['end_date']))
                     <div class="modal-row">
                         <span>Until:</span>
                         <span>{{ \Carbon\Carbon::parse($virtualClass->recurrence['end_date'])->format('M d, Y') }}</span>
                     </div>
                 @endif
-                
+
                 @if(isset($virtualClass->recurrence['days']))
                     <div class="modal-row">
                         <span>Days:</span>
@@ -272,7 +272,7 @@
             const end = encodeURIComponent('{{ $virtualClass->meeting_date->format('Ymd') }}T{{ str_replace(':', '', $virtualClass->end_time) }}00');
             const description = encodeURIComponent('{{ $virtualClass->description ?? "Virtual class meeting" }}');
             const location = encodeURIComponent('{{ $virtualClass->meeting_url ?? "" }}');
-            
+
             const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${description}&location=${location}`;
             window.open(url, '_blank');
         }
@@ -283,7 +283,7 @@
             const end = '{{ $virtualClass->meeting_date->format('Ymd') }}T{{ str_replace(':', '', $virtualClass->end_time) }}00';
             const description = '{{ $virtualClass->description ?? "Virtual class meeting" }}';
             const location = '{{ $virtualClass->meeting_url ?? "" }}';
-            
+
             const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
 BEGIN:VEVENT
@@ -294,7 +294,7 @@ DESCRIPTION:${description}
 LOCATION:${location}
 END:VEVENT
 END:VCALENDAR`;
-            
+
             const blob = new Blob([icsContent], { type: 'text/calendar' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -309,28 +309,28 @@ END:VCALENDAR`;
         // Countdown timer for meeting start
         @if($virtualClass->status === 'scheduled' && now()->lt($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)))
             const meetingStart = new Date('{{ $virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)->toIso8601String() }}');
-            
+
             function updateCountdown() {
                 const now = new Date();
                 const diff = meetingStart - now;
-                
+
                 if (diff > 0) {
                     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                    
+
                     let countdownText = '';
                     if (days > 0) countdownText += days + 'd ';
                     countdownText += hours + 'h ' + minutes + 'm ' + seconds + 's';
-                    
+
                     const countdownElement = document.getElementById('countdown');
                     if (countdownElement) {
                         countdownElement.textContent = countdownText;
                     }
                 }
             }
-            
+
             setInterval(updateCountdown, 1000);
             updateCountdown();
         @endif

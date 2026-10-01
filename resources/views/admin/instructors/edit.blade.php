@@ -49,6 +49,17 @@
 
                 <div class="form-section" data-section="2">
                     <div class="modal-section-title">
+                        <i class="fa-solid fa-school"></i> School Assignment
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-field full">
+                            @include('admin.users._hierarchy_fields', ['selected' => $instructor])
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section" data-section="3">
+                    <div class="modal-section-title">
                         <i class="fa-solid fa-cog"></i> Account Settings
                     </div>
                     <div class="form-grid">

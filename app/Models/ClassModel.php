@@ -39,6 +39,7 @@ class ClassModel extends Model
 
     public function getMaxStudentsAttribute(): ?int
     {
+        // Keep the legacy max_students API backed by the actual schema column.
         return $this->attributes['capacity'] ?? null;
     }
 

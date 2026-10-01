@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\LessonProgress;
 use App\Models\ModuleProgress;
+use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\VirtualClass;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -36,7 +40,7 @@ class ClassController extends Controller
                     ->where('status', '!=', 'dropped')
                     ->count();
 
-                return $currentEnrollments < $class->max_students;
+                return ! $class->isFull();
             });
 
         // Get enrolled classes
@@ -72,7 +76,7 @@ class ClassController extends Controller
         $currentEnrollments = Enrollment::where('class_id', $class->id)
             ->where('status', '!=', 'dropped')
             ->count();
-        $isFull = $currentEnrollments >= $class->max_students;
+        $isFull = $class->isFull();
 
         // Get progress data if enrolled
         $progress = [];
@@ -157,7 +161,7 @@ class ClassController extends Controller
                 ->orderBy('due_date')
                 ->limit(3)
                 ->get()
-                ->map(function ($assignment) {
+                ->map(function ($assignment) use ($class) {
                     return [
                         'title' => $assignment->title,
                         'type' => 'Assignment',
@@ -171,7 +175,7 @@ class ClassController extends Controller
                 ->orderBy('availability_from')
                 ->limit(3)
                 ->get()
-                ->map(function ($quiz) {
+                ->map(function ($quiz) use ($class) {
                     return [
                         'title' => $quiz->title,
                         'type' => 'Quiz',
@@ -185,7 +189,7 @@ class ClassController extends Controller
                 ->orderBy('meeting_date')
                 ->limit(3)
                 ->get()
-                ->map(function ($virtualClass) {
+                ->map(function ($virtualClass) use ($class) {
                     return [
                         'title' => $virtualClass->title,
                         'type' => 'Virtual Class',
@@ -234,7 +238,7 @@ class ClassController extends Controller
             ->where('status', '!=', 'dropped')
             ->count();
 
-        if ($currentEnrollments >= $class->max_students) {
+        if ($class->isFull()) {
             return back()->with('error', 'This class is already at full capacity.');
         }
 
@@ -267,5 +271,120 @@ class ClassController extends Controller
 
         return redirect()->route('student.classes.index')
             ->with('status', 'You have dropped the class.');
+    }
+
+    public function calendar(): View
+    {
+        $studentId = auth()->id();
+
+        // Get student's active enrollments
+        $enrollments = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->with(['class.course', 'class.instructor', 'class.academicPeriod'])
+            ->get();
+
+        $classIds = $enrollments->pluck('class_id');
+        $courseIds = $enrollments->pluck('class.course_id')->filter();
+
+        // Get upcoming assignments
+        $assignments = Assignment::whereIn('class_id', $classIds)
+            ->where('status', 'published')
+            ->where('due_date', '>=', now()->startOfMonth())
+            ->with('class.course')
+            ->orderBy('due_date')
+            ->get();
+
+        // Get upcoming quizzes
+        $quizzes = Quiz::whereIn('class_id', $classIds)
+            ->where('status', 'published')
+            ->where('availability_from', '>=', now()->startOfMonth())
+            ->with('class.course')
+            ->orderBy('availability_from')
+            ->get();
+
+        // Get virtual classes
+        $virtualClasses = VirtualClass::whereIn('class_id', $classIds)
+            ->where('meeting_date', '>=', now()->startOfMonth())
+            ->with('class.course')
+            ->orderBy('meeting_date')
+            ->orderBy('start_time')
+            ->get();
+
+        // Get course announcements
+        $announcements = \App\Models\Announcement::where(function ($q) use ($courseIds, $classIds) {
+            $q->whereIn('course_id', $courseIds)
+                ->orWhereIn('class_id', $classIds);
+        })
+            ->where('publish_at', '>=', now()->startOfMonth())
+            ->with(['course', 'class'])
+            ->orderBy('publish_at')
+            ->get();
+
+        // Combine all events
+        $events = collect();
+
+        foreach ($assignments as $assignment) {
+            $events->push([
+                'title' => $assignment->title,
+                'type' => 'assignment',
+                'date' => $assignment->due_date->format('Y-m-d'),
+                'time' => $assignment->due_date->format('H:i'),
+                'course' => $assignment->class->course->title,
+                'class' => $assignment->class->code,
+                'url' => route('student.courses.assignments.show', [$assignment->class->course, $assignment]),
+            ]);
+        }
+
+        foreach ($quizzes as $quiz) {
+            $events->push([
+                'title' => $quiz->title,
+                'type' => 'quiz',
+                'date' => $quiz->availability_from->format('Y-m-d'),
+                'time' => $quiz->availability_from->format('H:i'),
+                'course' => $quiz->class->course->title,
+                'class' => $quiz->class->code,
+                'url' => route('student.courses.quizzes.show', [$quiz->class->course, $quiz]),
+            ]);
+        }
+
+        foreach ($virtualClasses as $virtualClass) {
+            $events->push([
+                'title' => $virtualClass->title ?? 'Virtual Class',
+                'type' => 'virtual_class',
+                'date' => $virtualClass->meeting_date->format('Y-m-d'),
+                'time' => $virtualClass->start_time,
+                'course' => $virtualClass->class->course->title,
+                'class' => $virtualClass->class->code,
+                'url' => route('student.classes.virtual_classes.show', [$virtualClass->class, $virtualClass]),
+            ]);
+        }
+
+        foreach ($announcements as $announcement) {
+            $events->push([
+                'title' => $announcement->title,
+                'type' => 'announcement',
+                'date' => $announcement->publish_at->format('Y-m-d'),
+                'time' => $announcement->publish_at->format('H:i'),
+                'course' => $announcement->course->title ?? '',
+                'class' => $announcement->class->code ?? '',
+                'url' => $announcement->course_id
+                    ? route('student.courses.announcements.show', [$announcement->course, $announcement])
+                    : route('student.classes.show', $announcement->class),
+            ]);
+        }
+
+        // Sort events by date and time
+        $events = $events->sortBy(function ($event) {
+            return $event['date'].$event['time'];
+        })->values();
+
+        // Group events by date
+        $eventsByDate = $events->groupBy('date');
+
+        return view('student.calendar', compact(
+            'events',
+            'eventsByDate',
+            'enrollments'
+        ));
     }
 }

@@ -30,6 +30,64 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="crud-card" style="margin-top:16px">
+                <div class="crud-header"><h3><i class="fa-solid fa-book"></i> Courses ({{ $courses->count() }})</h3></div>
+                <table class="crud-table">
+                    <thead><tr><th>Code</th><th>Title</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @forelse($courses as $course)
+                            <tr>
+                                <td><strong>{{ $course->code }}</strong></td>
+                                <td><a href="{{ route('admin.courses.show', $course) }}">{{ $course->title }}</a></td>
+                                <td><x-user-status-badge status="{{ $course->status ?? 'active' }}" /></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="search-no-results">No courses in this program.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="crud-card" style="margin-top:16px">
+                <div class="crud-header"><h3><i class="fa-solid fa-user-graduate"></i> Students ({{ $students->total() }})</h3></div>
+                <table class="crud-table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Identifier</th><th>Section</th></tr></thead>
+                    <tbody>
+                        @forelse($students as $student)
+                            <tr>
+                                <td><a href="{{ route('admin.students.show', $student) }}"><strong>{{ $student->full_name }}</strong></a></td>
+                                <td>{{ $student->email }}</td>
+                                <td>{{ $student->identifier ?? '—' }}</td>
+                                <td>{{ $student->section?->name ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="search-no-results">No students in this program.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                @if($students->hasPages())
+                    <div class="pagination">{{ $students->links() }}</div>
+                @endif
+            </div>
+
+            @if($instructors->count() > 0)
+                <div class="crud-card" style="margin-top:16px">
+                    <div class="crud-header"><h3><i class="fa-solid fa-chalkboard-user"></i> Instructors ({{ $instructors->count() }})</h3></div>
+                    <table class="crud-table">
+                        <thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach($instructors as $instructor)
+                                <tr>
+                                    <td><a href="{{ route('admin.instructors.show', $instructor) }}"><strong>{{ $instructor->full_name }}</strong></a></td>
+                                    <td>{{ $instructor->email }}</td>
+                                    <td><x-user-status-badge status="{{ $instructor->status }}" /></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
     </div>
 </div>

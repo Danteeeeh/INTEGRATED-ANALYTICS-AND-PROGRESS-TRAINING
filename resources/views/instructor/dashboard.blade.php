@@ -153,6 +153,7 @@
                             <div class="perf-meta">
                                 <span>{{ $pClass->enrollments->where('status', 'active')->count() }} students</span>
                                 <span>{{ round($perf['completion_rate'] ?? 0) }}% completion</span>
+                                <a href="{{ route('instructor.classes.learning-plans.index', $pClass) }}" style="font-size:0.8rem"><i class="fa-solid fa-route"></i> Learning plans</a>
                             </div>
                         </li>
                     @endif

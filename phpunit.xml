@@ -22,5 +22,6 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="LMS_LOGIN_OTP_ENABLED" value="false"/>
     </php>
 </phpunit>

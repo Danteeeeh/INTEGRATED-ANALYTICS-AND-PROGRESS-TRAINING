@@ -98,25 +98,7 @@
             </div>
         @endif
         
-        @if (session('status'))
-            <div class="toast success show">
-                <div class="toast-label">
-                    <div class="toast-dot"></div>
-                    <span>Success</span>
-                </div>
-                <div class="toast-msg">{{ session('status') }}</div>
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="toast error show">
-                <div class="toast-label">
-                    <div class="toast-dot"></div>
-                    <span>Error</span>
-                </div>
-                <div class="toast-msg">{{ implode(', ', $errors->all()) }}</div>
-            </div>
-        @endif
+        @include('partials.toasts')
 
         @yield('content')
     </div>
@@ -319,14 +301,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
 @stack('scripts')
 
-{{-- Topbar live search for non-admin roles (instructor / student / registrar) --}}
+<script>
+(function () {
+    // Auto-dismiss toasts
+    document.querySelectorAll('.toast.show').forEach(function (toast) {
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 4500);
+        toast.addEventListener('click', function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 300);
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    // Disable submit buttons while their (non-download) form is submitting
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"]');
+            if (!btn || btn.disabled) return;
+            btn.disabled = true;
+            var label = btn.querySelector('.btn-label, .spinner-label, span');
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Submitting...';
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    const toasts = document.querySelectorAll('.toast.show');
+    toasts.forEach(function (toast) {
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 4500);
+        toast.addEventListener('click', function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 300);
+        });
+    });
+})();
+</script>
+
+{{-- Topbar live search for non-admin roles (instructor / student) --}}
 @auth
 @if(!auth()->user()->isAdmin())
 <script>
 @php
     $searchEndpoint = match (auth()->user()->role?->slug) {
         'instructor' => route('instructor.dashboard.search'),
-        'registrar' => route('registrar.dashboard.search'),
         default => route('student.dashboard.search'),
     };
 @endphp
@@ -362,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (r.entity === 'lesson') return 'lessons';
         if (r.entity === 'grade') return 'grades';
 
-        if (role === 'instructor' || role === 'registrar') {
+        if (role === 'instructor') {
             if (r.email) return 'students';
             if (r.class_code && r.due_date) return 'assignments';
             if (r.class_code && r.availability_from) return 'quizzes';
@@ -384,12 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (type === 'courses') return '{{ url("instructor/courses") }}/' + r.id;
             if (type === 'classes') return '{{ url("instructor/classes") }}/' + r.id;
             return '{{ url("instructor/classes") }}';
-        }
-        if (role === 'registrar') {
-            if (type === 'students') return '{{ url("registrar/students") }}/' + r.id;
-            if (type === 'classes') return '{{ url("registrar/classes") }}/' + r.id;
-            if (type === 'courses') return '{{ url("registrar/courses") }}/' + r.id;
-            return '{{ url("registrar/enrollments") }}';
         }
         // student
         if (type === 'courses') return '{{ url("student/courses") }}/' + r.id;

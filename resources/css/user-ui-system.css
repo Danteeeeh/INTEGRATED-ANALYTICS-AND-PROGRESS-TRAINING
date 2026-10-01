@@ -11,7 +11,6 @@
 body.role-admin { --user-accent: #62c9f5; --user-accent-strong: #2449c6; --user-accent-soft: rgba(77,143,240,.16); }
 body.role-instructor { --user-accent: #c4b5fd; --user-accent-strong: #7c3aed; --user-accent-soft: rgba(139,92,246,.16); }
 body.role-student { --user-accent: #6ee7b7; --user-accent-strong: #059669; --user-accent-soft: rgba(16,185,129,.16); }
-body.role-registrar { --user-accent: #67e8f9; --user-accent-strong: #0e7490; --user-accent-soft: rgba(34,211,238,.16); }
 
 .user-page { display: grid; gap: 18px; }
 .user-hero {

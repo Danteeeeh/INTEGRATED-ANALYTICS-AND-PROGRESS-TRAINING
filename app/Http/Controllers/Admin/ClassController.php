@@ -105,8 +105,33 @@ class ClassController extends Controller
         return back()->with('status', 'Class archived successfully.');
     }
 
-    protected function formData(): array
+    public function schedules(Request $request): View
     {
+        $this->authorize('viewAny', ClassModel::class);
+
+        $query = ClassModel::with(['course', 'instructor', 'academicPeriod', 'enrollments'])
+            ->orderBy('code');
+
+        if ($request->filled('academic_period_id')) {
+            $query->where('academic_period_id', $request->integer('academic_period_id'));
+        }
+        if ($request->filled('course_id')) {
+            $query->where('course_id', $request->integer('course_id'));
+        }
+        if ($request->filled('instructor_id')) {
+            $query->where('instructor_id', $request->integer('instructor_id'));
+        }
+
+        $classes = $query->paginate(15)->withQueryString();
+        $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
+        $courses = Course::orderBy('title')->get();
+        $instructors = User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))
+            ->orderBy('first_name')->get();
+
+        return view('admin.classes.schedules', compact('classes', 'academicPeriods', 'courses', 'instructors'));
+    }
+
+    protected function formData(): array    {
         return [
             'courses' => Course::query()->whereIn('status', ['published', 'draft'])->orderBy('code')->get(),
             'periods' => AcademicPeriod::query()->orderBy('start_date', 'desc')->get(),

@@ -214,6 +214,39 @@ class NotificationService
         ]);
     }
 
+    public function sendVirtualClassNotificationWithEmail(array $userIds, string $title, string $meetingDateTime, ?string $meetingLink = null, ?string $description = null): void
+    {
+        $this->createBulkNotification($userIds, [
+            'title' => 'New Virtual Class Scheduled',
+            'message' => "Virtual session '{$title}' is scheduled for {$meetingDateTime}",
+            'type' => 'virtual_class',
+            'link' => $meetingLink,
+            'data' => [
+                'class_title' => $title,
+                'meeting_time' => $meetingDateTime,
+                'meeting_link' => $meetingLink,
+            ],
+        ]);
+
+        foreach ($userIds as $userId) {
+            $user = User::find($userId);
+            if ($user && $user->email) {
+                $body = "A new virtual class has been scheduled for {$meetingDateTime}.";
+                if ($description) {
+                    $body .= "\n\n{$description}";
+                }
+                if ($meetingLink) {
+                    $body .= "\n\nJoin the session: {$meetingLink}";
+                }
+                $this->sendEmailNotification($user, [
+                    'title' => 'New Virtual Session: '.$title,
+                    'message' => $body,
+                    'type' => 'virtual_class',
+                    'link' => $meetingLink,
+                ]);
+            }
+        }
+    }
     protected function shouldSendEmailNotification(User $user, string $notificationType): bool
     {
         $preference = UserPreference::where('user_id', $user->id)

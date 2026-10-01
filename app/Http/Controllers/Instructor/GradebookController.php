@@ -7,7 +7,10 @@ use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
+use App\Models\AssignmentSubmission;
 use App\Models\User;
+use App\Services\FeedbackSuggestionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -24,7 +27,7 @@ class GradebookController extends Controller
 
         $students = $class->enrollments()
             ->where('status', 'active')
-            ->with('student')
+            ->with(['student', 'student.submissions' => fn ($q) => $q->latest('submitted_at')])
             ->paginate(20);
 
         $gradeItems = GradeItem::where('class_id', $class->id)
@@ -33,6 +36,15 @@ class GradebookController extends Controller
             ->get();
 
         return view('instructor.gradebook.index', compact('class', 'students', 'gradeItems'));
+    }
+
+    public function suggestFeedback(AssignmentSubmission $submission, FeedbackSuggestionService $feedback): JsonResponse
+    {
+        $this->authorize('view', Grade::class, ['class' => $submission->assignment?->class]);
+
+        return response()->json([
+            'draft' => $feedback->suggestForSubmission($submission),
+        ]);
     }
 
     public function storeGrade(Request $request, ClassModel $class): RedirectResponse

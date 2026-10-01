@@ -62,7 +62,7 @@ class CoursePolicy
             return true;
         }
 
-        // Registrar/Staff can update any course in the catalog
+        // Registrar can update any course in the catalog
         if ($user->isRegistrar()) {
             return true;
         }

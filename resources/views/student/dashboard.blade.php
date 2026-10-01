@@ -8,6 +8,7 @@
     $stats ??= [];
     $continue = $stats['continue_learning'] ?? null;
     $progressData = $stats['course_progress'] ?? [];
+    $firstClassId = $stats['my_enrollments']?->first()?->class_id;
 @endphp
 
 @section('page-title-bar')
@@ -39,7 +40,7 @@
         <x-slot name="actions">
             <a href="{{ route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> Browse courses</a>
             <a href="{{ route('student.enrollments.index') }}" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Enrollments</a>
-            <a href="{{ route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-graduation-cap"></i> My grades</a>
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-graduation-cap"></i> My grades</a>
             <button onclick="refreshDashboard()" class="btn btn-secondary"><i class="fa-solid fa-sync-alt"></i> Refresh</button>
         </x-slot>
     </x-user-page-header>
@@ -68,7 +69,7 @@
                 <i class="fa-solid fa-book-open"></i>
                 <div><span class="qa-label">Browse courses</span><span class="qa-sub">Explore new subjects</span></div>
             </a>
-            <a href="{{ route('student.classes.index') }}" class="qa-card">
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="qa-card">
                 <i class="fa-solid fa-building-columns"></i>
                 <div><span class="qa-label">My classes</span><span class="qa-sub">{{ $stats['active_enrollments'] ?? 0 }} active</span></div>
             </a>
@@ -76,7 +77,7 @@
                 <i class="fa-solid fa-user-plus"></i>
                 <div><span class="qa-label">Enrollments</span><span class="qa-sub">{{ $stats['total_enrollments'] ?? 0 }} total</span></div>
             </a>
-            <a href="{{ route('student.classes.index') }}" class="qa-card">
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="qa-card">
                 <i class="fa-solid fa-file-lines"></i>
                 <div><span class="qa-label">My grades</span><span class="qa-sub">{{ $stats['total_grades'] ?? 0 }} released</span></div>
             </a>
@@ -213,7 +214,7 @@
             <ul class="overdue-list">
                 @foreach(($stats['overdue_assignments'] ?? []) as $assignment)
                     <li>
-                        <a href="{{ $assignment->class?->id ? route('student.classes.show', $assignment->class_id) : '#' }}">
+                        <a href="{{ $assignment->class?->id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#' }}">
                             <span class="od-name">{{ $assignment->title }}</span>
                             <span class="od-meta">{{ $assignment->class?->course?->title ?? '' }} · due {{ $assignment->due_date?->diffForHumans() }}</span>
                         </a>
@@ -251,7 +252,7 @@
             <ul class="dash-list">
                 @forelse(($stats['upcoming_assignments'] ?? []) as $assignment)
                     <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ $assignment->class_id ? route('student.classes.show', $assignment->class_id) : '#' }}">
+                        <a class="dash-list-link" href="{{ $assignment->class_id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#' }}">
                             <span class="dash-list-icon"><i class="fa-solid fa-tasks"></i></span>
                             <div class="dash-list-body">
                                 <p class="dash-list-title">{{ $assignment->title }}</p>
@@ -268,7 +269,7 @@
                 @endforelse
                 @forelse(($stats['upcoming_quizzes'] ?? []) as $quiz)
                     <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ $quiz->class_id ? route('student.classes.show', $quiz->class_id) : '#' }}">
+                        <a class="dash-list-link" href="{{ $quiz->class_id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#' }}">
                             <span class="dash-list-icon i-violet"><i class="fa-solid fa-question-circle"></i></span>
                             <div class="dash-list-body">
                                 <p class="dash-list-title">{{ $quiz->title }}</p>
@@ -391,10 +392,10 @@
             <ul class="dash-list">
                 @forelse(($stats['recent_grades'] ?? []) as $grade)
                     <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ $grade->item?->class_id ? route('student.classes.show', $grade->item->class_id) : '#' }}">
+                        <a class="dash-list-link" href="{{ $grade->item?->class_id ? route('student.classes.gradebook.index', $grade->item->class_id) : '#' }}">
                             <span class="dash-list-icon i-amber"><i class="fa-solid fa-file-lines"></i></span>
                             <div class="dash-list-body">
-                                <p class="dash-list-title">{{ $grade->item?->name }}</p>
+                                <p class="dash-list-title">{{ $grade->item?->title ?? 'Grade' }}</p>
                                 <p class="dash-list-sub">{{ $grade->item?->class?->course?->title ?? '' }}</p>
                             </div>
                             <div class="dash-list-meta">
@@ -417,7 +418,7 @@
             <ul class="dash-list">
                 @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
                     <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ $vc->class_id ? route('student.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
+                        <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
                             <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
                             <div class="dash-list-body">
                                 <p class="dash-list-title">{{ $vc->title }}</p>

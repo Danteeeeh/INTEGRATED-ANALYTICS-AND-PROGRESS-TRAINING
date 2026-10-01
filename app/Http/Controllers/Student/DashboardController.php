@@ -84,14 +84,22 @@ class DashboardController extends Controller
 
         // Upcoming virtual classes
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->where('start_time', '>', now())
+            ->where(function ($query) {
+                $query->whereDate('meeting_date', '>', today())
+                    ->orWhere(function ($sameDay) {
+                        $sameDay->whereDate('meeting_date', today())
+                            ->whereTime('start_time', '>', now()->format('H:i:s'));
+                    });
+            })
+            ->with('class.course')
+            ->orderBy('meeting_date')
             ->orderBy('start_time')
             ->limit(5)
             ->get();
 
         // Recent grades
         $recentGrades = Grade::where('student_id', $studentId)
-            ->with('item')
+            ->with('item.class.course')
             ->whereHas('item', fn ($q) => $q->where('is_released', true))
             ->orderBy('graded_at', 'desc')
             ->limit(5)
@@ -505,12 +513,12 @@ class DashboardController extends Controller
             switch ($type) {
                 case 'grades':
                     $grades = Grade::where('student_id', $studentId)
-                        ->with('item')
+                        ->with('item.class.course')
                         ->whereHas('item', fn ($q) => $q->where('is_released', true))
                         ->orderBy('graded_at')
                         ->get()
                         ->map(fn ($g) => [
-                            'name' => $g->item?->name ?? 'Grade',
+                            'name' => $g->item?->title ?? 'Grade',
                             'score' => round($g->score_percent ?? 0, 1),
                             'date' => $g->graded_at?->format('M j'),
                         ]);
@@ -610,7 +618,7 @@ class DashboardController extends Controller
             ->orderBy('due_date', 'desc')->limit(5)->get();
 
         $recentGrades = Grade::where('student_id', $studentId)
-            ->with('item')
+            ->with('item.class.course')
             ->whereHas('item', fn ($q) => $q->where('is_released', true))
             ->orderBy('graded_at', 'desc')->limit(5)->get();
 

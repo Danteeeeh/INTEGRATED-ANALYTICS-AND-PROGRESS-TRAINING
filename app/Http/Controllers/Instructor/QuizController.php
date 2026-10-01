@@ -10,6 +10,7 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class QuizController extends Controller
@@ -88,6 +89,7 @@ class QuizController extends Controller
         }
 
         $validated['created_by'] = auth()->id();
+        $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
         $validated['shuffle_questions'] = $validated['shuffle_questions'] ?? false;
         $validated['shuffle_choices'] = $validated['shuffle_choices'] ?? false;
         $validated['allow_navigation'] = $validated['allow_navigation'] ?? true;

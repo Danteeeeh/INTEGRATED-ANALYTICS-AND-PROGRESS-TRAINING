@@ -25,6 +25,8 @@ class User extends Authenticatable
         'phone',
         'address',
         'role_id',
+        'department_id',
+        'program_id',
         'section_id',
         'status',
     ];
@@ -51,6 +53,16 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class);
+    }
+
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
@@ -74,6 +86,16 @@ class User extends Authenticatable
     public function enrollments()
     {
         return $this->hasMany(Enrollment::class, 'student_id');
+    }
+
+    public function learningPlans(): HasMany
+    {
+        return $this->hasMany(LearningPlan::class, 'student_id');
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(AssignmentSubmission::class, 'student_id');
     }
 
     public function grades(): HasMany
@@ -116,11 +138,6 @@ class User extends Authenticatable
     public function isStudent(): bool
     {
         return $this->hasRole(Role::STUDENT);
-    }
-
-    public function isRegistrar(): bool
-    {
-        return $this->hasRole(Role::REGISTRAR);
     }
 
     public function hasPermission(string $permission): bool

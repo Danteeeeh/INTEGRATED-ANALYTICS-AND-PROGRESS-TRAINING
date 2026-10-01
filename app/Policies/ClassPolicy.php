@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\ClassModel;
+use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -14,7 +15,7 @@ class ClassPolicy
     {
         // Students don't need explicit permission check for viewing their enrolled classes
         if ($user->isStudent()) {
-            return $user->enrolledClasses()->where('classes.id', $class->id)->exists();
+            return Enrollment::where('student_id', $user->id)->where('class_id', $class->id)->where('status', '!=', 'dropped')->exists();
         }
 
         if (! $user->hasPermission('classes.view')) {
@@ -129,7 +130,7 @@ class ClassPolicy
         }
 
         // Student cannot enroll if already enrolled
-        if ($user->enrolledClasses()->where('classes.id', $class->id)->exists()) {
+        if (Enrollment::where('student_id', $user->id)->where('class_id', $class->id)->where('status', '!=', 'dropped')->exists()) {
             return false;
         }
 
@@ -154,6 +155,6 @@ class ClassPolicy
         }
 
         // Student must be enrolled in the class
-        return $user->enrolledClasses()->where('classes.id', $class->id)->exists();
+        return Enrollment::where('student_id', $user->id)->where('class_id', $class->id)->where('status', '!=', 'dropped')->exists();
     }
 }

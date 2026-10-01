@@ -48,9 +48,15 @@ class SectionController extends Controller
 
     public function show(Section $section): View
     {
-        $section->load(['program.department', 'academicPeriod', 'classes.course']);
+        $section->load(['program.department', 'academicPeriod', 'classes.course', 'classes.instructor']);
 
-        return view('admin.sections.show', compact('section'));
+        $students = $section->students()
+            ->with('role')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate(25);
+
+        return view('admin.sections.show', compact('section', 'students'));
     }
 
     public function edit(Section $section): View

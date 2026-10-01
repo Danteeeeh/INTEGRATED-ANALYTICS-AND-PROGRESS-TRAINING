@@ -17,7 +17,7 @@ class LearningPlanPolicy
             return $learningPlan->student_id === $user->id;
         }
 
-        // Admin/registrar with permission can see any plan.
+        // Admin with permission can see any plan.
         if ($user->hasPermission('learning_plans.view')) {
             return true;
         }

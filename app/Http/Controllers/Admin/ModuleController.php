@@ -64,7 +64,7 @@ class ModuleController extends Controller
 
         session()->flash('success', 'Module created successfully.');
 
-        return redirect()->route('admin.modules.show', $module);
+        return redirect()->route('admin.courses.modules.show', [$module->course_id, $module]);
     }
 
     public function show(Module $module): View
@@ -94,7 +94,7 @@ class ModuleController extends Controller
 
         session()->flash('success', 'Module updated successfully.');
 
-        return redirect()->route('admin.modules.show', $module);
+        return redirect()->route('admin.courses.modules.show', [$module->course_id, $module]);
     }
 
     public function destroy(Module $module): RedirectResponse
@@ -111,7 +111,7 @@ class ModuleController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.modules.index');
+        return redirect()->route('admin.courses.modules.index', $module->course_id);
     }
 
     public function reorder(Request $request): RedirectResponse

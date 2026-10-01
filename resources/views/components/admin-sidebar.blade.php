@@ -82,23 +82,27 @@
                     </a>
                 </li>
                 <li class="nav-item {{ $activeNav === 'modules' ? 'active' : '' }}">
-                    <a href="{{ route('admin.courses.index') }}" class="nav-link" @if($activeNav === 'modules') aria-current="page" @endif>
+                    <a href="{{ route('admin.modules.index') }}" class="nav-link" @if($activeNav === 'modules') aria-current="page" @endif>
                         <i class="fa-solid fa-layer-group"></i>
                         <span>Modules</span>
-                        <span class="link-hint">Pick course</span>
                     </a>
                 </li>
                 <li class="nav-item {{ $activeNav === 'lessons' ? 'active' : '' }}">
-                    <a href="{{ route('admin.courses.index') }}" class="nav-link" @if($activeNav === 'lessons') aria-current="page" @endif>
+                    <a href="{{ route('admin.lessons.index') }}" class="nav-link" @if($activeNav === 'lessons') aria-current="page" @endif>
                         <i class="fa-solid fa-book-open-reader"></i>
                         <span>Lessons</span>
-                        <span class="link-hint">Pick course</span>
                     </a>
                 </li>
                 <li class="nav-item {{ $activeNav === 'classes' ? 'active' : '' }}">
                     <a href="{{ route('admin.classes.index') }}" class="nav-link" @if($activeNav === 'classes') aria-current="page" @endif>
                         <i class="fa-solid fa-school"></i>
                         <span>Classes</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ $activeNav === 'schedules' ? 'active' : '' }}">
+                    <a href="{{ route('admin.classes.schedules.index') }}" class="nav-link" @if($activeNav === 'schedules') aria-current="page" @endif>
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Schedules</span>
                     </a>
                 </li>
                 <li class="nav-item {{ in_array($activeNav, ['enrollment', 'enrollments'], true) ? 'active' : '' }}">
@@ -155,6 +159,12 @@
                         <span>Gradebook</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'grade_status' ? 'active' : '' }}">
+                    <a href="{{ route('admin.gradebook.grades.status') }}" class="nav-link" @if($activeNav === 'grade_status') aria-current="page" @endif>
+                        <i class="fa-solid fa-clipboard-check"></i>
+                        <span>Grade Status</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'attendance' ? 'active' : '' }}">
                     <a href="{{ route('admin.attendance.index') }}" class="nav-link" @if($activeNav === 'attendance') aria-current="page" @endif>
                         <i class="fa-solid fa-clipboard-user"></i>
@@ -189,18 +199,6 @@
                     <a href="{{ route('admin.virtual_classes.index') }}" class="nav-link" @if($activeNav === 'virtual_classes') aria-current="page" @endif>
                         <i class="fa-solid fa-video"></i>
                         <span>Virtual Classes</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ $activeNav === 'badges' ? 'active' : '' }}">
-                    <a href="{{ route('admin.badges.index') }}" class="nav-link" @if($activeNav === 'badges') aria-current="page" @endif>
-                        <i class="fa-solid fa-medal"></i>
-                        <span>Badges</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ $activeNav === 'certificates' ? 'active' : '' }}">
-                    <a href="{{ route('admin.certificates.index') }}" class="nav-link" @if($activeNav === 'certificates') aria-current="page" @endif>
-                        <i class="fa-solid fa-certificate"></i>
-                        <span>Certificates</span>
                     </a>
                 </li>
             </ul>

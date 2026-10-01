@@ -40,7 +40,9 @@ class DepartmentController extends Controller
     {
         $department->load(['programs.sections']);
 
-        return view('admin.departments.show', compact('department'));
+        $courses = $department->courses()->orderBy('code')->get();
+
+        return view('admin.departments.show', compact('department', 'courses'));
     }
 
     public function edit(Department $department): View

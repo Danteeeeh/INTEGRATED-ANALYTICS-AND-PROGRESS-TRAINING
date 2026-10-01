@@ -183,6 +183,25 @@ class AttendanceController extends Controller
         return redirect()->route('admin.attendance.index');
     }
 
+    public function report(ClassModel $class): View
+    {
+        $this->authorize('viewAny', AttendanceRecord::class);
+
+        $class->load(['course', 'instructor']);
+        $records = AttendanceRecord::with('student')
+            ->where('class_id', $class->id)
+            ->orderBy('attendance_date', 'desc')
+            ->get();
+        $summary = [
+            'present' => $records->where('status', 'present')->count(),
+            'absent' => $records->where('status', 'absent')->count(),
+            'late' => $records->where('status', 'late')->count(),
+            'excused' => $records->where('status', 'excused')->count(),
+        ];
+
+        return view('admin.attendance.report', compact('class', 'records', 'summary'));
+    }
+
     public function export(Request $request): RedirectResponse|View
     {
         $this->authorize('viewAny', AttendanceRecord::class);
