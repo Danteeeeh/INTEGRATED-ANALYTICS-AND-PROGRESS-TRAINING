@@ -52,10 +52,10 @@
                                 @endphp
                                 <tr>
                                     <td>
-                                        <div class="user-name">{{ $item->name }}</div>
+                                        <div class="user-name">{{ $item->title }}</div>
                                         <div class="user-email">{{ $item->description ?? '' }}</div>
                                     </td>
-                                    <td>{{ $item->category?->name ?? '—' }}</td>
+                                    <td>{{ ucfirst(str_replace('_', ' ', $item->item_type ?? 'other')) }}</td>
                                     <td>
                                         @if($grade)
                                             {{ $grade->points }}/{{ $item->max_points }}

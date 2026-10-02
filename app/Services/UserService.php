@@ -67,6 +67,9 @@ class UserService
                 'address' => $data['address'] ?? null,
                 'profile_photo_path' => $data['profile_photo_path'] ?? null,
                 'role_id' => $data['role_id'],
+                'department_id' => $data['department_id'] ?? null,
+                'program_id' => $data['program_id'] ?? null,
+                'section_id' => $data['section_id'] ?? null,
                 'status' => $data['status'] ?? 'active',
             ]);
 
@@ -87,6 +90,9 @@ class UserService
             'address' => $data['address'] ?? $user->address,
             'profile_photo_path' => $data['profile_photo_path'] ?? $user->profile_photo_path,
             'role_id' => $data['role_id'] ?? $user->role_id,
+            'department_id' => $data['department_id'] ?? $user->department_id,
+            'program_id' => $data['program_id'] ?? $user->program_id,
+            'section_id' => $data['section_id'] ?? $user->section_id,
             'status' => $data['status'] ?? $user->status,
         ];
 

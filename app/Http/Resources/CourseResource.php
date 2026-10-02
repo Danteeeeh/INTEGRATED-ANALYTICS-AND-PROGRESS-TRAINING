@@ -21,10 +21,6 @@ class CourseResource extends JsonResource
             'credits' => $this->credits,
             'thumbnail' => $this->thumbnail,
             'status' => $this->status,
-            'category' => $this->when($this->relationLoaded('category'), function () {
-                return new CourseCategoryResource($this->category);
-            }),
-            'category_id' => $this->category_id,
             'academic_period' => $this->when($this->relationLoaded('academicPeriod'), function () {
                 return new AcademicPeriodResource($this->academicPeriod);
             }),

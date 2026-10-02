@@ -62,6 +62,11 @@ class CoursePolicy
             return true;
         }
 
+        // Registrar can update any course in the catalog
+        if ($user->isRegistrar()) {
+            return true;
+        }
+
         // Instructor can only update their assigned courses
         if ($user->isInstructor()) {
             return $user->classesInstructing()->where('course_id', $course->id)->exists();

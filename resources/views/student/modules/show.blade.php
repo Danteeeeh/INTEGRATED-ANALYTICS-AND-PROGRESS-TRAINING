@@ -32,12 +32,15 @@
                 @php
                     $p = $lesson->progress->first();
                     $completed = $p && $p->status === 'completed';
+                    $lessonHasRules = is_array($lesson->completion_rules) && count(array_filter($lesson->completion_rules ?? []));
+                    $lessonRuleLabel = $lessonHasRules ? 'Has completion requirements' : null;
                 @endphp
                 <div class="learning-card">
                     <div>
                         <div class="user-kicker">
                             Lesson {{ $lesson->position ?? $loop->iteration }}
                             @if($completed)<span style="color:var(--user-success)"> · Completed</span>@endif
+                            @if($lessonHasRules && ! $completed)<span style="color:var(--lms-gold,#f6c84a)"> · <i class="fa-solid fa-clipboard-check"></i> Requirements</span>@endif
                         </div>
                         <h3>{{ $lesson->title }}</h3>
                         <p>{{ Str::limit($lesson->description ?? '', 80) }}</p>

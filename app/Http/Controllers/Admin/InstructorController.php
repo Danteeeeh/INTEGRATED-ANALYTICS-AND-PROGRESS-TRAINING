@@ -5,8 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\ClassModel;
+use App\Models\Department;
+use App\Models\Program;
 use App\Models\Role;
+use App\Models\Section;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +27,7 @@ class InstructorController extends Controller
         $this->authorize('viewAny', User::class);
 
         $instructors = $this->users->getInstructors($request->only(['search', 'status']));
+        $instructors->load('department', 'classesInstructing');
 
         return view('admin.instructors.index', compact('instructors'));
     }
@@ -31,8 +37,11 @@ class InstructorController extends Controller
         $this->authorize('create', User::class);
 
         $roles = Role::where('slug', Role::INSTRUCTOR)->get();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.instructors.create', compact('roles'));
+        return view('admin.instructors.create', compact('roles', 'departments', 'programs', 'sections'));
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
@@ -48,9 +57,14 @@ class InstructorController extends Controller
     {
         $this->authorize('view', $instructor);
 
-        $instructor->load('role', 'classesInstructing.course');
+        $instructor->load('role', 'department', 'program', 'section', 'classesInstructing.course', 'classesInstructing.academicPeriod', 'classesInstructing.section');
 
-        return view('admin.instructors.show', compact('instructor'));
+        $availableClasses = ClassModel::with('course', 'instructor', 'academicPeriod', 'section')
+            ->orderBy('code')
+            ->get();
+        $sections = Section::with('program.department')->orderBy('name')->get();
+
+        return view('admin.instructors.show', compact('instructor', 'availableClasses', 'sections'));
     }
 
     public function edit(User $instructor): View
@@ -58,8 +72,11 @@ class InstructorController extends Controller
         $this->authorize('update', $instructor);
 
         $roles = Role::orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.instructors.edit', compact('instructor', 'roles'));
+        return view('admin.instructors.edit', compact('instructor', 'roles', 'departments', 'programs', 'sections'));
     }
 
     public function update(UpdateUserRequest $request, User $instructor): RedirectResponse
@@ -76,6 +93,57 @@ class InstructorController extends Controller
         $this->users->deactivateUser($instructor->id);
 
         return redirect()->route('admin.instructors.index')->with('status', 'Instructor deactivated.');
+    }
+
+    public function assignClasses(Request $request, User $instructor): RedirectResponse
+    {
+        $this->authorize('update', $instructor);
+
+        $validated = $request->validate([
+            'class_ids' => ['nullable', 'array'],
+            'class_ids.*' => ['integer', 'exists:classes,id'],
+        ]);
+
+        $classIds = array_map('intval', $validated['class_ids'] ?? []);
+
+        DB::transaction(function () use ($instructor, $classIds) {
+            // Assign newly selected classes to this instructor.
+            // NB: in MySQL, `instructor_id != X` excludes NULL rows, so unassigned classes must be matched explicitly.
+            ClassModel::whereIn('id', $classIds)
+                ->where(function ($q) use ($instructor) {
+                    $q->where('instructor_id', '!=', $instructor->id)
+                        ->orWhereNull('instructor_id');
+                })
+                ->update(['instructor_id' => $instructor->id]);
+
+            // Unassign classes that were un-checked (and still belong to this instructor).
+            ClassModel::where('instructor_id', $instructor->id)
+                ->whereNotIn('id', $classIds)
+                ->update(['instructor_id' => null]);
+        });
+
+        return back()->with('status', 'Instructor class assignments updated successfully.');
+    }
+
+    public function assignSection(Request $request, User $instructor): RedirectResponse
+    {
+        $this->authorize('update', $instructor);
+
+        $validated = $request->validate([
+            'section_id' => ['nullable', 'exists:sections,id'],
+        ]);
+
+        $instructor->update([
+            'section_id' => $validated['section_id'] ?? null,
+            'program_id' => $validated['section_id']
+                ? optional(Section::find($validated['section_id'])->program)->id
+                : null,
+            'department_id' => $validated['section_id']
+                ? optional(Section::find($validated['section_id'])->program?->department)->id
+                : null,
+        ]);
+
+        return back()->with('status', 'Instructor section assignment updated.');
     }
 
     public function import(Request $request): RedirectResponse

@@ -22,12 +22,12 @@
 
         <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
             @php
-                $typeBadge = match($discussion->type) {
+                $typeBadge = match($discussion->discussion_type) {
                     'general' => ['bg' => '#dbeafe', 'color' => '#1e40af', 'label' => 'General'],
                     'academic' => ['bg' => '#ede9fe', 'color' => '#6d28d9', 'label' => 'Academic'],
-                    'qna' => ['bg' => '#fef3c7', 'color' => '#b45309', 'label' => 'Q&amp;A'],
+                    'qa' => ['bg' => '#fef3c7', 'color' => '#b45309', 'label' => 'Q&amp;A'],
                     'graded' => ['bg' => '#dcfce7', 'color' => '#15803d', 'label' => 'Graded'],
-                    default => ['bg' => '#f3f4f6', 'color' => '#6b7280', 'label' => ucfirst($discussion->type)],
+                    default => ['bg' => '#f3f4f6', 'color' => '#6b7280', 'label' => ucfirst($discussion->discussion_type)],
                 };
             @endphp
             <span style="padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; background: {{ $typeBadge['bg'] }}; color: {{ $typeBadge['color'] }};">
@@ -46,13 +46,13 @@
         <div class="modal-section-title"><i class="fa-solid fa-info-circle"></i> Basic Information</div>
         <div class="modal-row"><span>Course:</span><span>{{ $discussion->course->code ?? '-' }} - {{ ($discussion->course->name ?? $discussion->course->title) ?? 'N/A' }}</span></div>
         <div class="modal-row"><span>Class:</span><span>{{ $discussion->class->code ?? 'N/A' }}</span></div>
-        <div class="modal-row"><span>Author:</span><span>{{ $discussion->user->name ?? 'N/A' }}</span></div>
+        <div class="modal-row"><span>Author:</span><span>{{ $discussion->creator->name ?? 'N/A' }}</span></div>
         <div class="modal-row"><span>Created:</span><span>{{ $discussion->created_at?->format('M d, Y g:i A') ?? 'N/A' }}</span></div>
         <div class="modal-row"><span>Posts:</span><span>{{ ($discussion->posts_count ?? $discussion->posts->count()) ?? 0 }}</span></div>
 
         <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-align-left"></i> Content</div>
         <div style="background: #f9fafb; padding: 16px; border-radius: 8px; line-height: 1.7; color: #374151; white-space: pre-wrap;">
-            {{ $discussion->content ?? 'No content' }}
+            {{ $discussion->description ?? 'No content' }}
         </div>
 
         <div style="margin-top: 20px; display: flex; gap: 10px;">

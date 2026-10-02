@@ -2,7 +2,7 @@
 
 @section('title', 'Create Discussion')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'discussions';
     $pageTitle = 'Create Discussion';
     $pageIcon = '<i class="fa-solid fa-plus"></i>';
     $formAction = route('instructor.courses.discussions.store', $course);
@@ -183,12 +183,12 @@
 
                     <div class="cc-field">
                         <label>Discussion Type</label>
-                        <select name="type">
+                        <select name="discussion_type">
                             @foreach($discussionTypes as $key => $label)
-                                <option value="{{ $key }}" {{ old('type') == $key ? 'selected' : '' }}>{{ $label }}</option>
+                                <option value="{{ $key }}" {{ old('discussion_type') == $key ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
-                        @error('type')<span class="error-message">{{ $message }}</span>@enderror
+                        @error('discussion_type')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
                 </div>
             </div>

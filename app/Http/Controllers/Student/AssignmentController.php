@@ -45,6 +45,8 @@ class AssignmentController extends Controller
 
     public function show(Course $course, Assignment $assignment): View
     {
+        $this->authorize('view', $assignment);
+
         $studentId = auth()->id();
 
         $enrollment = Enrollment::where('student_id', $studentId)
@@ -70,6 +72,8 @@ class AssignmentController extends Controller
 
     public function submitForm(Course $course, Assignment $assignment): View
     {
+        $this->authorize('submit', $assignment);
+
         $studentId = auth()->id();
 
         $enrollment = Enrollment::where('student_id', $studentId)
@@ -98,6 +102,8 @@ class AssignmentController extends Controller
 
     public function submit(Request $request, Course $course, Assignment $assignment): RedirectResponse
     {
+        $this->authorize('submit', $assignment);
+
         $studentId = auth()->id();
 
         $enrollment = Enrollment::where('student_id', $studentId)
@@ -188,6 +194,8 @@ class AssignmentController extends Controller
 
     public function showSubmission(Course $course, Assignment $assignment, AssignmentSubmission $submission): View
     {
+        $this->authorize('view', $submission);
+
         $studentId = auth()->id();
 
         $enrollment = Enrollment::where('student_id', $studentId)
@@ -198,10 +206,6 @@ class AssignmentController extends Controller
             ->first();
 
         if (! $enrollment) {
-            abort(403);
-        }
-
-        if ($submission->student_id !== $studentId) {
             abort(403);
         }
 

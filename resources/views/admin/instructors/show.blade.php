@@ -48,6 +48,31 @@
                     <div>{{ $instructor->address ?? '—' }}</div>
                 </div>
                 <div class="form-field">
+                    <label>Department</label>
+                    <div>{{ $instructor->department?->name ?? '—' }}</div>
+                </div>
+                <div class="form-field">
+                    <label>Program</label>
+                    <div>{{ $instructor->program?->name ?? '—' }}</div>
+                </div>
+                <div class="form-field">
+                    <label>Section</label>
+                    <div>{{ $instructor->section?->name ?? '—' }}@if($instructor->section?->code) ({{ $instructor->section->code }})@endif</div>
+                </div>
+                <div class="form-field full">
+                    <label>Assign Section</label>
+                    <form method="POST" action="{{ route('admin.instructors.assign-section', $instructor) }}" style="display:inline-flex;gap:8px;align-items:center">
+                        @csrf
+                        <select name="section_id" style="padding:6px 10px;border:1px solid var(--dash-line,#dce4f0);border-radius:8px;font-size:.78rem">
+                            <option value="">No Section</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->id }}" @selected($instructor->section_id === $section->id)>{{ $section->name }} ({{ $section->code }}) — {{ $section->program?->code ?? '—' }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="btn btn-primary" style="padding:6px 14px;font-size:.75rem"><i class="fa-solid fa-check"></i> Save</button>
+                    </form>
+                </div>
+                <div class="form-field">
                     <label>Instructor ID</label>
                     <div>{{ $instructor->identifier ?? '—' }}</div>
                 </div>
@@ -72,6 +97,8 @@
                             <tr>
                                 <th>Class</th>
                                 <th>Course</th>
+                                <th>Schedule</th>
+                                <th>Period</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -80,6 +107,8 @@
                                 <tr>
                                     <td><strong>{{ $class->code }}</strong></td>
                                     <td>{{ $class->course?->title ?? '—' }}</td>
+                                    <td>{{ $class->schedule ?? '—' }}@if($class->room) · {{ $class->room }}@endif</td>
+                                    <td>{{ $class->academicPeriod?->name ?? '—' }}</td>
                                     <td><x-user-status-badge status="{{ $class->status ?? 'active' }}" /></td>
                                 </tr>
                             @endforeach
@@ -93,6 +122,55 @@
                     description="This instructor has not been assigned to any classes yet."
                 />
             @endif
+        </div>
+    </div>
+
+    <div class="user-panel">
+        <div class="user-panel-head">
+            <h3><i class="fa-solid fa-chalkboard-user"></i> Assign Classes</h3>
+            <span class="user-status active">Check classes to assign</span>
+        </div>
+        <div class="user-panel-body">
+            <form method="POST" action="{{ route('admin.instructors.assign-classes', $instructor) }}">
+                @csrf
+                @if($availableClasses->count() > 0)
+                    <div class="user-table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px"></th>
+                                    <th>Class</th>
+                                    <th>Course</th>
+                                    <th>Schedule</th>
+                                    <th>Period</th>
+                                    <th>Current Instructor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($availableClasses as $class)
+                                    <tr>
+                                        <td><input type="checkbox" name="class_ids[]" value="{{ $class->id }}" @checked($class->instructor_id === $instructor->id)></td>
+                                        <td><strong>{{ $class->code }}</strong></td>
+                                        <td>{{ $class->course?->title ?? '—' }}</td>
+                                        <td>{{ $class->schedule ?? '—' }}@if($class->room) · {{ $class->room }}@endif</td>
+                                        <td>{{ $class->academicPeriod?->name ?? '—' }}</td>
+                                        <td>{{ $class->instructor?->full_name ?? 'Unassigned' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Save Assignments</button>
+                    </div>
+                @else
+                    <x-user-empty-state
+                        icon="fa-chalkboard-user"
+                        title="No classes available"
+                        description="Create classes first, then assign them here."
+                    />
+                @endif
+            </form>
         </div>
     </div>
 

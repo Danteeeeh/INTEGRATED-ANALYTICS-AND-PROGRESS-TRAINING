@@ -5,22 +5,29 @@
  */
 
 function toast(message, type = 'info', timeout = 4000) {
-    const root = document.getElementById('toast-root');
-    if (!root) return;
-
-    const colors = {
-        success: 'bg-emerald-600',
-        error: 'bg-red-600',
-        info: 'bg-slate-800',
-        warning: 'bg-amber-600',
-    };
+    let root = document.getElementById('toast-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'toast-root';
+        document.body.appendChild(root);
+    }
 
     const el = document.createElement('div');
-    el.className = `${colors[type] ?? colors.info} text-white text-sm px-4 py-2.5 rounded-lg shadow-lg`;
     el.textContent = message;
     root.appendChild(el);
 
-    setTimeout(() => el.remove(), timeout);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity .18s ease';
+        setTimeout(() => el.remove(), 200);
+    }, timeout);
+}
+
+function emptyState(title = 'Nothing here yet', description = null, icon = 'fa-inbox') {
+    const wrap = document.createElement('div');
+    wrap.className = 'user-empty';
+    wrap.innerHTML = `<i class="fa-solid ${icon}" aria-hidden="true"></i><h3>${title}</h3>${description ? `<p>${description}</p>` : ''}`;
+    return wrap;
 }
 
 // Mobile menu toggle functionality
@@ -130,4 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initLoginForm();
 });
 
-window.LMS = { toast };
+// Dismissible alert delegation (components with data-dismiss)
+document.addEventListener('click', (e) => {
+    const dismiss = e.target.closest('[data-dismiss]');
+    if (!dismiss) return;
+    const alertEl = dismiss.closest('[role="alert"], [role="status"], .profile-alert, [data-alert]');
+    if (alertEl) alertEl.remove();
+});
+
+window.LMS = { toast, emptyState };

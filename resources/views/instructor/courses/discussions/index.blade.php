@@ -2,7 +2,7 @@
 
 @section('title', 'Discussions — ' . $course->code)
 @php
-    $activeNav = 'courses';
+    $activeNav = 'discussions';
     $pageTitle = 'Discussions';
     $pageIcon = '<i class="fa-solid fa-comments"></i>';
 @endphp

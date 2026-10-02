@@ -17,7 +17,7 @@ class StoreEnrollmentRequest extends FormRequest
         return [
             'class_id' => 'required|exists:classes,id',
             'student_id' => 'required|exists:users,id',
-            'status' => 'sometimes|required|in:pending,active,completed,dropped,suspended',
+            'status' => 'sometimes|required|in:pending,active,completed,dropped',
             'notes' => 'nullable|string|max:1000',
         ];
     }
@@ -29,7 +29,7 @@ class StoreEnrollmentRequest extends FormRequest
             'class_id.exists' => 'Selected class does not exist',
             'student_id.required' => 'Student is required',
             'student_id.exists' => 'Selected student does not exist',
-            'status.in' => 'Status must be pending, active, completed, dropped, or suspended',
+            'status.in' => 'Status must be pending, active, completed, or dropped',
         ];
     }
 

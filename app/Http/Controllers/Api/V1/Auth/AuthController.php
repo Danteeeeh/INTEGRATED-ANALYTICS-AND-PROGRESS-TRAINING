@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\LoginThrottleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,13 +20,23 @@ class AuthController extends Controller
             'device_name' => ['nullable', 'string'],
         ]);
 
-        $user = User::where('email', $data['email'])->first();
+        $email = mb_strtolower(trim($data['email']));
+        $user = User::where('email', $email)->first();
+
+        $throttle = app(LoginThrottleService::class);
+        $throttle->ensureNotLocked($email);
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
+            if ($user) {
+                $throttle->registerFailure($email);
+            }
+
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
+
+        $throttle->clear($email);
 
         if (! $user->isActive()) {
             throw ValidationException::withMessages([

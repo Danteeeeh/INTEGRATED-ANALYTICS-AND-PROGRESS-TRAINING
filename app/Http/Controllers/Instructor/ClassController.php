@@ -14,7 +14,7 @@ class ClassController extends Controller
 
     public function index(Request $request): View
     {
-        $this->authorize('viewAny', ClassModel::class);
+        $this->authorize('index', ClassModel::class);
 
         $classes = $this->classes->getClassesByInstructor(request()->user(), $request->only(['status', 'academic_period_id']));
 
@@ -25,8 +25,6 @@ class ClassController extends Controller
     {
         $this->authorize('view', $class);
 
-        abort_if($class->instructor_id !== auth()->id(), 403);
-
         $class->load('course', 'academicPeriod', 'enrollments.student', 'assignments', 'quizzes', 'calendarEvents');
 
         return view('instructor.classes.show', compact('class'));
@@ -34,9 +32,7 @@ class ClassController extends Controller
 
     public function roster(ClassModel $class): View
     {
-        $this->authorize('view', $class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('viewRoster', $class);
 
         $class->load([
             'enrollments.student',

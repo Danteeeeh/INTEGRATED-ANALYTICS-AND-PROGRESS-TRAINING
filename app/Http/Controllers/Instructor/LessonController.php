@@ -68,12 +68,17 @@ class LessonController extends Controller
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date|after:availability_from',
             'status' => 'required|string|in:draft,published,archived',
+            'cr_require_all_materials' => 'nullable|boolean',
+            'cr_min_minutes' => 'nullable|integer|min:0|max:600',
+            'cr_require_content_view' => 'nullable|boolean',
         ]);
 
         $validated['module_id'] = $module->id;
         $validated['created_by'] = auth()->id();
         $validated['position'] = $validated['position'] ?? Lesson::where('module_id', $module->id)->max('position') + 1;
         $validated['is_required'] = $validated['is_required'] ?? false;
+
+        $validated['completion_rules'] = $this->normalizeCompletionRules($request);
 
         Lesson::create($validated);
 
@@ -136,9 +141,14 @@ class LessonController extends Controller
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date|after:availability_from',
             'status' => 'required|string|in:draft,published,archived',
+            'cr_require_all_materials' => 'nullable|boolean',
+            'cr_min_minutes' => 'nullable|integer|min:0|max:600',
+            'cr_require_content_view' => 'nullable|boolean',
         ]);
 
         $validated['is_required'] = $validated['is_required'] ?? false;
+
+        $validated['completion_rules'] = $this->normalizeCompletionRules($request);
 
         $lesson->update($validated);
 
@@ -288,5 +298,30 @@ class LessonController extends Controller
 
         return redirect()->route('instructor.courses.modules.lessons.materials', [$course, $module, $lesson])
             ->with('success', 'All materials set as optional.');
+    }
+
+    /**
+     * Normalize the completion-rules form fields into the JSON payload stored
+     * on the lesson. Empty rulesets are stored as null so the field stays
+     * clean for lessons without requirements.
+     */
+    private function normalizeCompletionRules(Request $request): ?array
+    {
+        $rules = [];
+
+        if ($request->boolean('cr_require_all_materials')) {
+            $rules['require_all_materials'] = true;
+        }
+
+        $minMinutes = (int) $request->input('cr_min_minutes', 0);
+        if ($minMinutes > 0) {
+            $rules['min_minutes'] = min(600, $minMinutes);
+        }
+
+        if ($request->boolean('cr_require_content_view')) {
+            $rules['require_content_view'] = true;
+        }
+
+        return $rules === [] ? null : $rules;
     }
 }

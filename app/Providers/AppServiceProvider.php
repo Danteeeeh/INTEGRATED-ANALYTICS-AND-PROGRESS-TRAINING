@@ -13,13 +13,12 @@ use App\Models\Certificate;
 use App\Models\ClassModel;
 use App\Models\Competency;
 use App\Models\Course;
-use App\Models\CourseCategory;
 use App\Models\Discussion;
 use App\Models\DiscussionPost;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCategory;
 use App\Models\GradeHistory;
+use App\Models\LearningPlan;
 use App\Models\Lesson;
 use App\Models\MediaFile;
 use App\Models\Module;
@@ -42,14 +41,13 @@ use App\Policies\CalendarEventPolicy;
 use App\Policies\CertificatePolicy;
 use App\Policies\ClassPolicy;
 use App\Policies\CompetencyPolicy;
-use App\Policies\CourseCategoryPolicy;
 use App\Policies\CoursePolicy;
 use App\Policies\DiscussionPolicy;
 use App\Policies\DiscussionPostPolicy;
 use App\Policies\EnrollmentPolicy;
-use App\Policies\GradeCategoryPolicy;
 use App\Policies\GradeHistoryPolicy;
 use App\Policies\GradePolicy;
+use App\Policies\LearningPlanPolicy;
 use App\Policies\LessonPolicy;
 use App\Policies\MediaFilePolicy;
 use App\Policies\ModulePolicy;
@@ -83,7 +81,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ClassModel::class, ClassPolicy::class);
         Gate::policy(Enrollment::class, EnrollmentPolicy::class);
         Gate::policy(AcademicPeriod::class, AcademicPeriodPolicy::class);
-        Gate::policy(CourseCategory::class, CourseCategoryPolicy::class);
         Gate::policy(Module::class, ModulePolicy::class);
         Gate::policy(Lesson::class, LessonPolicy::class);
         Gate::policy(Assignment::class, AssignmentPolicy::class);
@@ -99,7 +96,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CalendarEvent::class, CalendarEventPolicy::class);
         Gate::policy(VirtualClass::class, VirtualClassPolicy::class);
         Gate::policy(AttendanceRecord::class, AttendanceRecordPolicy::class);
-        Gate::policy(GradeCategory::class, GradeCategoryPolicy::class);
         Gate::policy(Grade::class, GradePolicy::class);
         Gate::policy(GradeHistory::class, GradeHistoryPolicy::class);
         Gate::policy(MediaFile::class, MediaFilePolicy::class);
@@ -107,6 +103,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Badge::class, BadgePolicy::class);
         Gate::policy(Certificate::class, CertificatePolicy::class);
         Gate::policy(Competency::class, CompetencyPolicy::class);
+        Gate::policy(LearningPlan::class, LearningPlanPolicy::class);
         Gate::policy(UserPreference::class, UserPreferencePolicy::class);
 
         Gate::define('viewAuditLogs', function (User $user): bool {
@@ -135,6 +132,23 @@ class AppServiceProvider extends ServiceProvider
         // Custom Blade directive for file size formatting
         Blade::directive('formatFileSize', function ($bytes) {
             return "<?php echo \\App\\Helpers\\FileHelper::formatFileSize($bytes); ?>";
+        });
+
+        // Share unread notifications with every view (admin/instructor/student shell)
+        view()->composer('*', function ($view) {
+            $user = auth()->user();
+            if (! $user) {
+                $view->with('sharedUnreadNotifications', collect());
+                $view->with('sharedUnreadCount', 0);
+                return;
+            }
+            $unread = Notification::where('user_id', $user->id)
+                ->whereNull('read_at')
+                ->orderByDesc('created_at')
+                ->limit(10)
+                ->get();
+            $view->with('sharedUnreadNotifications', $unread);
+            $view->with('sharedUnreadCount', Notification::where('user_id', $user->id)->whereNull('read_at')->count());
         });
     }
 }

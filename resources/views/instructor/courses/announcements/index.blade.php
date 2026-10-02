@@ -2,7 +2,7 @@
 
 @section('title', 'Announcements — ' . $course->code)
 @php
-    $activeNav = 'courses';
+    $activeNav = 'announcements';
     $pageTitle = 'Announcements';
     $pageIcon = '<i class="fa-solid fa-bullhorn"></i>';
 @endphp

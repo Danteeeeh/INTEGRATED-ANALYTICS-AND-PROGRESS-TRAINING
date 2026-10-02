@@ -23,6 +23,9 @@ class StoreUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:30'],
             'address' => ['nullable', 'string', 'max:500'],
             'role_id' => ['required', Rule::exists('roles', 'id')],
+            'department_id' => ['nullable', Rule::exists('departments', 'id')],
+            'program_id' => ['nullable', Rule::exists('programs', 'id')],
+            'section_id' => ['nullable', Rule::exists('sections', 'id')],
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended', 'pending'])],
             'password' => ['required', 'min:8'],
         ];

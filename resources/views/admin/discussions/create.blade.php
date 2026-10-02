@@ -2,7 +2,7 @@
 
 @section('title', 'Create Discussion')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'discussions';
     $pageTitle = 'Create Discussion';
     $pageIcon = '<i class="fa-solid fa-comments"></i>';
 @endphp
@@ -54,12 +54,12 @@
 
                 <div class="form-field">
                     <label>Type <span class="req">*</span></label>
-                    <select name="type" required>
+                    <select name="discussion_type" required>
                         <option value="">Select Type</option>
-                        <option value="general" {{ old('type') == 'general' ? 'selected' : '' }}>General</option>
-                        <option value="academic" {{ old('type') == 'academic' ? 'selected' : '' }}>Academic</option>
-                        <option value="qna" {{ old('type') == 'qna' ? 'selected' : '' }}>Q&amp;A</option>
-                        <option value="graded" {{ old('type') == 'graded' ? 'selected' : '' }}>Graded</option>
+                        <option value="general" {{ old('discussion_type') == 'general' ? 'selected' : '' }}>General</option>
+                        <option value="academic" {{ old('discussion_type') == 'academic' ? 'selected' : '' }}>Academic</option>
+                        <option value="qa" {{ old('discussion_type') == 'qa' ? 'selected' : '' }}>Q&amp;A</option>
+                        <option value="graded" {{ old('discussion_type') == 'graded' ? 'selected' : '' }}>Graded</option>
                     </select>
                 </div>
 
@@ -79,7 +79,7 @@
 
                 <div class="form-field full">
                     <label>Content <span class="req">*</span></label>
-                    <textarea name="content" rows="8" required placeholder="Write your discussion content here...">{{ old('content') }}</textarea>
+                    <textarea name="description" rows="8" required placeholder="Write your discussion content here...">{{ old('description') }}</textarea>
                     <span class="field-error"></span>
                 </div>
             </div>

@@ -13,6 +13,8 @@ class GradebookController extends Controller
 {
     public function index(ClassModel $class): View
     {
+        $this->authorize('view', Grade::class);
+
         $studentId = auth()->id();
 
         $enrollment = Enrollment::where('student_id', $studentId)
@@ -24,11 +26,10 @@ class GradebookController extends Controller
             abort(403);
         }
 
-        $class->load('course', 'gradeCategories', 'gradeItems.category');
+        $class->load('course', 'gradeItems');
 
         $gradeItems = GradeItem::where('class_id', $class->id)
             ->where('is_released', true)
-            ->with('category')
             ->orderBy('position', 'asc')
             ->get();
 

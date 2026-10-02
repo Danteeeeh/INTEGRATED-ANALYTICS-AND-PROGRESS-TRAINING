@@ -14,7 +14,7 @@ class ProfileController extends Controller
 {
     public function edit(Request $request): View
     {
-        $user = $request->user()->load('role');
+        $user = $request->user()->load('role', 'department', 'program', 'section');
         $preferences = UserPreference::query()
             ->where('user_id', $user->id)
             ->whereIn('key', ['email_notifications', 'in_app_notifications', 'weekly_summary'])

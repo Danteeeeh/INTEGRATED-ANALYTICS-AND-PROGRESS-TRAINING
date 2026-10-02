@@ -138,7 +138,7 @@
                             </div>
                             
                             <div style="text-align: right; min-width: 100px;">
-                                <div style="font-weight: 600; color: {{ $moduleStatus === 'completed' ? '#16a34a' : $moduleStatus === 'in_progress' ? '#3b82f6' : '#64748b' }};">
+                                <div style="font-weight: 600; color: {{ ($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#64748b') }};">
                                     {{ ucfirst(str_replace('_', ' ', $moduleStatus)) }}
                                 </div>
                                 @if($moduleProgress?->completed_at)
@@ -152,7 +152,7 @@
                         <!-- Progress Bar -->
                         <div style="margin-bottom: 12px;">
                             <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div style="background: {{ $moduleStatus === 'completed' ? '#16a34a' : $moduleStatus === 'in_progress' ? '#3b82f6' : '#cbd5e1' }}; height: 100%; width: {{ $modulePercent }}%; transition: width 0.5s ease;"></div>
+                                <div style="background: {{ ($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#cbd5e1') }}; height: 100%; width: {{ $modulePercent }}%; transition: width 0.5s ease;"></div>
                             </div>
                         </div>
                         

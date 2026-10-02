@@ -12,6 +12,10 @@ use App\Models\Course;
 use App\Models\Discussion;
 use App\Models\DiscussionPost;
 use App\Models\Enrollment;
+use App\Models\Grade;
+use App\Models\GradeItem;
+use App\Models\Lesson;
+use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\User;
@@ -370,7 +374,7 @@ class DashboardController extends Controller
         try {
             $validated = $request->validate([
                 'query' => 'required|string|min:2',
-                'type' => 'required|in:all,students,courses,classes,assignments,quizzes',
+                'type' => 'required|in:all,students,courses,classes,modules,lessons,assignments,quizzes,grades',
             ]);
 
             $instructorId = auth()->id();
@@ -380,7 +384,7 @@ class DashboardController extends Controller
             $results = [];
 
             // When type is 'all', search across every category
-            $searchTypes = $type === 'all' ? ['students', 'courses', 'classes', 'assignments', 'quizzes'] : [$type];
+            $searchTypes = $type === 'all' ? ['grades', 'students', 'courses', 'classes', 'modules', 'lessons', 'assignments', 'quizzes'] : [$type];
 
             foreach ($searchTypes as $searchType) {
                 $results = array_merge($results, $this->searchType($searchType, $query, $instructorId));
@@ -483,6 +487,78 @@ class DashboardController extends Controller
                         'class_code' => $quiz->class->code ?? 'N/A',
                         'availability_from' => $quiz->availability_from?->format('Y-m-d'),
                         'status' => $quiz->status,
+                    ])
+                    ->toArray();
+
+            case 'modules':
+                $courseIds = auth()->user()->classesInstructing()->pluck('course_id')->merge(
+                    auth()->user()->coursesCreated()->pluck('id')
+                )->unique();
+
+                return Module::whereIn('course_id', $courseIds)
+                    ->where(function ($q) use ($query) {
+                        $q->where('title', 'like', "%{$query}%")
+                            ->orWhere('description', 'like', "%{$query}%");
+                    })
+                    ->with('course')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($m) => [
+                        'id' => $m->id,
+                        'course_id' => $m->course_id,
+                        'entity' => 'module',
+                        'title' => $m->title,
+                        'course_title' => $m->course?->title ?? '',
+                    ])
+                    ->toArray();
+
+            case 'lessons':
+                $courseIds = auth()->user()->classesInstructing()->pluck('course_id')->merge(
+                    auth()->user()->coursesCreated()->pluck('id')
+                )->unique();
+
+                return Lesson::whereHas('module', fn ($q) => $q->whereIn('course_id', $courseIds))
+                    ->where(function ($q) use ($query) {
+                        $q->where('title', 'like', "%{$query}%")
+                            ->orWhere('description', 'like', "%{$query}%");
+                    })
+                    ->with('module.course')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($l) => [
+                        'id' => $l->id,
+                        'course_id' => $l->module?->course_id,
+                        'entity' => 'lesson',
+                        'title' => $l->title,
+                        'course_title' => $l->module?->course?->title ?? '',
+                    ])
+                    ->toArray();
+
+            case 'grades':
+                $classIds = ClassModel::where('instructor_id', $instructorId)->pluck('id');
+                $gradeItemIds = GradeItem::whereIn('class_id', $classIds)->pluck('id');
+
+                return Grade::with(['student', 'item'])
+                    ->whereIn('grade_item_id', $gradeItemIds)
+                    ->where(function ($q) use ($query) {
+                        $q->whereHas('item', fn ($q) => $q->where('title', 'like', "%{$query}%"))
+                            ->orWhereHas('student', function ($q) use ($query) {
+                                $q->where('first_name', 'like', "%{$query}%")
+                                    ->orWhere('last_name', 'like', "%{$query}%");
+                            })
+                            ->orWhere('letter_grade', 'like', "%{$query}%")
+                            ->orWhere('score_percent', 'like', "%{$query}%");
+                    })
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($g) => [
+                        'id' => $g->id,
+                        'student_id' => $g->student_id,
+                        'entity' => 'grade',
+                        'name' => trim(($g->student?->first_name ?? '').' '.($g->student?->last_name ?? '')),
+                        'item_name' => $g->item?->title ?? 'Grade',
+                        'letter_grade' => $g->letter_grade,
+                        'score_percent' => $g->score_percent,
                     ])
                     ->toArray();
 

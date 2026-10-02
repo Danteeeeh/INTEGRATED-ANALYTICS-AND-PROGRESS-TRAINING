@@ -14,7 +14,7 @@ class UpdateEnrollmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => 'sometimes|required|in:pending,active,completed,dropped,suspended',
+            'status' => 'sometimes|required|in:pending,active,completed,dropped',
             'final_grade' => 'nullable|numeric|min:0|max:100',
             'notes' => 'nullable|string|max:1000',
         ];
@@ -23,7 +23,7 @@ class UpdateEnrollmentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.in' => 'Status must be pending, active, completed, dropped, or suspended',
+            'status.in' => 'Status must be pending, active, completed, or dropped',
             'final_grade.numeric' => 'Grade must be a number',
             'final_grade.min' => 'Grade cannot be less than 0',
             'final_grade.max' => 'Grade cannot exceed 100',

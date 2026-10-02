@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Assignment;
 use App\Models\BadgeAward;
+use App\Models\ClassModel;
 use App\Models\CourseCompletion;
 use App\Models\CourseProgress;
 use App\Models\Enrollment;
 use App\Models\Feedback;
 use App\Models\Grade;
+use App\Models\Lesson;
 use App\Models\LessonProgress;
+use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\VirtualClass;
@@ -81,14 +84,22 @@ class DashboardController extends Controller
 
         // Upcoming virtual classes
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->where('start_time', '>', now())
+            ->where(function ($query) {
+                $query->whereDate('meeting_date', '>', today())
+                    ->orWhere(function ($sameDay) {
+                        $sameDay->whereDate('meeting_date', today())
+                            ->whereTime('start_time', '>', now()->format('H:i:s'));
+                    });
+            })
+            ->with('class.course')
+            ->orderBy('meeting_date')
             ->orderBy('start_time')
             ->limit(5)
             ->get();
 
         // Recent grades
         $recentGrades = Grade::where('student_id', $studentId)
-            ->with('item')
+            ->with('item.class.course')
             ->whereHas('item', fn ($q) => $q->where('is_released', true))
             ->orderBy('graded_at', 'desc')
             ->limit(5)
@@ -339,14 +350,14 @@ class DashboardController extends Controller
         try {
             $validated = $request->validate([
                 'query' => 'required|string|min:2',
-                'type' => 'required|in:all,courses,assignments,quizzes',
+                'type' => 'required|in:all,courses,modules,lessons,assignments,quizzes,grades',
             ]);
 
             $studentId = auth()->id();
             $query = $validated['query'];
             $type = $validated['type'];
             $results = [];
-            $types = $type === 'all' ? ['courses', 'assignments', 'quizzes'] : [$type];
+            $types = $type === 'all' ? ['courses', 'modules', 'lessons', 'assignments', 'quizzes', 'grades'] : [$type];
 
             foreach ($types as $t) {
                 $results = array_merge($results, $this->searchType($t, $query, $studentId));
@@ -420,6 +431,67 @@ class DashboardController extends Controller
                     ])
                     ->toArray();
 
+            case 'modules':
+                $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
+
+                return Module::whereIn('course_id', $courseIds)
+                    ->where(function ($q) use ($query) {
+                        $q->where('title', 'like', "%{$query}%")
+                            ->orWhere('description', 'like', "%{$query}%");
+                    })
+                    ->with('course')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($m) => [
+                        'id' => $m->id,
+                        'course_id' => $m->course_id,
+                        'entity' => 'module',
+                        'title' => $m->title,
+                        'course_title' => $m->course?->title ?? '',
+                    ])
+                    ->toArray();
+
+            case 'lessons':
+                $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
+
+                return Lesson::whereHas('module', fn ($q) => $q->whereIn('course_id', $courseIds))
+                    ->where(function ($q) use ($query) {
+                        $q->where('title', 'like', "%{$query}%")
+                            ->orWhere('description', 'like', "%{$query}%");
+                    })
+                    ->with('module.course')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($l) => [
+                        'id' => $l->id,
+                        'course_id' => $l->module?->course_id,
+                        'entity' => 'lesson',
+                        'title' => $l->title,
+                        'course_title' => $l->module?->course?->title ?? '',
+                    ])
+                    ->toArray();
+
+            case 'grades':
+                return Grade::where('student_id', $studentId)
+                    ->with(['item'])
+                    ->where(function ($q) use ($query) {
+                        $q->whereHas('item', fn ($q) => $q->where('title', 'like', "%{$query}%"))
+                            ->orWhere('letter_grade', 'like', "%{$query}%")
+                            ->orWhere('score_percent', 'like', "%{$query}%");
+                    })
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($g) => [
+                        'id' => $g->id,
+                        'entity' => 'grade',
+                        'name' => $g->item?->title ?? 'Grade',
+                        'course_title' => $g->item?->class?->course?->title ?? '',
+                        'class_code' => $g->item?->class?->code ?? '',
+                        'letter_grade' => $g->letter_grade,
+                        'score_percent' => $g->score_percent,
+                    ])
+                    ->toArray();
+
             default:
                 return [];
         }
@@ -441,12 +513,12 @@ class DashboardController extends Controller
             switch ($type) {
                 case 'grades':
                     $grades = Grade::where('student_id', $studentId)
-                        ->with('item')
+                        ->with('item.class.course')
                         ->whereHas('item', fn ($q) => $q->where('is_released', true))
                         ->orderBy('graded_at')
                         ->get()
                         ->map(fn ($g) => [
-                            'name' => $g->item?->name ?? 'Grade',
+                            'name' => $g->item?->title ?? 'Grade',
                             'score' => round($g->score_percent ?? 0, 1),
                             'date' => $g->graded_at?->format('M j'),
                         ]);
@@ -546,7 +618,7 @@ class DashboardController extends Controller
             ->orderBy('due_date', 'desc')->limit(5)->get();
 
         $recentGrades = Grade::where('student_id', $studentId)
-            ->with('item')
+            ->with('item.class.course')
             ->whereHas('item', fn ($q) => $q->where('is_released', true))
             ->orderBy('graded_at', 'desc')->limit(5)->get();
 

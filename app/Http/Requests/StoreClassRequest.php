@@ -20,6 +20,7 @@ class StoreClassRequest extends FormRequest
             'course_id' => 'required|exists:courses,id',
             'instructor_id' => 'required|exists:users,id',
             'academic_period_id' => 'nullable|exists:academic_periods,id',
+            'section_id' => 'nullable|exists:sections,id',
             'schedule' => 'nullable|string|max:255',
             'room' => 'nullable|string|max:100',
             'capacity' => 'nullable|integer|min:1',

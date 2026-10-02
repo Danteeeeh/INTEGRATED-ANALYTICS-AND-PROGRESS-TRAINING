@@ -79,11 +79,8 @@ class EnrollmentController extends Controller
 
         // Check class capacity
         $class = ClassModel::find($validated['class_id']);
-        $currentEnrollments = Enrollment::where('class_id', $validated['class_id'])
-            ->where('status', '!=', 'dropped')
-            ->count();
 
-        if ($currentEnrollments >= $class->max_students) {
+        if ($class->isFull()) {
             return back()->with('error', 'Class is already at full capacity.');
         }
 
@@ -181,19 +178,62 @@ class EnrollmentController extends Controller
         return back()->with('status', 'Enrollment dropped.');
     }
 
+    public function transferForm(Enrollment $enrollment): View
+    {
+        $enrollment->load(['student', 'class.course']);
+        $classes = ClassModel::with(['course', 'instructor'])
+            ->where('id', '!=', $enrollment->class_id)
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->get();
+
+        return view('admin.enrollments.transfer', compact('enrollment', 'classes'));
+    }
+
     public function transfer(Request $request, Enrollment $enrollment)
     {
-        $data = $request->validate(['class_id' => ['required', 'exists:classes,id']]);
-        $target = ClassModel::findOrFail($data['class_id']);
-        if ($target->isFull()) {
+        $validated = $request->validate(['class_id' => ['required', 'exists:classes,id']]);
+        $targetClass = ClassModel::findOrFail($validated['class_id']);
+
+        if ($targetClass->id === $enrollment->class_id) {
+            return back()->with('error', 'Student is already in that class/section.');
+        }
+
+        if ($targetClass->isFull()) {
             return back()->with('error', 'The target class is already at full capacity.');
         }
-        if (Enrollment::where('student_id', $enrollment->student_id)->where('class_id', $target->id)->where('status', '!=', 'dropped')->exists()) {
-            return back()->with('error', 'This student is already enrolled in the target class.');
+
+        $duplicate = Enrollment::where('student_id', $enrollment->student_id)
+            ->where('class_id', $targetClass->id)
+            ->where('status', '!=', 'dropped')
+            ->exists();
+
+        if ($duplicate) {
+            return back()->with('error', 'Student is already enrolled in the target class.');
         }
 
-        $enrollment->update(['class_id' => $target->id]);
+        $previousCode = $enrollment->class?->code;
+        $enrollment->update([
+            'class_id' => $targetClass->id,
+            'status' => 'active',
+            'notes' => trim(($enrollment->notes ?? '')."\nTransferred from {$previousCode} on ".now()->toDateTimeString()),
+            'completed_at' => null,
+        ]);
 
-        return back()->with('status', 'Enrollment transferred successfully.');
+        return back()->with('status', "Student transferred to {$targetClass->code} successfully.");
+    }
+
+    public function activate(Enrollment $enrollment)
+    {
+        $enrollment->update(['status' => 'active', 'completed_at' => null]);
+
+        return back()->with('status', 'Enrollment activated.');
+    }
+
+    public function deactivate(Enrollment $enrollment)
+    {
+        $enrollment->update(['status' => 'dropped']);
+
+        return back()->with('status', 'Enrollment deactivated.');
     }
 }

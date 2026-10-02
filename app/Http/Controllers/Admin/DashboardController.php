@@ -10,7 +10,6 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\ClassModel;
 use App\Models\Course;
-use App\Models\CourseCategory;
 use App\Models\CourseCompletion;
 use App\Models\Discussion;
 use App\Models\DiscussionPost;
@@ -18,6 +17,7 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\LessonProgress;
 use App\Models\Notification;
+use App\Models\Program;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Role;
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             'published_quizzes' => Quiz::where('quizzes.status', 'published')->count(),
             'quiz_attempts' => QuizAttempt::count(),
             'quiz_completion_rate' => $this->calculateQuizCompletionRate(),
-            'average_quiz_score' => QuizAttempt::whereNotNull('score')->avg('score') ?? 0,
+            'average_quiz_score' => QuizAttempt::whereNotNull('score_percent')->avg('score_percent') ?? 0,
 
             // Course Completion
             'total_completions' => CourseCompletion::count(),
@@ -246,7 +246,7 @@ class DashboardController extends Controller
             'published_quizzes' => Quiz::where('quizzes.status', 'published')->count(),
             'quiz_attempts' => QuizAttempt::count(),
             'quiz_completion_rate' => $this->calculateQuizCompletionRate(),
-            'average_quiz_score' => QuizAttempt::whereNotNull('score')->avg('score') ?? 0,
+            'average_quiz_score' => QuizAttempt::whereNotNull('score_percent')->avg('score_percent') ?? 0,
 
             // Course Completion
             'total_completions' => CourseCompletion::count(),
@@ -290,7 +290,7 @@ class DashboardController extends Controller
         return [
             'average_time_to_complete' => $this->calculateAverageCompletionTime(),
             'most_popular_courses' => $this->getMostPopularCourses(),
-            'completion_by_category' => $this->getCompletionByCategory(),
+            'completion_by_program' => $this->getCompletionByProgram(),
             'student_retention_rate' => $this->calculateRetentionRate(),
         ];
     }
@@ -357,26 +357,13 @@ class DashboardController extends Controller
             ->toArray();
     }
 
-    protected function getCompletionByCategory(): array
+    protected function getCompletionByProgram(): array
     {
-        return CourseCategory::with('courses.enrollments')
-            ->get()
-            ->map(function ($category) {
-                $totalEnrollments = $category->courses->sum(function ($course) {
-                    return $course->enrollments()->count();
-                });
-                $completedEnrollments = $category->courses->sum(function ($course) {
-                    return $course->enrollments()->where('enrollments.status', 'completed')->count();
-                });
-
-                return [
-                    'name' => $category->name,
-                    'total' => $totalEnrollments,
-                    'completed' => $completedEnrollments,
-                    'rate' => $totalEnrollments > 0 ? ($completedEnrollments / $totalEnrollments) * 100 : 0,
-                ];
-            })
-            ->toArray();
+        return Program::with('courses.enrollments')->get()->map(function ($program) {
+            $t = $program->courses->sum(fn ($c) => $c->enrollments()->count());
+            $done = $program->courses->sum(fn ($c) => $c->enrollments()->where('enrollments.status', 'completed')->count());
+            return ['name' => $program->name, 'total' => $t, 'completed' => $done, 'rate' => $t > 0 ? ($done / $t) * 100 : 0];
+        })->toArray();
     }
 
     protected function calculateRetentionRate(): float
@@ -439,7 +426,7 @@ class DashboardController extends Controller
             'attendance_rate' => VirtualClass::withCount('attendees')
                 ->get()
                 ->avg(function ($class) {
-                    return $class->attendees_count / max($class->enrollments()->count(), 1) * 100;
+                    return $class->attendees_count / max(VirtualClassAttendee::where('virtual_class_id', $class->id)->count(), 1) * 100;
                 }) ?? 0,
         ];
     }

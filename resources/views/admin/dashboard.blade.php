@@ -41,7 +41,7 @@
             label="Students"
             value="{{ $stats['total_students'] ?? 0 }}"
             icon="fa-user-graduate"
-            trend="{{ $stats['active_users'] ?? 0 }} active"
+            trend="{{ $stats['total_students'] ?? 0 }} active students"
             footer="{{ $stats['pending_users'] ?? 0 }} pending accounts"
         />
         <x-user-stat-card
@@ -55,7 +55,7 @@
             label="Classes"
             value="{{ $stats['total_classes'] ?? 0 }}"
             icon="fa-school"
-            trend="{{ $stats['active_classes'] ?? 0 }} running"
+            trend="{{ $stats['active_classes'] ?? 0 }} active"
             footer="{{ $stats['total_courses'] ?? 0 }} courses"
         />
         <x-user-stat-card
@@ -245,7 +245,7 @@
                         <span class="dash-list-icon i-violet"><i class="fa-solid fa-book"></i></span>
                         <div class="dash-list-body">
                             <p class="dash-list-title">{{ $course->title }}</p>
-                            <p class="dash-list-sub">{{ $course->code ?? '' }} · {{ $course->courseCategory?->name ?? '' }}</p>
+                            <p class="dash-list-sub">{{ $course->code ?? '' }} · {{ $course->program?->name ?? '' }}</p>
                         </div>
                         <div class="dash-list-meta">
                             <span class="dash-meta-chip {{ $course->status === 'published' ? 'm-green' : ($course->status === 'draft' ? 'm-amber' : 'm-gray') }}">{{ ucfirst($course->status ?? 'draft') }}</span>

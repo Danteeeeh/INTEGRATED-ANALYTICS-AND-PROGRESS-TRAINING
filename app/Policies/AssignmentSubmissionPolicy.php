@@ -17,6 +17,11 @@ class AssignmentSubmissionPolicy
 
     public function view(User $user, AssignmentSubmission $submission): bool
     {
+        // Students can view their own submissions without explicit permission
+        if ($user->isStudent()) {
+            return $submission->student_id === $user->id;
+        }
+
         if (! $user->hasPermission('assignment_submissions.view')) {
             return false;
         }
@@ -27,10 +32,6 @@ class AssignmentSubmissionPolicy
 
         if ($user->isInstructor()) {
             return $user->classesInstructing()->where('id', $submission->assignment->class_id)->exists();
-        }
-
-        if ($user->isStudent()) {
-            return $submission->student_id === $user->id;
         }
 
         return false;

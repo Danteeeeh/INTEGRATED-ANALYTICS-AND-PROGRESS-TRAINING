@@ -1,6 +1,6 @@
 /* Global compact sizing — applies to admin, instructor, student and registrar layouts. */
 :root { --compact-sidebar: 196px; --compact-topbar: 56px; --compact-control: 34px; }
-.sidebar { width:var(--compact-sidebar) !important; height:100vh !important; min-height:100vh !important; }
+.sidebar { width:var(--compact-sidebar) !important; }
 .main { margin-left:var(--compact-sidebar) !important; min-height:100vh; }
 .topbar { min-height:var(--compact-topbar) !important; padding:8px 20px !important; }
 .sidebar-header { padding:15px 14px 13px !important; }
@@ -23,6 +23,7 @@
 .info-card { min-height:0 !important; padding:14px !important; border-radius:12px !important; }
 .info-card .amount, .info-card .card-amount { font-size:1.35rem !important; }
 .btn, .btn-add, .btn-submit, .btn-cancel, .btn-back, .btn-done, .btn-delete, .btn-modal-cancel, .btn-modal-save, .btn-modal-submit, .export-btn, .filter-btn, .publish-btn, .card-btn { min-height:var(--compact-control) !important; padding:6px 10px !important; border-radius:8px !important; font-size:.71rem !important; }
+.hamburger, .theme-toggle, .search-submit, .search-clear { min-height:0 !important; padding:0 !important; }
 .btn-icon { width:30px !important; min-width:30px !important; height:30px !important; min-height:30px !important; border-radius:8px !important; }
 .btn-sm { min-height:27px !important; padding:4px 8px !important; font-size:.66rem !important; }
 .table-toolbar, .filter-form { gap:7px !important; padding:10px 12px !important; }

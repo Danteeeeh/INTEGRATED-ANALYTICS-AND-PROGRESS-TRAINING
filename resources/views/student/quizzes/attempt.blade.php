@@ -24,14 +24,14 @@
                 <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px;">{{ $quiz->title }}</div>
                 <div style="font-size: 0.9rem; opacity: 0.9;">{{ $inProgress->answers->count() }} Questions</div>
             </div>
-            
+
             @if($quiz->time_limit_minutes)
                 <div style="text-align: center;">
                     <div style="font-size: 0.85rem; opacity: 0.9;">Time Remaining</div>
                     <div id="timer" style="font-size: 1.5rem; font-weight: 700;">{{ $quiz->time_limit_minutes }}:00</div>
                 </div>
             @endif
-            
+
             <div style="text-align: center;">
                 <div style="font-size: 0.85rem; opacity: 0.9;">Progress</div>
                 <div id="progress" style="font-size: 1.5rem; font-weight: 700;">0/{{ $inProgress->answers->count() }}</div>
@@ -44,7 +44,7 @@
         <h3><i class="fa-solid fa-list-ol"></i> Question Navigation</h3>
         <div id="questionNav" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;">
             @foreach($inProgress->answers as $index => $answer)
-                <button type="button" 
+                <button type="button"
                         onclick="goToQuestion({{ $index }})"
                         class="question-nav-btn"
                         data-question="{{ $index }}"
@@ -70,42 +70,42 @@
     </div>
 
     <!-- Quiz Form -->
-    <form action="{{ route('student.courses.quizzes.attempts.store', [$course, $quiz]) }}" 
+    <form action="{{ route('student.courses.quizzes.attempt.store', [$course, $quiz]) }}"
           method="POST" id="quizForm">
         @csrf
-        
+
         @foreach($inProgress->answers as $index => $quizAnswer)
-            <div class="question-card" id="question-{{ $index }}" 
+            <div class="question-card" id="question-{{ $index }}"
                  style="display: {{ $index === 0 ? 'block' : 'none' }}; margin-bottom: 24px;">
-                
+
                 <div class="form-card">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
                         <h3 style="margin: 0;">
                             <span style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-right: 8px;">
                                 Question {{ $index + 1 }}
                             </span>
-                            {{ $quizAnswer->question->question_type === 'multiple_choice' ? 'Multiple Choice' : 
-                               $quizAnswer->question->question_type === 'true_false' ? 'True/False' : 
-                               $quizAnswer->question->question_type === 'multiple_answer' ? 'Multiple Answer' : 
-                               $quizAnswer->question->question_type === 'short_answer' ? 'Short Answer' : 
+                            {{ $quizAnswer->question->question_type === 'multiple_choice' ? 'Multiple Choice' :
+                               $quizAnswer->question->question_type === 'true_false' ? 'True/False' :
+                               $quizAnswer->question->question_type === 'multiple_answer' ? 'Multiple Answer' :
+                               $quizAnswer->question->question_type === 'short_answer' ? 'Short Answer' :
                                $quizAnswer->question->question_type === 'essay' ? 'Essay' : 'Question' }}
                         </h3>
                         <span style="background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
                             {{ $quizAnswer->question->quizzes->find($quiz->id)?->pivot->points ?? $quizAnswer->question->default_points ?? 1 }} pts
                         </span>
                     </div>
-                    
+
                     <div style="font-size: 1.1rem; color: #1e293b; margin-bottom: 20px; line-height: 1.6;">
                         {!! $quizAnswer->question->question_text !!}
                     </div>
-                    
+
                     @if($quizAnswer->question->question_type === 'multiple_choice' || $quizAnswer->question->question_type === 'true_false')
                         <div style="display: flex; flex-direction: column; gap: 12px;">
                             @foreach($quizAnswer->question->choices as $choice)
-                                <label class="choice-label" 
+                                <label class="choice-label"
                                        style="display: flex; align-items: center; padding: 16px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white;">
-                                    <input type="radio" 
-                                           name="answers[{{ $quizAnswer->question->id }}]" 
+                                    <input type="radio"
+                                           name="answers[{{ $quizAnswer->question->id }}]"
                                            value="{{ $choice->id }}"
                                            {{ old('answers.'.$quizAnswer->question->id) == $choice->id ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
@@ -114,14 +114,14 @@
                                 </label>
                             @endforeach
                         </div>
-                    
+
                     @elseif($quizAnswer->question->question_type === 'multiple_answer')
                         <div style="display: flex; flex-direction: column; gap: 12px;">
                             @foreach($quizAnswer->question->choices as $choice)
-                                <label class="choice-label" 
+                                <label class="choice-label"
                                        style="display: flex; align-items: center; padding: 16px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white;">
-                                    <input type="checkbox" 
-                                           name="answers[{{ $quizAnswer->question->id }}][]" 
+                                    <input type="checkbox"
+                                           name="answers[{{ $quizAnswer->question->id }}][]"
                                            value="{{ $choice->id }}"
                                            {{ in_array($choice->id, old('answers.'.$quizAnswer->question->id, [])) ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
@@ -130,10 +130,10 @@
                                 </label>
                             @endforeach
                         </div>
-                    
+
                     @elseif($quizAnswer->question->question_type === 'short_answer' || $quizAnswer->question->question_type === 'essay')
                         <div>
-                            <textarea name="answers[{{ $quizAnswer->question->id }}]" 
+                            <textarea name="answers[{{ $quizAnswer->question->id }}]"
                                       rows="{{ $quizAnswer->question->question_type === 'essay' ? '8' : '4' }}"
                                       placeholder="Enter your answer here..."
                                       onchange="markAnswered({{ $index }})"
@@ -143,23 +143,23 @@
                 </div>
             </div>
         @endforeach
-        
+
         <!-- Navigation Buttons -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
-            <button type="button" id="prevBtn" onclick="prevQuestion()" 
+            <button type="button" id="prevBtn" onclick="prevQuestion()"
                     class="btn-modal-cancel" style="padding: 12px 24px; border-radius: 8px; cursor: pointer; disabled: true;">
                 <i class="fa-solid fa-arrow-left"></i> Previous
             </button>
-            
-            <button type="button" id="nextBtn" onclick="nextQuestion()" 
+
+            <button type="button" id="nextBtn" onclick="nextQuestion()"
                     class="btn-add" style="padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                 Next <i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
-        
+
         <!-- Submit Button -->
         <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-            <button type="submit" onclick="return confirmSubmit()" 
+            <button type="submit" onclick="return confirmSubmit()"
                     class="btn-add" style="padding: 14px 32px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: 600; background: #22c55e;">
                 <i class="fa-solid fa-check-circle"></i> Submit Quiz
             </button>
@@ -186,7 +186,7 @@
             updateNavigation();
             startTimer();
             loadSavedAnswers();
-            
+
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
         });
@@ -194,11 +194,11 @@
         function goToQuestion(index) {
             // Hide current question
             document.getElementById('question-' + currentQuestion).style.display = 'none';
-            
+
             // Show new question
             currentQuestion = index;
             document.getElementById('question-' + currentQuestion).style.display = 'block';
-            
+
             updateNavigation();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -225,7 +225,7 @@
             // Update navigation buttons
             document.getElementById('prevBtn').disabled = currentQuestion === 0;
             document.getElementById('nextBtn').style.display = currentQuestion === totalQuestions - 1 ? 'none' : 'inline-flex';
-            
+
             // Update question navigation buttons
             for (let i = 0; i < totalQuestions; i++) {
                 const btn = document.querySelector(`[data-question="${i}"]`);
@@ -233,7 +233,7 @@
                     btn.style.borderColor = '#cbd5e1';
                     btn.style.background = 'white';
                     btn.style.color = '#64748b';
-                    
+
                     if (i === currentQuestion) {
                         btn.style.borderColor = '#3b82f6';
                         btn.style.background = '#3b82f6';
@@ -245,7 +245,7 @@
                     }
                 }
             }
-            
+
             // Update progress
             document.getElementById('progress').textContent = answeredQuestions.size + '/' + totalQuestions;
         }
@@ -255,22 +255,22 @@
                 if (timeRemaining > 0) {
                     timerInterval = setInterval(function() {
                         timeRemaining--;
-                        
+
                         const minutes = Math.floor(timeRemaining / 60);
                         const seconds = timeRemaining % 60;
-                        document.getElementById('timer').textContent = 
+                        document.getElementById('timer').textContent =
                             minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-                        
+
                         // Warning when 5 minutes remaining
                         if (timeRemaining === 300) {
                             alert('You have 5 minutes remaining!');
                         }
-                        
+
                         // Warning when 1 minute remaining
                         if (timeRemaining === 60) {
                             alert('You have 1 minute remaining!');
                         }
-                        
+
                         // Auto-submit when time expires
                         if (timeRemaining <= 0) {
                             clearInterval(timerInterval);
@@ -285,7 +285,7 @@
         function autoSave() {
             const formData = new FormData(document.getElementById('quizForm'));
             localStorage.setItem('quizAnswers_' + {{ $inProgress->id }}, JSON.stringify(Object.fromEntries(formData)));
-            
+
             // Show auto-save notification
             const warning = document.getElementById('autoSaveWarning');
             warning.style.display = 'block';
@@ -337,7 +337,7 @@
                     label.style.borderColor = '#e2e8f0';
                     label.style.background = 'white';
                 });
-                
+
                 if (this.checked) {
                     this.closest('.choice-label').style.borderColor = '#3b82f6';
                     this.closest('.choice-label').style.background = '#eff6ff';

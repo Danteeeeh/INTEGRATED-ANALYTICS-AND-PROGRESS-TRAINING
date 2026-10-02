@@ -2,7 +2,7 @@
 
 @section('title', $virtualClass->title . ' - ' . $class->name)
 @php
-    $activeNav = 'classes';
+    $activeNav = 'virtual_classes';
     $pageTitle = 'Virtual Class Details';
     $pageIcon = '<i class="fa-solid fa-video"></i>';
 @endphp
@@ -53,10 +53,10 @@
             <span>Status:</span>
             <span>
                 <span style="padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
-                    {{ $virtualClass->status === 'ongoing' ? 'background: #dcfce7; color: #16a34a;' :
-                       $virtualClass->status === 'scheduled' ? 'background: #dbeafe; color: #1e40af;' :
-                       $virtualClass->status === 'completed' ? 'background: #f1f5f9; color: #64748b;' :
-                       'background: #fee2e2; color: #dc2626;' }}">
+                    {{ ($virtualClass->status === 'ongoing') ? 'background: #dcfce7; color: #16a34a;' :
+                       (($virtualClass->status === 'scheduled') ? 'background: #dbeafe; color: #1e40af;' :
+                       (($virtualClass->status === 'completed') ? 'background: #f1f5f9; color: #64748b;' :
+                       'background: #fee2e2; color: #dc2626;')) }}">
                     {{ ucfirst($virtualClass->status) }}
                 </span>
             </span>

@@ -12,20 +12,20 @@
 <section class="dash-panel">
     <form class="table-toolbar" method="GET" action="{{ route('admin.reports.course-completion') }}">
         <input name="search" value="{{ request('search') }}" placeholder="Search student..." aria-label="Search completions">
-        <select name="course_id" aria-label="Filter course">
+        <select name="course_id" aria-label="Filter course" onchange="this.form.submit()">
             <option value="">All courses</option>
             @foreach($courses as $course)
                 <option value="{{ $course->id }}" @selected((string) request('course_id') === (string) $course->id)>{{ $course->code }}</option>
             @endforeach
         </select>
-        <select name="academic_period_id" aria-label="Filter academic period">
+        <select name="academic_period_id" aria-label="Filter academic period" onchange="this.form.submit()">
             <option value="">All periods</option>
             @foreach($academicPeriods as $period)
                 <option value="{{ $period->id }}" @selected((string) request('academic_period_id') === (string) $period->id)>{{ $period->code }} — {{ $period->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
         <a class="btn btn-secondary" href="{{ route('admin.reports.course-completion') }}">Clear</a>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('importCompletionModal').classList.add('active')"><i class="fa-solid fa-file-import"></i> Import</button>
         <a class="btn btn-primary" href="{{ route('admin.reports.export', array_merge(['type' => 'course-completion'], request()->query())) }}"><i class="fa-solid fa-download"></i> Export</a>
     </form>
     <table class="dash-table">
@@ -56,4 +56,11 @@
     </table>
     {{ $completions->appends(request()->query())->links() }}
 </section>
+@include('admin.reports._import_modal', [
+    'modalId' => 'importCompletionModal',
+    'importTitle' => 'Course Completions',
+    'importAction' => route('admin.reports.course-completion.import'),
+    'importColumns' => 'student_email, class_code, completion_percent, final_grade, completed_at, requirements_met',
+])
+
 @endsection

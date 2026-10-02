@@ -5,8 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\ClassModel;
+use App\Models\Department;
+use App\Models\Enrollment;
+use App\Models\Program;
 use App\Models\Role;
+use App\Models\Section;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +28,7 @@ class StudentController extends Controller
         $this->authorize('viewAny', User::class);
 
         $students = $this->users->getStudents($request->only(['search', 'status']));
-        $students->load('enrollments');
+        $students->load('enrollments', 'section.program');
 
         return view('admin.students.index', compact('students'));
     }
@@ -30,8 +36,11 @@ class StudentController extends Controller
     public function create(): View
     {
         $roles = Role::all();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.students.create', compact('roles'));
+        return view('admin.students.create', compact('roles', 'departments', 'programs', 'sections'));
     }
 
     public function store(StoreUserRequest $request)
@@ -59,16 +68,24 @@ class StudentController extends Controller
 
     public function show(User $student): View
     {
-        $student->load('role', 'enrollments.class.course', 'enrollments.class.instructor');
+        $student->load('role', 'department', 'program', 'section', 'enrollments.class.course', 'enrollments.class.instructor', 'enrollments.class.academicPeriod');
 
-        return view('admin.students.show', compact('student'));
+        $availableClasses = ClassModel::with('course', 'instructor', 'academicPeriod', 'section')
+            ->orderBy('code')
+            ->get();
+        $sections = Section::with('program.department')->orderBy('name')->get();
+
+        return view('admin.students.show', compact('student', 'availableClasses', 'sections'));
     }
 
     public function edit(User $student): View
     {
         $roles = Role::all();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.students.edit', compact('student', 'roles'));
+        return view('admin.students.edit', compact('student', 'roles', 'departments', 'programs', 'sections'));
     }
 
     public function update(UpdateUserRequest $request, User $student)
@@ -88,6 +105,11 @@ class StudentController extends Controller
         // Update status from dropdown
         $validated['status'] = $request->input('status', $student->status);
 
+        // Nullable hierarchy fields
+        foreach (['department_id', 'program_id', 'section_id'] as $field) {
+            $validated[$field] = $request->filled($field) ? $request->input($field) : null;
+        }
+
         $student->update($validated);
 
         return redirect()->route('admin.students.index')
@@ -104,6 +126,98 @@ class StudentController extends Controller
 
         return redirect()->route('admin.students.index')
             ->with('status', 'Student deleted successfully.');
+    }
+
+    public function assignClasses(Request $request, User $student): RedirectResponse
+    {
+        $this->authorize('update', $student);
+
+        $validated = $request->validate([
+            'class_ids' => ['nullable', 'array'],
+            'class_ids.*' => ['integer', 'exists:classes,id'],
+        ]);
+
+        $classIds = array_map('intval', $validated['class_ids'] ?? []);
+
+        DB::transaction(function () use ($student, $classIds) {
+            // Add newly selected classes as active enrollments.
+            $existing = Enrollment::where('student_id', $student->id)
+                ->whereIn('class_id', $classIds)
+                ->whereIn('status', ['active', 'pending'])
+                ->pluck('class_id')
+                ->all();
+
+            foreach (array_diff($classIds, $existing) as $classId) {
+                $class = ClassModel::find($classId);
+                if (! $class) {
+                    continue;
+                }
+
+                if ($class->capacity && $class->enrolled_count >= $class->capacity) {
+                    continue;
+                }
+
+                // Re-activate a previously dropped enrollment instead of duplicating.
+                $dropped = Enrollment::where('student_id', $student->id)
+                    ->where('class_id', $classId)
+                    ->where('status', 'dropped')
+                    ->first();
+
+                if ($dropped) {
+                    $dropped->update([
+                        'status' => 'active',
+                        'enrolled_at' => now(),
+                        'completed_at' => null,
+                    ]);
+                } else {
+                    Enrollment::create([
+                        'student_id' => $student->id,
+                        'class_id' => $classId,
+                        'status' => 'active',
+                        'enrolled_at' => now(),
+                    ]);
+                }
+            }
+
+            // Remove selected classes that were un-checked (only active/pending ones).
+            $removeIds = array_values(array_diff(
+                Enrollment::where('student_id', $student->id)
+                    ->whereIn('status', ['active', 'pending'])
+                    ->pluck('class_id')
+                    ->all(),
+                $classIds
+            ));
+
+            if ($removeIds) {
+                Enrollment::where('student_id', $student->id)
+                    ->whereIn('class_id', $removeIds)
+                    ->whereIn('status', ['active', 'pending'])
+                    ->update(['status' => 'dropped']);
+            }
+        });
+
+        return back()->with('status', 'Student class assignments updated successfully.');
+    }
+
+    public function assignSection(Request $request, User $student): RedirectResponse
+    {
+        $this->authorize('update', $student);
+
+        $validated = $request->validate([
+            'section_id' => ['nullable', 'exists:sections,id'],
+        ]);
+
+        $student->update([
+            'section_id' => $validated['section_id'] ?? null,
+            'program_id' => $validated['section_id']
+                ? optional(Section::find($validated['section_id'])->program)->id
+                : null,
+            'department_id' => $validated['section_id']
+                ? optional(Section::find($validated['section_id'])->program?->department)->id
+                : null,
+        ]);
+
+        return back()->with('status', 'Student section assignment updated.');
     }
 
     public function import(Request $request): RedirectResponse

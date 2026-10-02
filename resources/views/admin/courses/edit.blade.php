@@ -52,26 +52,28 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="category_id">Category</label>
-                        <select id="category_id" name="category_id" class="form-control">
-                            <option value="">Select Category</option>
-                            @foreach($categories ?? [] as $category)
-                                <option value="{{ $category->id }}" {{ old('category_id', $course->category_id) == $category->id ? 'selected' : '' }}>
-                                    {{ $category->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('category_id')
-                            <span class="error-message">{{ $message }}</span>
-                        @enderror
-                    </div>
-                    <div class="form-group">
                         <label for="academic_period_id">Academic Period</label>
                         <select id="academic_period_id" name="academic_period_id" class="form-control">
                             <option value="">Select Period</option>
                             @foreach($academicPeriods ?? [] as $period)
                                 <option value="{{ $period->id }}" {{ old('academic_period_id', $course->academic_period_id) == $period->id ? 'selected' : '' }}>
                                     {{ $period->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <select id="department_id" name="department_id" class="form-control" style="margin-top:8px">
+                            <option value="">Select Department</option>
+                            @foreach($departments ?? [] as $department)
+                                <option value="{{ $department->id }}" {{ old('department_id', $course->department_id) == $department->id ? 'selected' : '' }}>
+                                    {{ $department->name }} ({{ $department->code }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <select id="program_id" name="program_id" class="form-control" style="margin-top:8px">
+                            <option value="">Select Program</option>
+                            @foreach($programs ?? [] as $program)
+                                <option value="{{ $program->id }}" {{ old('program_id', $course->program_id) == $program->id ? 'selected' : '' }}>
+                                    {{ $program->code }} — {{ $program->name }}
                                 </option>
                             @endforeach
                         </select>

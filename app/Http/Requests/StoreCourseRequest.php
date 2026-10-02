@@ -23,7 +23,8 @@ class StoreCourseRequest extends FormRequest
             'prerequisites' => 'nullable|string',
             'duration_weeks' => 'nullable|integer|min:1',
             'academic_period_id' => 'nullable|exists:academic_periods,id',
-            'category_id' => 'nullable|exists:course_categories,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'program_id' => 'nullable|exists:programs,id',
             'thumbnail' => 'nullable|string|max:255',
             'status' => 'required|in:draft,published,archived',
         ];

@@ -3,7 +3,7 @@
 @section('title', 'Search')
 @php
     $activeNav = '';
-    $resultTotal = ($courses?->count() ?? 0) + ($classes?->count() ?? 0) + ($lessons?->count() ?? 0) + ($materials?->count() ?? 0);
+    $resultTotal = ($courses?->count() ?? 0) + ($classes?->count() ?? 0) + ($lessons?->count() ?? 0) + ($materials?->count() ?? 0) + ($modules?->count() ?? 0) + ($students?->count() ?? 0);
 @endphp
 
 @section('content')
@@ -11,14 +11,14 @@
         <div>
             <span class="dash-hero-kicker"><i class="fa-solid fa-magnifying-glass"></i> Command search</span>
             <h1>{{ $search ? 'Search results' : 'Search the LMS' }}</h1>
-            <p>{{ $search ? 'Showing matches for “' . $search . '”.' : 'Find courses, classes, lessons, and learning materials from one place.' }}</p>
+            <p>{{ $search ? 'Showing matches for “' . $search . '”.' : 'Find courses, modules, classes, lessons, materials, and students from one place.' }}</p>
         </div>
         <span class="search-result-count">{{ $resultTotal }} {{ Str::plural('result', $resultTotal) }}</span>
     </section>
 
     <form class="search-page-form" action="{{ route('admin.search') }}" method="GET" role="search">
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-        <input type="search" name="search" value="{{ $search }}" placeholder="Search courses, classes, lessons, or materials..." aria-label="Search LMS" autofocus>
+        <input type="search" name="search" value="{{ $search }}" placeholder="Search courses, modules, classes, lessons, or students..." aria-label="Search LMS" autofocus>
         <button type="submit"><i class="fa-solid fa-arrow-right"></i> Search</button>
     </form>
 
@@ -40,6 +40,19 @@
                     </a>
                 @empty
                     <p class="search-no-results">No courses matched.</p>
+                @endforelse
+            </section>
+
+            <section class="search-result-panel">
+                <header><h2><i class="fa-solid fa-layer-group"></i> Modules</h2><span>{{ $modules->count() }}</span></header>
+                @forelse($modules as $module)
+                    <a class="search-result-item" href="{{ route('admin.courses.modules.show', [$module->course, $module]) }}">
+                        <span class="search-result-icon indigo"><i class="fa-solid fa-layer-group"></i></span>
+                        <span><strong>{{ $module->title }}</strong><small>{{ $module->course?->title ?? 'Course module' }}</small></span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </a>
+                @empty
+                    <p class="search-no-results">No modules matched.</p>
                 @endforelse
             </section>
 
@@ -79,6 +92,19 @@
                     </a>
                 @empty
                     <p class="search-no-results">No materials matched.</p>
+                @endforelse
+            </section>
+
+            <section class="search-result-panel">
+                <header><h2><i class="fa-solid fa-user-graduate"></i> Students</h2><span>{{ $students->count() }}</span></header>
+                @forelse($students as $student)
+                    <a class="search-result-item" href="{{ route('admin.students.show', $student) }}">
+                        <span class="search-result-icon green"><i class="fa-solid fa-user-graduate"></i></span>
+                        <span><strong>{{ $student->name }}</strong><small>{{ $student->email }}@if($student->identifier) · {{ $student->identifier }} @endif</small></span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </a>
+                @empty
+                    <p class="search-no-results">No students matched.</p>
                 @endforelse
             </section>
         </div>

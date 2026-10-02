@@ -48,6 +48,22 @@
                         <span class="link-hint">Choose class</span>
                     </a>
                 </li>
+
+                <li class="nav-item {{ $activeNav === 'modules' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.courses.index', ['feature' => 'modules']) }}" class="nav-link" @if($activeNav === 'modules') aria-current="page" @endif>
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span>Modules</span>
+                        <span class="link-hint">Choose course</span>
+                    </a>
+                </li>
+
+                <li class="nav-item {{ $activeNav === 'lessons' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.courses.index', ['feature' => 'lessons']) }}" class="nav-link" @if($activeNav === 'lessons') aria-current="page" @endif>
+                        <i class="fa-solid fa-book-open-reader"></i>
+                        <span>Lessons</span>
+                        <span class="link-hint">Choose course</span>
+                    </a>
+                </li>
             </ul>
         </div>
 
@@ -85,6 +101,7 @@
                         <span class="link-hint">Choose course</span>
                     </a>
                 </li>
+
             </ul>
         </div>
 

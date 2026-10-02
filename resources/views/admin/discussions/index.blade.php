@@ -58,7 +58,7 @@
                         <option value="">All Types</option>
                         <option value="general" {{ request('type') == 'general' ? 'selected' : '' }}>General</option>
                         <option value="academic" {{ request('type') == 'academic' ? 'selected' : '' }}>Academic</option>
-                        <option value="qna" {{ request('type') == 'qna' ? 'selected' : '' }}>Q&amp;A</option>
+                        <option value="qa" {{ request('type') == 'qa' ? 'selected' : '' }}>Q&amp;A</option>
                         <option value="graded" {{ request('type') == 'graded' ? 'selected' : '' }}>Graded</option>
                     </select>
                 </div>
@@ -97,20 +97,20 @@
                     <tr>
                         <td>
                             <div style="font-weight: 600; color: #111827;">{{ $discussion->title }}</div>
-                            @if($discussion->user)
-                                <div style="font-size: 0.75rem; color: #6b7280;">by {{ $discussion->user->name }}</div>
+                            @if($discussion->creator)
+                                <div style="font-size: 0.75rem; color: #6b7280;">by {{ $discussion->creator->name }}</div>
                             @endif
                         </td>
                         <td>{{ $discussion->course->code ?? '-' }} - {{ ($discussion->course->name ?? $discussion->course->title) ?? '-' }}</td>
                         <td>{{ $discussion->class->code ?? '-' }}</td>
                         <td>
                             @php
-                                $typeBadge = match($discussion->type) {
+                                $typeBadge = match($discussion->discussion_type) {
                                     'general' => ['bg' => '#dbeafe', 'color' => '#1e40af', 'label' => 'General'],
                                     'academic' => ['bg' => '#ede9fe', 'color' => '#6d28d9', 'label' => 'Academic'],
-                                    'qna' => ['bg' => '#fef3c7', 'color' => '#b45309', 'label' => 'Q&amp;A'],
+                                    'qa' => ['bg' => '#fef3c7', 'color' => '#b45309', 'label' => 'Q&amp;A'],
                                     'graded' => ['bg' => '#dcfce7', 'color' => '#15803d', 'label' => 'Graded'],
-                                    default => ['bg' => '#f3f4f6', 'color' => '#6b7280', 'label' => ucfirst($discussion->type)],
+                                    default => ['bg' => '#f3f4f6', 'color' => '#6b7280', 'label' => ucfirst($discussion->discussion_type)],
                                 };
                             @endphp
                             <span style="padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; background: {{ $typeBadge['bg'] }}; color: {{ $typeBadge['color'] }};">

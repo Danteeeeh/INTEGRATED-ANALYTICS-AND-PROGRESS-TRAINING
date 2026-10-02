@@ -118,8 +118,8 @@
                         </div>
                         <div class="enrollment-create-field enrollment-create-field-note @error('notes') has-error @enderror">
                             <label for="notes">Internal notes <span class="enrollment-create-optional">Optional</span></label>
-                            <textarea id="notes" name="notes" rows="4" maxlength="5000" placeholder="Add context for authorized staff..." aria-describedby="notes-help notes-error" @error('notes') aria-invalid="true" @enderror>{{ old('notes') }}</textarea>
-                            <div class="enrollment-create-notes-meta"><small id="notes-help">Visible to authorized staff only.</small><span id="notesCount">0 / 5000</span></div>
+                            <textarea id="notes" name="notes" rows="4" maxlength="5000" placeholder="Add context for authorized users..." aria-describedby="notes-help notes-error" @error('notes') aria-invalid="true" @enderror>{{ old('notes') }}</textarea>
+                            <div class="enrollment-create-notes-meta"><small id="notes-help">Visible to authorized users only.</small><span id="notesCount">0 / 5000</span></div>
                             @error('notes')<span id="notes-error" class="enrollment-create-error" role="alert">{{ $message }}</span>@enderror
                         </div>
                     </div>

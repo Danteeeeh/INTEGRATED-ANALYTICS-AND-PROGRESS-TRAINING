@@ -94,7 +94,7 @@ class EnrollmentService
             'status' => $data['status'] ?? $enrollment->status,
             'final_grade' => $data['final_grade'] ?? $enrollment->final_grade,
             'notes' => $data['notes'] ?? $enrollment->notes,
-            'completed_at' => ($data['status'] === 'completed') ? now() : $enrollment->completed_at,
+            'completed_at' => (($data['status'] ?? $enrollment->status) === 'completed') ? ($enrollment->completed_at ?? now()) : null,
         ]);
 
         return $enrollment->fresh();

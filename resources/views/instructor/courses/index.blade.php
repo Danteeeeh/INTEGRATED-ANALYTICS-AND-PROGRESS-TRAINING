@@ -1,18 +1,25 @@
 @extends('layouts.instructor')
 
-@section('title', 'My Courses')
 @php
-    $activeNav = 'courses';
-    $pageTitle = 'My Courses';
+    $feature = request('feature');
+    $featureMeta = [
+        'assignments' => ['label' => 'Assignments', 'icon' => 'fa-tasks', 'hint' => 'Manage tasks and submissions', 'route' => 'instructor.courses.assignments.index', 'color' => 'amber'],
+        'quizzes' => ['label' => 'Quizzes', 'icon' => 'fa-question-circle', 'hint' => 'Manage quizzes and attempts', 'route' => 'instructor.courses.quizzes.index', 'color' => 'violet'],
+        'discussions' => ['label' => 'Discussions', 'icon' => 'fa-comments', 'hint' => 'Open course conversations', 'route' => 'instructor.courses.discussions.index', 'color' => 'cyan'],
+        'announcements' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'hint' => 'Post course updates', 'route' => 'instructor.courses.announcements.index', 'color' => 'rose'],
+    ];
+    $activeNav = ($feature && isset($featureMeta[$feature])) ? $feature : 'courses';
+    $pageTitle = ($feature && isset($featureMeta[$feature])) ? $featureMeta[$feature]['label'] : 'My Courses';
     $pageIcon = '<i class="fa-solid fa-book"></i>';
 @endphp
+@section('title', $pageTitle)
 
 @section('content')
 <div class="user-page">
     <x-user-page-header
-        title="My Courses"
-        subtitle="Manage the courses assigned to you."
-        icon="fa-book"
+        title="{{ $pageTitle }}"
+        subtitle="{{ ($feature && isset($featureMeta[$feature])) ? $featureMeta[$feature]['hint'].'. Piliin ang course na gusto mong buksan.' : 'Manage the courses assigned to you.' }}"
+        icon="{{ $feature && isset($featureMeta[$feature]) ? $featureMeta[$feature]['icon'] : 'fa-book' }}"
     >
         <x-slot name="actions">
             <a href="{{ route('instructor.classes.index') }}" class="btn btn-secondary">
@@ -32,15 +39,7 @@
         <a class="btn btn-secondary" href="{{ route('instructor.courses.index') }}">Clear</a>
     </form>
 
-    @php
-        $feature = request('feature');
-        $featureMeta = [
-            'assignments' => ['label' => 'Assignments', 'icon' => 'fa-tasks', 'hint' => 'Manage tasks and submissions', 'route' => 'instructor.courses.assignments.index', 'color' => 'amber'],
-            'quizzes' => ['label' => 'Quizzes', 'icon' => 'fa-question-circle', 'hint' => 'Manage quizzes and attempts', 'route' => 'instructor.courses.quizzes.index', 'color' => 'violet'],
-            'discussions' => ['label' => 'Discussions', 'icon' => 'fa-comments', 'hint' => 'Open course conversations', 'route' => 'instructor.courses.discussions.index', 'color' => 'cyan'],
-            'announcements' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'hint' => 'Post course updates', 'route' => 'instructor.courses.announcements.index', 'color' => 'rose'],
-        ];
-    @endphp
+
     @if($feature && isset($featureMeta[$feature]))
         <section class="feature-picker">
             <div class="feature-picker-icon fp-{{ $featureMeta[$feature]['color'] }}"><i class="fa-solid {{ $featureMeta[$feature]['icon'] }}"></i></div>
