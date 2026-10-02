@@ -2,7 +2,7 @@
 
 @section('title', 'Create Quiz')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'quizzes';
     $pageTitle = 'Create Quiz';
     $pageIcon = '<i class="fa-solid fa-plus"></i>';
     $formAction = route('instructor.courses.quizzes.store', $course);

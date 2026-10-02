@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Department;
+use App\Models\Program;
 use App\Models\Role;
+use App\Models\Section;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\UserService;
@@ -36,8 +39,11 @@ class UserController extends Controller
         $this->authorize('create', User::class);
 
         $roles = Role::orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.users.create', compact('roles'));
+        return view('admin.users.create', compact('roles', 'departments', 'programs', 'sections'));
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
@@ -66,8 +72,11 @@ class UserController extends Controller
         $this->authorize('update', $user);
 
         $roles = Role::orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+        $programs = Program::with('department')->orderBy('name')->get();
+        $sections = Section::with('program')->orderBy('name')->get();
 
-        return view('admin.users.edit', compact('user', 'roles'));
+        return view('admin.users.edit', compact('user', 'roles', 'departments', 'programs', 'sections'));
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse

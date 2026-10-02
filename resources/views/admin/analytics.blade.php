@@ -74,9 +74,9 @@
             </div>
             
             <div style="padding: 16px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 12px; color: white;">
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 8px;">Top Category</div>
-                <div style="font-size: 1.2rem; font-weight: 700;">{{ collect($stats['learning_analytics']['completion_by_category'])->sortByDesc('rate')->first()['name'] ?? 'N/A' }}</div>
-                <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">{{ number_format(collect($stats['learning_analytics']['completion_by_category'])->sortByDesc('rate')->first()['rate'] ?? 0, 1) }}% completion</div>
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 8px;">Top Program</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ collect($stats['learning_analytics']['completion_by_program'])->sortByDesc('rate')->first()['name'] ?? 'N/A' }}</div>
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">{{ number_format(collect($stats['learning_analytics']['completion_by_program'])->sortByDesc('rate')->first()['rate'] ?? 0, 1) }}% completion</div>
             </div>
         </div>
     </div>
@@ -254,19 +254,19 @@
         </div>
         
         <div style="margin-top: 24px;">
-            <h4 style="margin-bottom: 12px;">Completion by Category</h4>
+            <h4 style="margin-bottom: 12px;">Completion by Program</h4>
             <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-                @foreach($stats['learning_analytics']['completion_by_category'] as $category)
+                @foreach($stats['learning_analytics']['completion_by_program'] as $program)
                     <div style="flex: 1; min-width: 200px; padding: 16px; background: #f8fafc; border-radius: 8px;">
-                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">{{ $category['name'] }}</div>
+                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">{{ $program['name'] }}</div>
                         <div style="margin-bottom: 8px;">
                             <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div style="background: #3b82f6; height: 100%; width: {{ $category['rate'] }}%;"></div>
+                                <div style="background: #3b82f6; height: 100%; width: {{ $program['rate'] }}%;"></div>
                             </div>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b;">
-                            <span>{{ $category['completed'] }}/{{ $category['total'] }}</span>
-                            <span>{{ number_format($category['rate'], 1) }}%</span>
+                            <span>{{ $program['completed'] }}/{{ $program['total'] }}</span>
+                            <span>{{ number_format($program['rate'], 1) }}%</span>
                         </div>
                     </div>
                 @endforeach
@@ -314,7 +314,7 @@
             // Export analytics data
             const data = {
                 period: document.getElementById('periodFilter').value,
-                stats: {{ json_encode($stats) }}
+                stats: @json($stats)
             };
             
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

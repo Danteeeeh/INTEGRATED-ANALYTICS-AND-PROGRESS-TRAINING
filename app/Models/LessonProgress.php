@@ -23,6 +23,7 @@ class LessonProgress extends Model
         'completed_at',
         'last_accessed_at',
         'progress_percent',
+        'total_seconds',
         'status',
     ];
 
@@ -33,6 +34,7 @@ class LessonProgress extends Model
             'completed_at' => 'datetime',
             'last_accessed_at' => 'datetime',
             'progress_percent' => 'decimal:2',
+            'total_seconds' => 'integer',
         ];
     }
 

@@ -161,19 +161,20 @@ body.light-mode:has(.sidebar-overlay.active) .main{filter:blur(1.5px) brightness
   body:has(.sidebar-overlay.active) .main,body.light-mode:has(.sidebar-overlay.active) .main{filter:none}
 }
 
-/* ── Global 75% density scale ── */
-html{zoom:.75}
+/* ── Explicit compact density (avoid global zoom affecting fixed UI) ── */
+/* compact-ui.css owns the compact dimensions without shrinking the browser
+   coordinate system used by the fixed sidebar and hamburger drawer. */
 
-/* Fallback for engines without zoom (older Firefox) */
+/* Fallback for engines without the modern layout features used above. */
 @supports not (zoom:1){
-  html{font-size:75%}
-  .sidebar{width:186px}
-  .main{margin-left:186px}
-  .topbar{min-height:54px;padding:9px 21px}
-  .sidebar-header{padding:18px 16px 15px}
+  html{font-size:100%}
+  .sidebar{width:196px}
+  .main{margin-left:196px}
+  .topbar{min-height:56px;padding:8px 20px}
+  .sidebar-header{padding:15px 14px 13px}
   .sidebar-brand-lockup img{width:29px;height:33px}
-  .nav-link{min-height:33px;padding:8px 10px}
-  .content{padding:22px clamp(14px,2.3vw,32px)}
+  .nav-link{min-height:32px;padding:7px 9px}
+  .content{padding:20px clamp(14px,2vw,30px) 30px}
   .info-row{gap:11px;margin-bottom:15px}
   .info-card{min-height:94px;padding:15px}
   .page-title{font-size:clamp(1.13rem,1.5vw,1.5rem)}
@@ -182,9 +183,6 @@ html{zoom:.75}
   .search-wrap input{min-height:30px}
   .tables-row{gap:11px;margin-bottom:15px}
   .table-card{padding:12px 14px}
-}
-@media(max-width:900px){
-  @supports not (zoom:1){.sidebar{width:186px}}
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -439,9 +437,7 @@ body.light-mode .nav-group-label::after{background:rgba(31,52,88,.12)}
 .btn-sm{min-height:28px;padding:5px 9px;font-size:.68rem}
 body.light-mode .btn-secondary,body.light-mode .btn-cancel,body.light-mode .btn-back,body.light-mode .btn-modal-cancel,body.light-mode .filter-btn{color:#263753;background:#fff;border-color:rgba(31,52,88,.16)}
 
-/* ── Full-height sidebar with the 75% page zoom ── */
-.sidebar{height:133.3333vh;min-height:133.3333vh}
-@media(max-width:900px){.sidebar{height:133.3333vh;min-height:133.3333vh}}
+/* Sidebar height is owned by sidebar-layout-fix.css (100vh / 100dvh). */
 
 /* ── Compact data-page toolbars ── */
 .table-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--bcp-line)}
@@ -486,7 +482,30 @@ body.light-mode .search-submit{color:#1d4ed8;background:rgba(36,73,198,.1)}
 .search-page-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:26px 30px;margin-bottom:18px;border:1px solid var(--bcp-line);border-radius:18px;background:radial-gradient(circle at 90% 10%,rgba(77,143,240,.32),transparent 38%),linear-gradient(135deg,rgba(23,58,168,.86),rgba(10,16,32,.97));box-shadow:var(--bcp-shadow)}
 .search-page-hero h1{margin:0;color:#fff;font-size:clamp(1.45rem,2.5vw,2.1rem);letter-spacing:-.035em}.search-page-hero p{margin:8px 0 0;color:#d4e2fa;font-size:.86rem}.search-result-count{padding:7px 11px;border-radius:999px;color:#cceeff;background:rgba(98,201,245,.13);border:1px solid rgba(98,201,245,.26);font-size:.7rem;font-weight:800;white-space:nowrap}
 .search-page-form{position:relative;display:flex;align-items:center;gap:10px;margin-bottom:22px}.search-page-form>i{position:absolute;left:15px;color:var(--bcp-cyan-400);font-size:.85rem}.search-page-form input{flex:1;height:46px;padding:0 15px 0 42px;border:1px solid var(--bcp-line);border-radius:11px;color:var(--bcp-ink);background:var(--bcp-card);font-size:.84rem}.search-page-form input:focus{border-color:var(--bcp-cyan-400);box-shadow:0 0 0 3px rgba(98,201,245,.13);outline:0}.search-page-form button{height:46px;padding:0 18px;border:0;border-radius:11px;color:#fff;background:linear-gradient(135deg,var(--bcp-blue-600),var(--bcp-blue-700));font-size:.8rem;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(36,73,198,.24)}
-.search-results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.search-result-panel{overflow:hidden;background:var(--bcp-card);border:1px solid var(--bcp-line);border-radius:var(--bcp-radius);box-shadow:var(--bcp-shadow)}.search-result-panel header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bcp-line)}.search-result-panel header h2{display:flex;align-items:center;gap:8px;margin:0;color:#fff;font-size:.82rem;text-transform:uppercase;letter-spacing:.07em}.search-result-panel header h2 i{color:var(--bcp-cyan-400)}.search-result-panel header>span{display:grid;place-items:center;min-width:24px;height:22px;padding:0 6px;border-radius:999px;color:var(--bcp-cyan-400);background:rgba(77,143,240,.14);font-size:.65rem;font-weight:800}.search-result-item{display:flex;align-items:center;gap:10px;padding:11px 13px;color:var(--bcp-ink);text-decoration:none;border-bottom:1px solid rgba(153,174,214,.08);transition:background .16s}.search-result-item:last-child{border-bottom:0}.search-result-item:hover{background:rgba(77,143,240,.09)}.search-result-icon{display:grid;place-items:center;width:31px;height:31px;flex:none;border-radius:9px;color:#93c5fd;background:rgba(59,130,246,.14);font-size:.75rem}.search-result-icon.cyan{color:#67e8f9;background:rgba(34,211,238,.13)}.search-result-icon.violet{color:#c4b5fd;background:rgba(139,92,246,.14)}.search-result-icon.amber{color:#fcd34d;background:rgba(251,191,36,.14)}.search-result-item>span:nth-child(2){display:flex;flex-direction:column;min-width:0;flex:1}.search-result-item strong{overflow:hidden;color:#eef4ff;font-size:.76rem;text-overflow:ellipsis;white-space:nowrap}.search-result-item small{overflow:hidden;margin-top:3px;color:var(--bcp-muted);font-size:.65rem;text-overflow:ellipsis;white-space:nowrap}.search-result-item .arrow{color:var(--bcp-muted);font-size:.65rem}.search-no-results{margin:0;padding:18px 14px;color:var(--bcp-muted);font-size:.75rem;text-align:center}.search-empty-state{padding:60px 20px;text-align:center;background:var(--bcp-card);border:1px solid var(--bcp-line);border-radius:var(--bcp-radius);box-shadow:var(--bcp-shadow)}.search-empty-state>i{color:var(--bcp-cyan-400);font-size:2rem}.search-empty-state h2{margin:12px 0 5px;color:#fff;font-size:1rem}.search-empty-state p{margin:0;color:var(--bcp-muted);font-size:.78rem}
+.search-results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.search-result-panel{overflow:hidden;background:var(--bcp-card);border:1px solid var(--bcp-line);border-radius:var(--bcp-radius);box-shadow:var(--bcp-shadow)}.search-result-panel header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bcp-line)}.search-result-panel header h2{display:flex;align-items:center;gap:8px;margin:0;color:#fff;font-size:.82rem;text-transform:uppercase;letter-spacing:.07em}.search-result-panel header h2 i{color:var(--bcp-cyan-400)}.search-result-panel header>span{display:grid;place-items:center;min-width:24px;height:22px;padding:0 6px;border-radius:999px;color:var(--bcp-cyan-400);background:rgba(77,143,240,.14);font-size:.65rem;font-weight:800}.search-result-item{display:flex;align-items:center;gap:10px;padding:11px 13px;color:var(--bcp-ink);text-decoration:none;border-bottom:1px solid rgba(153,174,214,.08);transition:background .16s}.search-result-item:last-child{border-bottom:0}.search-result-item:hover{background:rgba(77,143,240,.09)}.search-result-icon{display:grid;place-items:center;width:31px;height:31px;flex:none;border-radius:9px;color:#93c5fd;background:rgba(59,130,246,.14);font-size:.75rem}.search-result-icon.cyan{color:#67e8f9;background:rgba(34,211,238,.13)}.search-result-icon.violet{color:#c4b5fd;background:rgba(139,92,246,.14)}.search-result-icon.amber{color:#fcd34d;background:rgba(251,191,36,.14)}.search-result-item>span:nth-child(2){display:flex;flex-direction:column;min-width:0;flex:1}.search-result-item strong{overflow:hidden;color:#eef4ff;font-size:.76rem;text-overflow:ellipsis;white-space:nowrap}.search-result-item small{overflow:hidden;margin-top:3px;color:var(--bcp-muted);font-size:.65rem;text-overflow:ellipsis;white-space:nowrap}.search-result-item .arrow{color:var(--bcp-muted);font-size:.65rem}.search-no-results{margin:0;padding:18px 14px;color:var(--bcp-muted);font-size:.75rem;text-align:center}
+
+/* ── Topbar live search dropdown (non-admin roles) ── */
+.top-search-dropdown{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:1200;max-height:min(420px,60vh);overflow-y:auto;background:var(--bcp-card,#1a2135);border:1px solid var(--bcp-line);border-radius:12px;box-shadow:0 18px 50px rgba(5,10,24,.5)}
+body.light-mode .top-search-dropdown{background:#fff;box-shadow:0 18px 44px rgba(31,52,88,.18)}
+.tsd-head{padding:9px 12px;color:var(--bcp-cyan-400,#62c9f5);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid var(--bcp-line)}
+.tsd-item{display:flex;flex-direction:column;gap:2px;padding:9px 13px;color:var(--bcp-ink,#eaf2ff);text-decoration:none;border-bottom:1px solid rgba(153,174,214,.08);transition:background .14s}.tsd-item:last-child{border-bottom:0}.tsd-item:hover{background:rgba(77,143,240,.1)}
+body.light-mode .tsd-item{color:#1b2a45}
+.tsd-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.75rem;font-weight:700;min-width:0}
+.tsd-title span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsd-sub{margin:0;color:var(--bcp-muted,#8fa4c8);font-size:.64rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.light-mode .tsd-sub,body.light-mode .tsd-sub{color:#69798f}
+.ts-badge{flex:none;padding:2px 7px;border-radius:999px;font-size:.56rem;font-weight:800;color:#93c5fd;background:rgba(59,130,246,.14);white-space:nowrap}
+.ts-badge.tb-student{color:#c4b5fd;background:rgba(139,92,246,.15)}
+.ts-badge.tb-course{color:#93c5fd;background:rgba(59,130,246,.15)}
+.ts-badge.tb-class{color:#67e8f9;background:rgba(34,211,238,.13)}
+.ts-badge.tb-assignment,.ts-badge.tb-enrollment{color:#fb923c;background:rgba(251,146,60,.14)}
+.ts-badge.tb-quiz{color:#fcd34d;background:rgba(251,191,36,.14)}
+.ts-empty,.ts-loading{padding:22px 16px;color:var(--bcp-muted,#8295b5);font-size:.72rem;text-align:center}
+.ts-empty{padding:26px 16px}.ts-loading i{color:var(--bcp-cyan-400)}
+.ts-footer{padding:8px 14px;border-top:1px solid var(--bcp-line);text-align:center;color:var(--bcp-muted,#8295b5);font-size:.62rem}
+@media(max-width:700px){.top-search-dropdown{position:fixed;top:64px;right:12px;left:12px;max-height:min(430px,70vh)}}
+
+.search-empty-state{padding:60px 20px;text-align:center;background:var(--bcp-card);border:1px solid var(--bcp-line);border-radius:var(--bcp-radius);box-shadow:var(--bcp-shadow)}.search-empty-state>i{color:var(--bcp-cyan-400);font-size:2rem}.search-empty-state h2{margin:12px 0 5px;color:#fff;font-size:1rem}.search-empty-state p{margin:0;color:var(--bcp-muted);font-size:.78rem}
 body.light-mode .search-result-panel header h2,body.light-mode .search-result-item strong,body.light-mode .search-empty-state h2{color:#12203a}body.light-mode .search-result-item{color:#263753}
 @media(max-width:760px){.search-wrap{min-width:150px;width:35vw}.search-page-hero{align-items:flex-start;flex-direction:column;padding:22px}.search-results-grid{grid-template-columns:1fr}.search-page-form{flex-direction:column;align-items:stretch}.search-page-form button{width:100%}}
 
@@ -562,3 +581,80 @@ body.light-mode .search-result-panel header h2,body.light-mode .search-result-it
   .admin-ui .table-toolbar input,.admin-ui .table-toolbar select,.admin-ui .filter-form input,.admin-ui .filter-form select { width:100%; min-width:0; }
   .admin-ui .table th,.admin-ui .dash-table th,.admin-ui .table td,.admin-ui .dash-table td { padding:11px 12px; }
 }
+
+/* ==========================================================================
+   UI Refinement Pass — shared design tokens
+   Loaded last in app.css so every page shares the same radii, shadows,
+   focus ring, and motion even where page-local CSS exists.
+   ========================================================================== */
+:root {
+  --bcp-radius-sm: 8px;
+  --bcp-radius-md: 12px;
+  --bcp-radius-lg: 16px;
+  --bcp-transition: 180ms ease;
+  --bcp-shadow-sm: 0 6px 16px rgba(3,8,20,.18);
+  --bcp-ring: 0 0 0 3px rgba(98,201,245,.16);
+}
+body.light-mode {
+  --bcp-shadow-sm: 0 6px 16px rgba(31,52,88,.12);
+  --bcp-ring: 0 0 0 3px rgba(36,73,198,.14);
+}
+
+/* Legacy page-header parity: a lone .page-title-bar inside .content matches
+   the dash-hero hierarchy so old pages do not feel smaller than new ones. */
+.content > .page-title-bar { padding: 0 0 18px !important; margin: 0 0 8px !important; }
+.content > .page-title-bar .page-title { font-size: clamp(1.35rem, 2vw, 1.9rem) !important; }
+@media (max-width: 560px) {
+  .content > .page-title-bar { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .content > .page-title-bar .page-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* Modern hero treatment for legacy page-title-bar headers.
+   Two guards via :has():
+   1) Hide the layout's DEFAULT header when the page renders its own bar
+      (prevents the duplicate-header bug on legacy pages).
+   2) Apply the hero look ONLY when the page has no modern hero
+      (user-page / dash-hero), so reference pages like admin/users keep
+      their intended "plain title + hero" hierarchy untouched. */
+.admin-ui .content > .page-title-bar:first-child:has(~ .page-title-bar) { display: none !important; }
+
+.admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px !important;
+    margin-bottom: 18px !important;
+    border: 1px solid var(--bcp-line, rgba(153,174,214,.18)) !important;
+    border-radius: 16px !important;
+    background: radial-gradient(circle at 92% 10%, rgba(77,143,240,.32), transparent 40%),
+                linear-gradient(135deg, rgba(23,58,168,.86), rgba(16,22,37,.96)) !important;
+    box-shadow: var(--bcp-shadow, 0 18px 50px rgba(3,8,20,.28)) !important;
+}
+.admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar .page-title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+    letter-spacing: -.035em;
+}
+.admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar .page-title > i {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    color: #fff;
+    font-size: .95rem;
+    background: linear-gradient(135deg, var(--bcp-blue-500), var(--bcp-blue-700));
+    box-shadow: 0 8px 18px rgba(36,73,198,.3);
+}
+.admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar .page-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+body.light-mode .admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar {
+    background: radial-gradient(circle at 92% 10%, rgba(77,143,240,.22), transparent 40%),
+                linear-gradient(135deg, #eef3fc, #f8fafd) !important;
+    border-color: rgba(31,52,88,.12) !important;
+}
+body.light-mode .admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar .page-title { color: #12203a; }
+body.light-mode .admin-ui .content:not(:has(.user-page, .user-hero, .dash-hero, .dashboard-hero)) > .page-title-bar .page-title > i { color: #fff; }
+

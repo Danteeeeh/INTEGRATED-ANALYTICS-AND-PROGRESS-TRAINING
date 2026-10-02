@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') — {{ config('app.name') }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-    @vite(['resources/css/sms-template.css', 'resources/css/app.css', 'resources/css/admin-ui.css', 'resources/css/compact-ui.css', 'resources/css/dashboard-palette.css', 'resources/css/sidebar-polish.css', 'resources/css/user-list-ui.css', 'resources/css/admin-consistency.css', 'resources/css/filter-toolbar-ui.css', 'resources/css/topbar-global-ui.css', 'resources/css/profile-enhancements.css', 'resources/css/course-form-ui.css', 'resources/css/gradebook-ui.css', 'resources/css/role-admin-parity.css', 'resources/css/user-ui-system.css', 'resources/css/lms-polish.css', 'resources/js/app.js'])
+    @vite(['resources/css/sms-template.css', 'resources/css/app.css', 'resources/css/admin-ui.css', 'resources/css/compact-ui.css', 'resources/css/dashboard-palette.css', 'resources/css/sidebar-polish.css', 'resources/css/user-list-ui.css', 'resources/css/admin-consistency.css', 'resources/css/filter-toolbar-ui.css', 'resources/css/topbar-global-ui.css', 'resources/css/profile-enhancements.css', 'resources/css/course-form-ui.css', 'resources/css/gradebook-ui.css', 'resources/css/role-admin-parity.css', 'resources/css/user-ui-system.css', 'resources/css/student-progress-ui.css', 'resources/css/lms-polish.css', 'resources/css/sidebar-layout-fix.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
 <body class="{{ trim((auth()->check() ? 'admin-ui ' : '') . $__env->yieldContent('body-class')) }}">
@@ -17,8 +17,8 @@
 
 <div class="main">
     <div class="topbar">
-        <button class="hamburger" id="hamburgerBtn" aria-label="Toggle sidebar">
-            <i class="fa-solid fa-bars"></i>
+        <button type="button" class="hamburger" id="hamburgerBtn" aria-expanded="true" aria-controls="sidebar" aria-label="Hide sidebar" title="Hide sidebar">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
         <a class="bcp-topbar-brand" href="{{ url('/') }}" aria-label="{{ config('app.name') }} home">
             <img src="{{ asset('images/BCP_LOGO.png') }}" alt="BCP logo">
@@ -30,19 +30,25 @@
                 <i class="fa-solid fa-sun"></i>
             </button>
             @auth
+                <x-notification-bell />
+            @endauth
+            @auth
                 @if(auth()->user()->isAdmin())
-                    <form class="search-wrap" action="{{ route('admin.search') }}" method="GET" role="search">
+                    <form class="search-wrap" id="globalTopSearch" action="{{ route('admin.search') }}" method="GET" role="search">
                         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                        <input type="search" name="search" value="{{ request('search') }}" placeholder="Search courses, classes..." aria-label="Search courses and classes" autocomplete="off"/>
-                        @if(request('search'))
-                            <a class="search-clear" href="{{ url()->current() }}" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></a>
+                        <input type="search" id="topSearchInput" name="search" value="{{ request()->routeIs('admin.search') ? request('search') : '' }}" placeholder="Search courses, classes, lessons..." aria-label="Search courses and classes" autocomplete="off"/>
+                        @if(request()->routeIs('admin.search') && request('search'))
+                            <a class="search-clear" href="{{ route('admin.search') }}" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></a>
                         @endif
-                        <button type="submit" class="search-submit" aria-label="Submit search"><i class="fa-solid fa-arrow-right"></i></button>
+                        <button type="submit" class="search-submit" id="topSearchGo" aria-label="Submit search"><i class="fa-solid fa-arrow-right"></i></button>
+                        <div class="top-search-dropdown" id="topSearchResults" hidden></div>
                     </form>
                 @else
-                    <div class="search-wrap search-wrap-disabled" title="Search is available for administrators">
+                    <div class="search-wrap" id="globalTopSearch" role="search">
                         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                        <input type="search" placeholder="Search..." aria-label="Search unavailable for this role" disabled/>
+                        <input type="search" id="topSearchInput" placeholder="Search your courses, classes..." aria-label="Search the system" autocomplete="off"/>
+                        <button type="button" class="search-submit" id="topSearchGo" aria-label="Submit search"><i class="fa-solid fa-arrow-right"></i></button>
+                        <div class="top-search-dropdown" id="topSearchResults" hidden></div>
                     </div>
                 @endif
             @endauth
@@ -89,28 +95,13 @@
                         @yield('title', 'Dashboard')
                     @endif
                 </h2>
+                @if($__env->hasSection('page-actions'))
+                    <div class="page-actions">@yield('page-actions')</div>
+                @endif
             </div>
         @endif
         
-        @if (session('status'))
-            <div class="toast success show">
-                <div class="toast-label">
-                    <div class="toast-dot"></div>
-                    <span>Success</span>
-                </div>
-                <div class="toast-msg">{{ session('status') }}</div>
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="toast error show">
-                <div class="toast-label">
-                    <div class="toast-dot"></div>
-                    <span>Error</span>
-                </div>
-                <div class="toast-msg">{{ implode(', ', $errors->all()) }}</div>
-            </div>
-        @endif
+        @include('partials.toasts')
 
         @yield('content')
     </div>
@@ -124,34 +115,97 @@
 @yield('notifications')
 
 <script>
+// Notification bell (shared across roles)
+document.addEventListener('DOMContentLoaded', function () {
+    const bellWrap = document.getElementById('notifBellWrap');
+    const bellBtn = document.getElementById('notifBellBtn');
+    const dropdown = document.getElementById('notifDropdown');
+    if (!bellWrap || !bellBtn || !dropdown) return;
+    bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = bellWrap.classList.toggle('open');
+        bellBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (e) {
+        if (!bellWrap.contains(e.target)) {
+            bellWrap.classList.remove('open');
+            bellBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { bellWrap.classList.remove('open'); bellBtn.setAttribute('aria-expanded', 'false'); }
+    });
+});
+function openNotification(e, id) {
+    e.preventDefault();
+    fetch('/notifications/' + id + '/read', { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' } })
+        .then(function (res) { if (res.ok) window.location.href = e.currentTarget.getAttribute('href') || '#'; })
+        .catch(function () { window.location.href = e.currentTarget.getAttribute('href') || '#'; });
+}
+function markAllNotificationsRead(e) {
+    if (e) e.preventDefault();
+    fetch('/notifications/read-all', { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' } })
+        .then(function () { window.location.reload(); });
+}
 // Sidebar toggle functionality
 document.addEventListener('DOMContentLoaded', function() {
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const sidebar = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
-    
-    const syncSidebarOverlay = function() {
-        if (!sidebarOverlay || !sidebar) return;
-        const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+
+    const syncSidebarState = function() {
+        if (!sidebar) return;
+
+        const isMobile = mobileQuery.matches;
         const isSidebarOpen = !sidebar.classList.contains('collapsed');
-        // Blur the page only while the mobile drawer is open.
-        sidebarOverlay.classList.toggle('active', isMobile && isSidebarOpen);
+
+        // Mobile uses a fixed drawer; desktop uses a width-collapsed rail.
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.toggle('active', isMobile && isSidebarOpen);
+        }
+
+        if (hamburgerBtn) {
+            hamburgerBtn.setAttribute('aria-expanded', isSidebarOpen ? 'true' : 'false');
+            hamburgerBtn.setAttribute('aria-label', isSidebarOpen ? 'Hide sidebar' : 'Show sidebar');
+            hamburgerBtn.setAttribute('title', isSidebarOpen ? 'Hide sidebar' : 'Show sidebar');
+        }
+    };
+
+    const syncSidebarForViewport = function() {
+        if (!sidebar) return;
+
+        // Start mobile layouts closed so the drawer never squeezes the page.
+        sidebar.classList.toggle('collapsed', mobileQuery.matches);
+        syncSidebarState();
     };
 
     if (hamburgerBtn && sidebar) {
         hamburgerBtn.addEventListener('click', function() {
             sidebar.classList.toggle('collapsed');
-            syncSidebarOverlay();
+            syncSidebarState();
         });
-        window.addEventListener('resize', syncSidebarOverlay);
-        syncSidebarOverlay();
+        window.addEventListener('resize', syncSidebarForViewport);
+        syncSidebarForViewport();
     }
-    
+
     if (sidebarOverlay && sidebar) {
         sidebarOverlay.addEventListener('click', function() {
             sidebar.classList.add('collapsed');
-            syncSidebarOverlay();
+            syncSidebarState();
         });
+    }
+
+    // Keep page-level actions reachable after the hero scrolls out of view.
+    const userHero = document.querySelector('.user-hero');
+    const userHeroActions = userHero ? userHero.querySelector('.user-hero-actions') : null;
+    if (userHero && userHeroActions && 'IntersectionObserver' in window) {
+        const userHeroObserver = new IntersectionObserver(function(entries) {
+            const heroVisible = entries[0] && entries[0].isIntersecting;
+            document.body.classList.toggle('user-hero-scrolled', !heroVisible);
+        }, { threshold: 0, rootMargin: '-48px 0px 0px 0px' });
+
+        userHeroObserver.observe(userHero);
     }
 
     // Collapsible sidebar groups: keep the active section visible and remember user preference.
@@ -217,12 +271,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = themeToggle ? themeToggle.querySelector('i') : null;
+    function syncThemeIcon() {
+        if (!themeIcon) return;
+        const isLight = document.body.classList.contains('light-mode');
+        themeIcon.className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        themeToggle.setAttribute('aria-label', isLight ? 'Use dark theme' : 'Use light theme');
+    }
     if (localStorage.getItem('bcp-theme') === 'light') document.body.classList.add('light-mode');
+    syncThemeIcon();
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
             document.body.classList.toggle('light-mode');
             localStorage.setItem('bcp-theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-            themeToggle.setAttribute('aria-label', document.body.classList.contains('light-mode') ? 'Use dark theme' : 'Use light theme');
+            syncThemeIcon();
         });
     }
 
@@ -273,5 +335,234 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 @stack('scripts')
+
+<script>
+(function () {
+    // Auto-dismiss toasts
+    document.querySelectorAll('.toast.show').forEach(function (toast) {
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 4500);
+        toast.addEventListener('click', function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 300);
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    // Disable submit buttons while their (non-download) form is submitting
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"]');
+            if (!btn || btn.disabled) return;
+            btn.disabled = true;
+            var label = btn.querySelector('.btn-label, .spinner-label, span');
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Submitting...';
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    const toasts = document.querySelectorAll('.toast.show');
+    toasts.forEach(function (toast) {
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 4500);
+        toast.addEventListener('click', function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 300);
+        });
+    });
+})();
+</script>
+
+{{-- Topbar live search for non-admin roles (instructor / student) --}}
+@auth
+@if(!auth()->user()->isAdmin())
+<script>
+@php
+    $searchEndpoint = match (auth()->user()->role?->slug) {
+        'instructor' => route('instructor.dashboard.search'),
+        default => route('student.dashboard.search'),
+    };
+@endphp
+(function () {
+    'use strict';
+    var searchBox = document.getElementById('globalTopSearch');
+    if (!searchBox) return;
+
+    var input = document.getElementById('topSearchInput');
+    var goBtn = document.getElementById('topSearchGo');
+    var panel = document.getElementById('topSearchResults');
+    var role = '{{ auth()->user()->role?->slug }}';
+    var endpoint = '{{ $searchEndpoint }}';
+    var debounceTimer = null;
+    var controller = null;
+    var lastQuery = '';
+
+    var TYPE_META = {
+        students:      { label: 'Student',      icon: 'fa-user-graduate',  cls: 'tb-student' },
+        enrollments:   { label: 'Enrollment',   icon: 'fa-user-plus',      cls: 'tb-enrollment' },
+        courses:       { label: 'Course',       icon: 'fa-book',           cls: 'tb-course' },
+        classes:       { label: 'Class',        icon: 'fa-school',         cls: 'tb-class' },
+        modules:       { label: 'Module',       icon: 'fa-layer-group',    cls: 'tb-module' },
+        lessons:       { label: 'Lesson',       icon: 'fa-book-open-reader', cls: 'tb-lesson' },
+        assignments:   { label: 'Assignment',   icon: 'fa-tasks',          cls: 'tb-assignment' },
+        quizzes:       { label: 'Quiz',         icon: 'fa-question-circle',cls: 'tb-quiz' },
+        grades:        { label: 'Grade',        icon: 'fa-graduation-cap', cls: 'tb-grade' },
+    };
+
+    function inferType(r) {
+        // Explicit entity markers from the new search categories take priority.
+        if (r.entity === 'module') return 'modules';
+        if (r.entity === 'lesson') return 'lessons';
+        if (r.entity === 'grade') return 'grades';
+
+        if (role === 'instructor') {
+            if (r.email) return 'students';
+            if (r.class_code && r.due_date) return 'assignments';
+            if (r.class_code && r.availability_from) return 'quizzes';
+            if (r.class_code && r.course_title && r.name) return 'enrollments';
+            if (r.course_title && r.code) return 'classes';
+            if (r.title) return 'courses';
+        } else { // student
+            if (r.due_date) return 'assignments';
+            if (r.availability_from) return 'quizzes';
+            return 'courses';
+        }
+        return 'courses';
+    }
+
+    function hrefFor(r, type) {
+        if (!r.id) return '#';
+        if (role === 'instructor') {
+            if (type === 'students') return '{{ url("instructor/enrollments") }}';
+            if (type === 'courses') return '{{ url("instructor/courses") }}/' + r.id;
+            if (type === 'classes') return '{{ url("instructor/classes") }}/' + r.id;
+            return '{{ url("instructor/classes") }}';
+        }
+        // student
+        if (type === 'courses') return '{{ url("student/courses") }}/' + r.id;
+        return '{{ url("student/courses") }}';
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showLoading() {
+        panel.hidden = false;
+        panel.innerHTML = '<div class="ts-loading"><i class="fa-solid fa-spinner fa-spin"></i> Searching&hellip;</div>';
+    }
+
+    function render(data) {
+        if (!data || !data.data || data.data.length === 0) {
+            panel.innerHTML = '<div class="ts-empty">No results found for &ldquo;' + esc(lastQuery) + '&rdquo;</div>';
+            panel.hidden = false;
+            return;
+        }
+
+        var seen = {};
+        var html = '<div class="tsd-head"><i class="fa-solid fa-magnifying-glass"></i> Results for &ldquo;' + esc(lastQuery) + '&rdquo;</div>';
+        var items = 0;
+
+        data.data.forEach(function (r) {
+            if (items >= 12) return;
+            var type = inferType(r);
+            if (seen[type + ':' + r.id]) return;
+            seen[type + ':' + r.id] = true;
+
+            var meta = TYPE_META[type] || TYPE_META.courses;
+            var title = r.name || r.title || r.code || '';
+            var subParts = [];
+            if (r.email) subParts.push(r.email);
+            if (r.course_title) subParts.push(r.course_title);
+            if (r.class_code) subParts.push(r.class_code);
+            if (!r.email && !r.course_title && !r.class_code && r.code) {
+                subParts.push(r.code + (r.status ? ' · ' + r.status : ''));
+            }
+            var sub = subParts.join(' · ');
+
+            html += '<a class="tsd-item" href="' + hrefFor(r, type) + '">' +
+                '<span class="tsd-title"><span>' + esc(title) + '</span><span class="ts-badge ' + meta.cls + '"><i class="fa-solid ' + meta.icon + '"></i> ' + meta.label + '</span></span>' +
+                (sub ? '<span class="tsd-sub">' + esc(sub) + '</span>' : '') +
+                '</a>';
+            items++;
+        });
+
+        if (items === 0) {
+            panel.innerHTML = '<div class="ts-empty">No results found for &ldquo;' + esc(lastQuery) + '&rdquo;</div>';
+        } else {
+            html += '<div class="ts-footer">' + items + ' of ' + data.data.length + ' matches &middot; press Enter to search all</div>';
+            panel.innerHTML = html;
+        }
+        panel.hidden = false;
+    }
+
+    function doSearch(query) {
+        if (query.length < 2) {
+            panel.hidden = true;
+            return;
+        }
+        lastQuery = query;
+        showLoading();
+
+        if (controller) controller.abort();
+        controller = new AbortController();
+
+        fetch(endpoint + '?query=' + encodeURIComponent(query) + '&type=all', {
+            signal: controller.signal,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) render(data);
+                else { panel.innerHTML = '<div class="ts-empty">Search failed. Try again.</div>'; panel.hidden = false; }
+            })
+            .catch(function (err) {
+                if (err.name === 'AbortError') return;
+                panel.innerHTML = '<div class="ts-empty">Search unavailable right now.</div>';
+                panel.hidden = false;
+            });
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        var q = this.value.trim();
+        if (q.length < 2) { panel.hidden = true; return; }
+        debounceTimer = setTimeout(function () { doSearch(q); }, 300);
+    });
+
+    goBtn.addEventListener('click', function () {
+        var q = input.value.trim();
+        if (q.length >= 2) doSearch(q);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var q = this.value.trim();
+            if (q.length >= 2) doSearch(q);
+        }
+        if (e.key === 'Escape') { panel.hidden = true; this.blur(); }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!searchBox.contains(e.target)) panel.hidden = true;
+    });
+})();
+</script>
+@endif
+@endauth
+
+@include('components.inactivity-watchdog')
 </body>
 </html>

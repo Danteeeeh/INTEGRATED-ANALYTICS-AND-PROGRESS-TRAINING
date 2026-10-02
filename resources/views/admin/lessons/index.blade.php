@@ -1,34 +1,52 @@
 @extends('layouts.admin')
 
-@section('title', 'Lessons')
+@section('title', $module ? $module->title.' — Lessons' : 'Lessons')
 @php $activeNav = 'modules'; @endphp
 
 @section('content')
 <div class="user-page">
     <x-user-page-header
-        title="{{ $module->title }} — Lessons"
+        title="{{ $module ? $module->title.' — Lessons' : 'Lessons' }}"
         subtitle="Manage lesson content, materials, and publishing."
         icon="fa-list-check"
     >
         <x-slot name="meta">
             <span class="user-status">{{ $lessons->total() }} lessons</span>
+            @if($module)<span class="user-status">{{ $module->course?->code }}</span>@endif
         </x-slot>
         <x-slot name="actions">
-            <a href="{{ route('admin.courses.modules.lessons.create', [$module->course_id, $module]) }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Lesson</a>
-            <a href="{{ route('admin.courses.modules.show', [$module->course_id, $module]) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Module</a>
+            @if($module)
+                <a href="{{ route('admin.courses.modules.show', [$module->course_id, $module]) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Module</a>
+            @else
+                <a href="{{ route('admin.modules.index') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Modules</a>
+            @endif
         </x-slot>
     </x-user-page-header>
 
     <div class="user-panel">
-        <form class="user-toolbar" method="GET" action="{{ route('admin.courses.modules.lessons.index', [$module->course_id, $module]) }}">
+        <form class="user-toolbar" method="GET" action="{{ $module ? route('admin.courses.modules.lessons.index', [$module->course_id, $module]) : route('admin.lessons.index') }}">
+            @if(!$module)
+                <select class="form-control" name="course_id" aria-label="Filter course">
+                    <option value="">All Courses</option>
+                    @foreach(($courses ?? []) as $courseOpt)
+                        <option value="{{ $courseOpt->id }}" @selected(request('course_id') == $courseOpt->id)>{{ $courseOpt->code }} — {{ $courseOpt->title }}</option>
+                    @endforeach
+                </select>
+                <select class="form-control" name="module_id" aria-label="Filter module">
+                    <option value="">All Modules</option>
+                    @foreach(($modules ?? []) as $moduleOpt)
+                        <option value="{{ $moduleOpt->id }}" @selected(request('module_id') == $moduleOpt->id)>{{ $moduleOpt->course?->code }} — {{ $moduleOpt->title }}</option>
+                    @endforeach
+                </select>
+            @endif
             <select class="form-control" name="status" aria-label="Filter status">
                 <option value="">All Status</option>
-                @foreach(['draft' => 'Draft', 'published' => 'Published', 'archived' => 'Archived'] as $value => $label)
-                    <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
-                @endforeach
+                <option value="draft" @selected(request('status') === 'draft')>Draft</option>
+                <option value="published" @selected(request('status') === 'published')>Published</option>
+                <option value="archived" @selected(request('status') === 'archived')>Archived</option>
             </select>
             <button class="btn btn-primary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
-            <a class="btn btn-secondary" href="{{ route('admin.courses.modules.lessons.index', [$module->course_id, $module]) }}"><i class="fa-solid fa-xmark"></i> Clear</a>
+            <a class="btn btn-secondary" href="{{ request()->url() }}"><i class="fa-solid fa-xmark"></i> Clear</a>
         </form>
 
         <div class="user-panel-body">
@@ -39,10 +57,11 @@
                             <tr>
                                 <th>#</th>
                                 <th>Lesson</th>
+                                @if(!$module)<th>Module</th>@endif
                                 <th>Type</th>
                                 <th>Status</th>
                                 <th>Materials</th>
-                                <th>Actions</th>
+                                @if($module)<th>Actions</th>@endif
                             </tr>
                         </thead>
                         <tbody>
@@ -50,44 +69,55 @@
                                 <tr>
                                     <td>{{ $lesson->position }}</td>
                                     <td>
-                                        <div class="user-name">{{ $lesson->title }}</div>
-                                        <div class="user-email">{{ Str::limit($lesson->description ?? '', 50) }}</div>
+                                        <strong>{{ $lesson->title }}</strong>
+                                        <div class="user-email">{{ Str::limit($lesson->description ?? '', 60) }}</div>
                                     </td>
-                                    <td><span class="user-status">{{ ucfirst(str_replace('_', ' ', $lesson->lesson_type)) }}</span></td>
-                                    <td><x-user-status-badge status="{{ $lesson->status }}" /></td>
-                                    <td>{{ $lesson->materials->count() }}</td>
+                                    @if(!$module)
+                                        <td>
+                                            @if($lesson->module)
+                                                <span class="user-status">{{ $lesson->module->course?->code }}</span>
+                                                <div class="user-email">{{ Str::limit($lesson->module->title, 40) }}</div>
+                                            @endif
+                                        </td>
+                                    @endif
+                                    <td><span class="user-status">{{ ucfirst(str_replace('_', ' ', $lesson->lesson_type ?? 'text')) }}</span></td>
                                     <td>
-                                        <div class="user-actions">
-                                            <a class="btn btn-icon" href="{{ route('admin.courses.modules.lessons.show', [$module->course_id, $module, $lesson]) }}" title="View"><i class="fa-solid fa-eye"></i></a>
-                                            <a class="btn btn-icon" href="{{ route('admin.courses.modules.lessons.edit', [$module->course_id, $module, $lesson]) }}" title="Edit"><i class="fa-solid fa-pen"></i></a>
-                                            <form method="POST" action="{{ route('admin.courses.modules.lessons.destroy', [$module->course_id, $module, $lesson]) }}" onsubmit="return confirm('Delete this lesson?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-icon btn-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                                            </form>
-                                        </div>
+                                        @if($lesson->status === 'published')
+                                            <span class="user-status published">Published</span>
+                                        @elseif($lesson->status === 'archived')
+                                            <span class="user-status archived">Archived</span>
+                                        @else
+                                            <span class="user-status draft">Draft</span>
+                                        @endif
                                     </td>
+                                    <td><span class="user-status">{{ $lesson->materials_count }}</span></td>
+                                    @if($module)
+                                        <td>
+                                            <div class="user-actions">
+                                                <a href="{{ route('admin.courses.modules.lessons.show', [$module->course_id, $module, $lesson]) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i></a>
+                                                <a href="{{ route('admin.courses.modules.lessons.edit', [$module->course_id, $module, $lesson]) }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-pen"></i></a>
+                                            </div>
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                @if($lessons->hasPages())
+                    <div style="padding:14px 16px; border-top:1px solid var(--enh-border, rgba(153,174,214,.16));">
+                        {{ $lessons->appends(request()->query())->links() }}
+                    </div>
+                @endif
             @else
-                <x-user-empty-state
-                    icon="fa-list-check"
-                    title="No lessons yet"
-                    description="Create the first lesson for this module."
-                >
-                    <x-slot name="action">
-                        <a class="btn btn-primary" href="{{ route('admin.courses.modules.lessons.create', [$module->course_id, $module]) }}"><i class="fa-solid fa-plus"></i> New Lesson</a>
-                    </x-slot>
-                </x-user-empty-state>
-            @endif
-
-            @if($lessons->hasPages())
-                <div class="pagination">{{ $lessons->appends(request()->query())->links() }}</div>
+                <div class="user-empty">
+                    <i class="fa-solid fa-list-check"></i>
+                    <h3>No lessons found</h3>
+                    <p>Try adjusting your filters.</p>
+                </div>
             @endif
         </div>
     </div>
 </div>
 @endsection
+

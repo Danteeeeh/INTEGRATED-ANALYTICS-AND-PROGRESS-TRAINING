@@ -11,7 +11,6 @@
 body.role-admin { --user-accent: #62c9f5; --user-accent-strong: #2449c6; --user-accent-soft: rgba(77,143,240,.16); }
 body.role-instructor { --user-accent: #c4b5fd; --user-accent-strong: #7c3aed; --user-accent-soft: rgba(139,92,246,.16); }
 body.role-student { --user-accent: #6ee7b7; --user-accent-strong: #059669; --user-accent-soft: rgba(16,185,129,.16); }
-body.role-registrar { --user-accent: #67e8f9; --user-accent-strong: #0e7490; --user-accent-soft: rgba(34,211,238,.16); }
 
 .user-page { display: grid; gap: 18px; }
 .user-hero {
@@ -29,6 +28,49 @@ body.role-registrar { --user-accent: #67e8f9; --user-accent-strong: #0e7490; --u
 .user-hero-meta .live-dot { width:7px; height:7px; border-radius:50%; background:var(--user-success); box-shadow:0 0 0 4px rgba(52,211,153,.13); }
 .user-hero-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; flex:0 0 auto; }
 .user-hero-actions .btn, .user-hero-actions a { border-color:rgba(219,234,254,.25); box-shadow:0 7px 18px rgba(3,8,20,.18); }
+
+/* Keep page actions reachable after a long page scrolls past its hero. */
+body.user-hero-scrolled .user-hero-actions {
+    position:fixed;
+    right:clamp(18px, 2.5vw, 34px);
+    bottom:18px;
+    z-index:1100;
+    align-items:center;
+    padding:8px;
+    border:1px solid var(--dash-line);
+    border-radius:12px;
+    background:rgba(12, 20, 37, .94);
+    box-shadow:0 16px 36px rgba(3, 8, 20, .34);
+    backdrop-filter:blur(14px);
+    transform:translateY(0);
+    animation:userActionDockIn .18s ease-out;
+}
+body.user-hero-scrolled .user-hero-actions .btn,
+body.user-hero-scrolled .user-hero-actions a {
+    box-shadow:none;
+}
+@keyframes userActionDockIn {
+    from { opacity:0; transform:translateY(10px); }
+    to { opacity:1; transform:translateY(0); }
+}
+@media (max-width:900px) {
+    body.user-hero-scrolled .user-hero-actions {
+        right:12px;
+        bottom:12px;
+        max-width:calc(100vw - 24px);
+    }
+}
+@media (max-width:560px) {
+    body.user-hero-scrolled .user-hero-actions {
+        left:12px;
+        right:12px;
+        justify-content:stretch;
+    }
+    body.user-hero-scrolled .user-hero-actions > * {
+        flex:1 1 0;
+        min-width:0;
+    }
+}
 
 .user-stat-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
 .user-stat-card { min-width:0; padding:15px; border:1px solid var(--dash-line); border-radius:14px; background:var(--dash-surface); box-shadow:0 10px 26px rgba(3,8,20,.12); }
@@ -58,6 +100,8 @@ body.role-registrar { --user-accent: #67e8f9; --user-accent-strong: #0e7490; --u
 .user-status.pending, .user-status.draft { color:#fcd34d; background:rgba(251,191,36,.13); }
 .user-status.inactive, .user-status.archived, .user-status.dropped { color:#cbd5e1; background:rgba(148,163,184,.14); }
 .user-status.suspended, .user-status.rejected { color:#fda4af; background:rgba(244,63,94,.13); }
+.user-status.scheduled, .user-status.ongoing, .user-status.upcoming { color:#93c5fd; background:rgba(59,130,246,.13); }
+.user-status.cancelled { color:#fda4af; background:rgba(244,63,94,.13); }
 .user-focus:focus-visible, .user-hero a:focus-visible, .user-hero button:focus-visible, .user-actions a:focus-visible, .user-actions button:focus-visible { outline:3px solid var(--user-accent); outline-offset:2px; }
 
 /* Sidebar: shared spacing, visible focus, and an explicit current-page marker. */
@@ -86,6 +130,8 @@ body.light-mode .user-status.active, body.light-mode .user-status.published, bod
 body.light-mode .user-status.pending, body.light-mode .user-status.draft { color:#a16207; background:rgba(217,119,6,.13); }
 body.light-mode .user-status.inactive, body.light-mode .user-status.archived, body.light-mode .user-status.dropped { color:#475569; background:rgba(100,116,139,.13); }
 body.light-mode .user-status.suspended, body.light-mode .user-status.rejected { color:#b91c1c; background:rgba(220,38,38,.11); }
+body.light-mode .user-status.scheduled, body.light-mode .user-status.ongoing, body.light-mode .user-status.upcoming { color:#1d4ed8; background:rgba(37,99,235,.11); }
+body.light-mode .user-status.cancelled { color:#b91c1c; background:rgba(220,38,38,.11); }
 body.light-mode .user-stat-trend { color:var(--user-accent-strong); }
 
 /* Student is intentionally a learning surface rather than an admin table. */

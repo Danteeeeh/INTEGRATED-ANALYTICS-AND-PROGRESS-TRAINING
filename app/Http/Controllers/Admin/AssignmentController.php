@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\Rubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -84,6 +85,7 @@ class AssignmentController extends Controller
         ]);
 
         $validated['created_by'] = $request->user()->id;
+        $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
         $validated['allow_late'] = $request->boolean('allow_late', false);
         $validated['allow_resubmission'] = $request->boolean('allow_resubmission', false);
 

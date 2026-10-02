@@ -23,7 +23,8 @@ class Course extends Model
         'duration_weeks',
         'credits',
         'academic_period_id',
-        'category_id',
+        'department_id',
+        'program_id',
         'thumbnail',
         'status',
         'created_by',
@@ -34,9 +35,14 @@ class Course extends Model
         'credits' => 'integer',
     ];
 
-    public function category(): BelongsTo
+    public function department(): BelongsTo
     {
-        return $this->belongsTo(CourseCategory::class, 'category_id');
+        return $this->belongsTo(Department::class);
+    }
+
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class);
     }
 
     public function classes(): HasMany
@@ -128,11 +134,6 @@ class Course extends Model
         return $this->hasMany(Badge::class);
     }
 
-    public function gradeCategories(): HasMany
-    {
-        return $this->hasMany(GradeCategory::class);
-    }
-
     public function enrollments(): HasManyThrough
     {
         return $this->hasManyThrough(
@@ -161,11 +162,6 @@ class Course extends Model
     public function scopeArchived($query)
     {
         return $query->where('courses.status', 'archived');
-    }
-
-    public function scopeOfCategory($query, $categoryId)
-    {
-        return $query->where('category_id', $categoryId);
     }
 
     public function scopeOfAcademicPeriod($query, $periodId)

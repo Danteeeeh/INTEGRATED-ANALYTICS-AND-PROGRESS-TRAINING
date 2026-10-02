@@ -103,12 +103,12 @@
                 <section class="enrollment-edit-section" aria-labelledby="notes-heading">
                     <div class="enrollment-section-heading">
                         <span class="enrollment-section-icon"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i></span>
-                        <div><h3 id="notes-heading">Internal notes</h3><p>Keep useful context for staff reviewing this enrollment.</p></div>
+                        <div><h3 id="notes-heading">Internal notes</h3><p>Keep useful context for authorized users reviewing this enrollment.</p></div>
                     </div>
                     <div class="enrollment-edit-field @error('notes') has-error @enderror">
                         <label for="notes">Notes <span class="enrollment-edit-optional">Optional</span></label>
                         <textarea id="notes" name="notes" rows="5" maxlength="5000" placeholder="Add a note about this enrollment..." aria-describedby="notes-help notes-error" @error('notes') aria-invalid="true" @enderror>{{ old('notes', $enrollment->notes) }}</textarea>
-                        <div class="enrollment-notes-meta"><small id="notes-help">Visible to authorized staff only.</small><span id="notesCount">0 / 5000</span></div>
+                        <div class="enrollment-notes-meta"><small id="notes-help">Visible to authorized users only.</small><span id="notesCount">0 / 5000</span></div>
                         @error('notes')<span id="notes-error" class="enrollment-field-error" role="alert">{{ $message }}</span>@enderror
                     </div>
                 </section>

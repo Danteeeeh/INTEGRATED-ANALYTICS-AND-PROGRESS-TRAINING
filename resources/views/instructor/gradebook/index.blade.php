@@ -33,29 +33,7 @@
             value="{{ number_format($gradeItems->flatMap(fn ($item) => $item->grades)->avg('score_percent') ?? 0, 1) }}%"
             icon="fa-chart-line"
         />
-        <x-user-stat-card label="Categories" value="{{ $gradeCategories->count() }}" icon="fa-layer-group" />
     </div>
-
-    <!-- Grade Categories -->
-    @if($gradeCategories->isNotEmpty())
-        <div class="user-panel gradebook-panel">
-            <div class="user-panel-head"><h3><i class="fa-solid fa-layer-group"></i> Grade Categories</h3></div>
-            <div class="user-panel-body" style="padding-top:15px">
-                @foreach($gradeCategories as $category)
-                    <div class="user-toolbar" style="margin-bottom:10px;justify-content:space-between">
-                        <div>
-                            <strong>{{ $category->name }}</strong>
-                            <div class="user-email">{{ $category->items->count() }} items • {{ $category->weight }}% weight</div>
-                        </div>
-                        <div style="text-align:right">
-                            <div style="color:var(--user-accent);font-weight:700">{{ number_format($category->items->flatMap(fn ($item) => $item->grades)->avg('score_percent') ?? 0, 1) }}%</div>
-                            <div class="user-email">Average</div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    @endif
 
     <!-- Gradebook Table -->
     <div class="user-panel gradebook-panel">
@@ -63,12 +41,6 @@
 
         <!-- Filters -->
         <div class="user-toolbar">
-            <select id="categoryFilter" onchange="filterGrades()" class="form-control">
-                <option value="">All Categories</option>
-                @foreach($gradeCategories as $category)
-                    <option value="{{ $category->id }}">{{ $category->name }}</option>
-                @endforeach
-            </select>
 
             <select id="statusFilter" onchange="filterGrades()" class="form-control">
                 <option value="">All Status</option>
@@ -89,7 +61,7 @@
                         <th>Student</th>
                         @foreach($gradeItems as $item)
                             <th>
-                                <div style="font-size:0.85rem;font-weight:600">{{ $item->name }}</div>
+                                <div style="font-size:0.85rem;font-weight:600">{{ $item->title }}</div>
                                 <div class="user-email">{{ $item->max_points }} pts</div>
                             </th>
                         @endforeach
@@ -174,6 +146,7 @@
                 @csrf
                 <input type="hidden" id="gradeItemId" name="grade_item_id">
                 <input type="hidden" id="studentId" name="student_id">
+                <input type="hidden" id="submissionId" name="submission_id">
                 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px;">Points</label>
@@ -187,6 +160,9 @@
                     <textarea id="feedback" name="feedback" rows="4"
                               style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical;"
                               placeholder="Provide feedback to the student..."></textarea>
+                    <button type="button" id="suggestFeedbackBtn" onclick="suggestFeedback()" class="btn-secondary" style="margin-top: 8px; padding: 8px 14px; border-radius: 6px; cursor: pointer; display: none;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Suggest feedback (AI)
+                    </button>
                 </div>
                 
                 <!-- Rubric Integration -->
@@ -246,26 +222,69 @@
     </div>
 
     <script>
+        const studentSubmissionIds = {{ json_encode($students->mapWithKeys(fn ($e) => [$e->student_id => optional($e->student->submissions->first())->id ?? null])) }};
+
         function enterGrade(gradeItemId, studentId) {
             document.getElementById('gradeItemId').value = gradeItemId;
             document.getElementById('studentId').value = studentId;
-            
+
+            // Set submission id for AI feedback suggestions if one exists.
+            const subId = studentSubmissionIds[studentId] || null;
+            document.getElementById('submissionId').value = subId || '';
+            document.getElementById('suggestFeedbackBtn').style.display = subId ? 'inline-block' : 'none';
+
             // Get grade item info
             const gradeItem = {{ json_encode($gradeItems) }}.find(item => item.id === gradeItemId);
             if (gradeItem) {
                 document.getElementById('maxPointsInfo').textContent = `Max points: ${gradeItem.max_points}`;
                 document.getElementById('points').max = gradeItem.max_points;
             }
-            
+
             // Load existing grade if any
             // This would typically be done via AJAX
-            
+
             // Check if rubric is available
             if (gradeItem && gradeItem.rubric_id) {
                 loadRubric(gradeItem.rubric_id);
             }
-            
+
             document.getElementById('gradeModal').style.display = 'block';
+        }
+
+        function suggestFeedback() {
+            const subId = document.getElementById('submissionId').value;
+            if (!subId) {
+                alert('This student has no assignment submission to base feedback on.');
+                return;
+            }
+
+            const btn = document.getElementById('suggestFeedbackBtn');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+            fetch('{{ route('instructor.submissions.suggest-feedback', '__ID__') }}'.replace('__ID__', subId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: '{}'
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.draft) {
+                    document.getElementById('feedback').value = data.draft;
+                }
+            })
+            .catch(function () {
+                alert('Could not generate a suggestion. Please try again.');
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            });
         }
 
         function closeGradeModal() {
@@ -372,7 +391,6 @@
         }
 
         function filterGrades() {
-            const categoryFilter = document.getElementById('categoryFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             const studentSearch = document.getElementById('studentSearch').value.toLowerCase();
             
@@ -382,7 +400,7 @@
                 const studentName = row.dataset.student.toLowerCase();
                 const showByStudent = !studentSearch || studentName.includes(studentSearch);
                 
-                // Add category and status filtering logic here
+                // Add status filtering logic here
                 row.style.display = showByStudent ? '' : 'none';
             });
         }

@@ -7,7 +7,6 @@ use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCategory;
 use App\Models\GradeHistory;
 use App\Models\GradeItem;
 use Illuminate\Support\Facades\DB;
@@ -228,58 +227,24 @@ class GradeService
     public function calculateFinalGrade(Enrollment $enrollment): array
     {
         $class = $enrollment->class;
-        $gradeCategories = GradeCategory::where('class_id', $class->id)->get();
 
-        if ($gradeCategories->isEmpty()) {
-            // Simple average if no categories configured
-            $grades = Grade::where('student_id', $enrollment->student_id)
-                ->whereHas('item', function ($query) use ($class) {
-                    $query->where('class_id', $class->id)
-                        ->where('is_released', true);
-                })
-                ->get();
+        // Simple average of every released grade in the class.
+        $grades = Grade::where('student_id', $enrollment->student_id)
+            ->whereHas('item', function ($query) use ($class) {
+                $query->where('class_id', $class->id)
+                    ->where('is_released', true);
+            })
+            ->get();
 
-            $average = $grades->isNotEmpty() ? $grades->avg('score_percent') : 0;
-            $letterGrade = $this->percentageToLetter($average);
-
-            return [
-                'percentage' => round((float) $average, 2),
-                'letter_grade' => $letterGrade,
-                'total_points' => $grades->sum('points'),
-                'max_points' => $grades->sum(fn ($grade) => $grade->item?->max_points ?? 0),
-                'method' => 'simple_average',
-            ];
-        }
-
-        // Weighted calculation
-        $weightedSum = 0;
-        $totalWeight = 0;
-
-        foreach ($gradeCategories as $category) {
-            $grades = Grade::where('student_id', $enrollment->student_id)
-                ->whereHas('item', function ($query) use ($class, $category) {
-                    $query->where('class_id', $class->id)
-                        ->where('grade_category_id', $category->id)
-                        ->where('is_released', true);
-                })
-                ->get();
-
-            if ($grades->isNotEmpty()) {
-                $categoryAverage = $grades->avg('score_percent');
-                $weightedSum += $categoryAverage * $category->weight;
-                $totalWeight += $category->weight;
-            }
-        }
-
-        $finalPercentage = $totalWeight > 0 ? ($weightedSum / $totalWeight) : 0;
-        $letterGrade = $this->percentageToLetter($finalPercentage);
+        $average = $grades->isNotEmpty() ? $grades->avg('score_percent') : 0;
+        $letterGrade = $this->percentageToLetter($average);
 
         return [
-            'percentage' => round((float) $finalPercentage, 2),
+            'percentage' => round((float) $average, 2),
             'letter_grade' => $letterGrade,
-            'weighted_sum' => round($weightedSum, 2),
-            'total_weight' => $totalWeight,
-            'method' => 'weighted',
+            'total_points' => $grades->sum('points'),
+            'max_points' => $grades->sum(fn ($grade) => $grade->item?->max_points ?? 0),
+            'method' => 'simple_average',
         ];
     }
 
@@ -316,13 +281,8 @@ class GradeService
             ->get()
             ->groupBy('grade_item_id');
 
-        $gradeCategories = GradeCategory::where('class_id', $classId)
-            ->with('gradeItems')
-            ->get();
-
         return [
             'grades' => $grades,
-            'categories' => $gradeCategories,
             'overall_average' => Grade::where('student_id', $studentId)
                 ->whereHas('item', function ($query) use ($classId) {
                     $query->where('class_id', $classId)
@@ -335,9 +295,6 @@ class GradeService
     public function getClassGradebook(int $classId): array
     {
         $class = ClassModel::with(['enrollments.student', 'course'])->find($classId);
-        $gradeCategories = GradeCategory::where('class_id', $classId)
-            ->with('gradeItems')
-            ->get();
 
         $gradebook = [];
 
@@ -349,7 +306,6 @@ class GradeService
                 'student' => $enrollment->student,
                 'enrollment' => $enrollment,
                 'grades' => $studentGrades['grades'],
-                'categories' => $studentGrades['categories'],
                 'overall_average' => $studentGrades['overall_average'],
                 'final_grade' => $finalGrade,
             ];
@@ -357,7 +313,6 @@ class GradeService
 
         return [
             'class' => $class,
-            'categories' => $gradeCategories,
             'gradebook' => $gradebook,
         ];
     }

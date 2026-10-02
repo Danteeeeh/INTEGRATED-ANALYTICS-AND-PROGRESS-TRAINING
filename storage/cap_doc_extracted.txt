@@ -1,0 +1,741 @@
+
+DESIGN AND DEVELOPMENT OF AN AI-BASED LEARNING MANAGEMENT SYSTEM FOR BESTLINK COLLEGE OF THE PHILIPPINES WITH INTEGRATED ANALYTICS AND PROGRESS TRAINING
+ A Capstone
+Presented to the Faculty of
+The College of Computing Studies 
+w:type="textWrapping"/>Bestlink College of the Philippines
+In Partial Fulfilment
+of the Requirements for the Degree 
+Bachelor of Science in Information Technology
+AILYN S. DELIZO
+MARK JOSEPH D. FLORES
+w:type="textWrapping"/>ANGELVANI MACAPATAN
+RICHARD KIRK T. REFUERZO 
+JONATHAN J. TALIB
+August 2026
+APPROVAL SHEET
+This capstone entitled DESIGN AND DEVELOPMENT OF AN AI-BASED LEARNING MANAGEMENT SYSTEM FOR BESTLINK COLLEGE OF THE PHILIPPINES WITH INTEGRATED ANALYTICS AND PROGRESS TRAINING, prepared and submitted by Ailyn S. Delizo, Mark Joseph D. Flores, AngelVani Macapatan, Richard Kirk T. Refuerzo, and Jonathan J. Talib, in partial fulfilment of the requirements for the degree of Bachelor of Science in Information Technology, has been examined and is recommended for acceptance and approval for Pre-Oral Defense.
+ DR. ROMMEL J. CONSTANTINO, DIT
+ Adviser
+CAPSTONE REVIEW PANEL
+ Approved by the Committee on Oral Examination with a grade of 
+DR. RHONNEL PACULANAN, MAEd VINCENT CARLO T. GARADOS 
+ Member Member
+ROMMEL J. CONSTANTINO, DIT
+Chairperson
+Accepted and approved in partial fulfillment of the requirements for the degree of Bachelor of Science in Information Technology.
+ ROSICAR E. ESCOBER, Ph. D
+Dean, College of Computer Studies
+ACKNOWLEDGEMENT
+The completion of this research project would not have been possible without the guidance, support, and encouragement of the people who helped the researchers throughout the process. The researchers would like to sincerely thank everyone who contributed to the completion of this study.
+The researchers would like to express their appreciation to Dr. Maria M. Vicente, President/CEO of Bestlink College of the Philippines, for providing students with the opportunity to pursue their education and for her continuous efforts in supporting the academic community.
+The researchers are also grateful to Ms. Edith M. Vicente, Executive Vice President, for sharing important information and extending her assistance, which helped the researchers in completing this study.
+The researchers would also like to thank Dr. Charlie I. Cariño, Vice President for Academic Affairs, for his encouragement and support throughout the researchers' academic journey and during the preparation of this project.
+Sincere thanks are also given to Engr. Diosdado T. Lleno, Vice President for Administration and Finance, for his encouragement and motivating words that helped the researchers remain determined in completing their work.
+The researchers would like to acknowledge Dr. Joy Evelyn A. Ignacio, College Associate Research Head, for her assistance, guidance, and willingness to help whenever the researchers needed support during the preparation of this study.
+The researchers are also thankful to Dr. Rosicar E. Escober, Dean of the College of Computer Studies of Bestlink College of the Philippines, for providing the researchers with guidelines and documentation that served as a useful reference in developing this capstone project.
+Special appreciation is given to Dr. Rommel J. Constantino, Program Head of the Bachelor of Science in Information Technology, for his guidance and supervision, as well as for providing information and support that helped the researchers move forward with the project.
+The researchers would also like to thank Ms. Kris Villaflores, Research Coordinator, for her assistance and recommendations in improving the study and for guiding the researchers throughout the research process.
+The researchers are especially grateful to Dr. Rommel J. Constantino, DIT, Capstone Adviser, for sharing his knowledge, providing helpful suggestions, and giving the researchers valuable guidance in developing and improving the project.
+The researchers also extend their appreciation to the panelists, Mr. Vincent Carlo T. Garados, Engr. Reynante B. Ponay, and Dr. Rommel J. Constantino, for giving their time and expertise in reviewing the study. Their comments, suggestions, and recommendations helped the researchers identify areas that needed improvement and further develop the project.
+The researchers are deeply thankful to their families and friends for their continuous understanding, encouragement, and support. Their presence and assistance, especially during difficult and stressful moments, gave the researchers the motivation to continue working toward the completion of this study.
+Finally, the researchers give their highest gratitude to Almighty God, who gave them the strength, wisdom, patience, and determination to overcome the challenges they encountered and successfully complete this research project.
+THE RESEARCHERS
+DEDICATION
+ This business research study is sincerely dedicated to everyone who contributed to its completion and success.
+ First and foremost, we dedicate this work to ourselves, the researchers, for our perseverance, dedication, hard work, patience, sacrifices, and determination throughout the entire research journey. Despite the challenges and difficulties, we encountered, we remained committed to achieving our goal and completing this study.
+ To our beloved parents and families, we express our deepest gratitude for their unconditional love, understanding, encouragement, and continuous moral, emotional, spiritual, and financial support. They have been our source of inspiration and strength during moments when we felt tired and discouraged.
+ To our siblings, friends, and classmates, thank you for the encouragement, advice, and positive words that motivated us to continue and finish this research study.
+ We also dedicate this work to our research advisers and professors, whose knowledge, guidance, patience, and valuable suggestions greatly contributed to the development and completion of this study. Their dedication to teaching and mentoring inspired us to do our best.
+ Above all, we offer this achievement to our Almighty God for providing us with wisdom, strength, courage, guidance, protection, and good health throughout this journey. Without His blessings and guidance, the completion of this study would not have been possible.
+ To everyone who believed in us and supported us along the way, this achievement is wholeheartedly dedicated to you.
+ THE RESEARCHERS
+ABSTRACT
+Title: DESIGN AND DEVELOPMENT OF AN AI-BASED LEARNING MANAGEMENT SYSTEM FOR BESTLINK COLLEGE OF THE PHILIPPINES WITH INTEGRATED ANALYTICS AND PROGRESS TRAINING
+Author's: AILYN S. DELIZO
+ MARK JOSEPH D. FLORES
+ ANGELVANI MACAPATAN
+ RICHARD KIRK T. REFUERZO 
+JONATHAN J. TALIB
+Degree: BACHELOR OF SCIENCE IN 
+ INFORMATION TECHNOLOGY
+Major: Information Management, Information Security, Network Administration
+Date of Completion:
+ Learning Management Systems play an important role in providing students and educators with an organized and accessible platform for managing educational activities. However, traditional methods of managing learning materials, student performance, assignments, and academic progress can be time-consuming, inefficient, and prone to errors. These challenges make it difficult for teachers to monitor student performance, identify learning difficulties, and provide immediate support to students. As the number of students and learning activities continues to increase, managing academic records and tracking student progress manually becomes more difficult and may affect the overall learning experience.
+ To address these challenges, this study aims to design and develop an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Tracking. The proposed system is designed to help students, instructors, and administrators manage and monitor learning activities in a more organized and efficient way. It includes features such as course and subject management, learning material uploads, assignment submission, online assessments, student performance monitoring, and progress tracking. The system also provides integrated analytics to help instructors and administrators analyze student performance, engagement, and academic progress more accurately. In addition, the AI-based feature provides intelligent recommendations and learning support based on students' performance and learning activities to encourage personalized learning and improve student engagement. Through the development of this system, the study aims to provide a more efficient, innovative, and technology-driven learning environment that can support both students and educators in achieving better academic outcomes.
+TABLE OF CONTENTS
+Page
+TITLE PAGE i
+APPROVAL SHEET ii
+ACKNOWLEDGMENT iii
+DEDICATION v
+ABSTRACT vi
+TABLE OF CONTENTS viii
+LIST OF TABLES xiii
+LIST OF FIGURES xiv
+LIST OF APPENDICES xv
+     CHAPTER 1:INTRODUCTION
+1.1.Project Background and Motivation1
+1.2.Problem Statement 3
+1.3.Project Vision and Scope7
+1.4.Objectives and Goals 8
+1.5.Significance and Relevance10
+1.6.Definition of Terms12
+1.7Structure of the Document14
+ CHAPTER 2:RELATED LITERATURE, STUDIES, AND TECHNICAL BACKGROUND
+2.1 Review of Related Literature 16
+2.2 Analysis of Related Studies 
+and Existing Systems18
+2.3 Agile Scrum Methodology
+2.4 Emerging Technologies, Intelligent 
+Systems, and Standards in Modern 
+Information Systems20
+2.4.1 Microservices Architecture 22
+2.4.2 Artificial Intelligence (AI)24
+2.4.3 Internet of Things (IoT)26
+2.4.4 Data Analytics and Business 
+Intelligence28
+2.4.5 Polyglot Persistence 30
+2.4.6 Cybersecurity 32
+2.4.7 Data Privacy34
+2.4.8 Software Quality Standards 36
+2.4.9 Cloud Computing 38
+2.4.10 Edge Computing 40
+2.5 DevOps Culture and CI/CD Practices42
+2.6 Enterprise Architecture & System Integration44
+2.7 Conceptual Framework46
+2.8 Theoretical Paradigm48
+CHAPTER 3:METHODOLOGY AND PROJECT MANAGEMENT
+3.1 The Adapted Agile Scrum Framework52
+3.1.1 Team Roles and Responsibilities 
+3.1.2 Scrum Events 
+3.1.3 Scrum Artifacts 
+3.1.4 Toolstack 
+3.2 Architectural Design Decisions56
+3.2.1 Why Microservices? Justify the choice over Monolithic architecture.
+3.2.2 Core Architectural Patterns Used 
+3.3 Development, Operations, and Quality Assurance (QA) Methodology 60
+3.3.1 DevOps Toolchain 
+3.3.2 CI/CD Pipeline Design
+3.3.3 Testing Strategy 
+3.4 Innovation Framework 62
+CHAPTER4:SYSTEM DESIGN, DEVELOPMENT, AND
+4.1. Requirements Engineering 
+       4.1.1 Stakeholder Analysis
+       4.1.2 Elicitation Techniques
+       4.1.3 Functional Requirements
+       4.1.4 Non-Functional Requirements
+       4.1.5 User Stories, Acceptance Criteria, 
+                And Use Cases
+4.2. High-Level System Design
+       4.2.1 System Context Diagram
+       4.2.2 Overview of the Integrated System
+4.3. Business Process Architecture (BPMN 2.0)
+       4.3.1 As-Is Process Model
+       4.3.2 To-Be Process Model
+       4.3.3 Analysis of Improvements
+4.4. Application Architecture
+       4.4.1 Component Diagram
+       4.4.2 Detailed UML Diagrams for Key Services
+4.5 Data Architecture and Design 
+      4.5.1 Logical Data Model 
+      4.5.2 Physical Data Model
+       4.5.3 Data Dictionary
+       4.5.4 Data Flow Diagrams (Level 0, Level 1)
+4.6 Technology Architecture & Infrastructure
+      4.6.1 Technology Stack Justification
+      4.6.2 Deployment Architecture 
+      4.6.3 Network and Security Design 
+      4.6.4 Cloud Infrastructure
+4.7 Deployment Journey 
+      4.7.1 Sprint Summaries
+      4.7.2 Key Technical Challenges and Solutions
+4.8 Implementation Strategy
+      4.8.1 Deployment Plan
+      4.8.2 Migration Plan
+      4.8.3 User Training and Change Management
+4.9 Testing and Quality Assurance Report
+      4.9.1 Test Plan
+      4.9.2 Summary of Tests Results 
+      4.9.3 Performance Test Report
+      4.9.4 Security Audit Findings
+4.10 Results and Evaluation 
+   4.10.1 User Acceptance Testing (UAT) Protocol And Results 
+    4.10.2 Validation Against Objectives
+       4.10.3 Project Retrospective
+CHAPTER 5: CONCLUSION
+5.1 Summary of the Project
+5.2 Conclusion
+5.3 Project Contributions
+5.4 Recommendations
+   5.4.1 For Future Enhancement
+       5.4.2 For Implementation
+       5.4.3 For Future Researchers
+REFERENCES
+APPENDICES
+CURRICULUM VITAE
+LIST OF TABLES
+TablePage
+Roles and Responsibilities 27
+Sprint Cycle 33
+Product Backlog (User Stories) 37
+Product Backlog for EIS Information Security 47
+Product Backlog for EIS Standards 49
+Product Backlog for EIS Integration 51
+Product Backlog for Analytics 56
+Product Backlog for EIS Analytics 58
+Sprint Backlog (User Stories) 60
+Scrum Board 73
+LIST OF FIGURES
+FigurePage
+Agile Scrum Framework 26
+Burndown Chart 76
+Microservices Diagram 79
+Communication Pattern 80
+Data Flow Diagram 81
+CI/CD Pipeline 85
+Infrastructure as a Code (IaC) 85
+Monitoring and Alerting 86
+Integration Diagram 88
+API Gateway 88
+Data Flow Diagram 89 
+Use Case Diagram 92
+Sequence Diagram 93 
+Flowchart 93
+LIST OF APPENDICES
+Appendix A Detailed Technical Documentation
+Appendix B Documents/URLs
+Appendix CCertificate of Originality
+Appendix DCertificate of Grammarian
+Appendix EGrammarian Curriculum Vitae
+Appendix FTechnical Adviser Curriculum Vitae
+Appendix GResearch Adviser Curriculum Vitae
+Appendix H Researcher’s Curriculum Vitae
+CHAPTER 1
+INTRODUCTION
+1.1.Project Background and Motivation
+Project Background
+The rapid advancement of artificial intelligence (AI) and educational technologies as significantly transformed the way educational institutions deliver instruction, manage learning resources, and monitor student performance. Learning Management Systems (LMS) have become essential tools in supporting online and blended learning by providing centralized platforms where students can access course materials, submit academic requirements, participate in assessments, and communicate with instructors. However, conventional LMS platforms primarily focus on content delivery and basic academic record management, with limited capabilities for providing intelligent insights into students’ leaning behaviors, performance, and progress.
+At Bestlink College of the Philippines, the increasing use of digital learning environments creates an opportunity to enhance the existing approach to academic monitoring and learning management. As students have different learning capabilities, study habits, levels of engagement, and academic needs, relying solely on conventional methods of monitoring performance may make it difficult for instructors and administrators to identify students who are struggling or falling behind. Students may have limited access to personalized feedback that can help them understand their academic progress and determine which areas require improvement.
+The proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training aims to address these challenges by incorporating artificial intelligence, learning analytics, and progress-monitoring features into a centralized learning management platform. The system is designed to support the management and delivery of learning materials while also collecting and analyzing relevant learning data, such as assessment results, activity completion, participation, and other indicators of student engagement. Through these analytics, the system can provide meaningful information regarding individual and overall academic performance.
+The integration of AI can further enhance the LMS by enabling intelligent analysis of student performance and learning patterns. Instead of simply recording grades and completed activities, the proposed system can use available academic and behavioral data to generate insights that may help identify areas of difficulty, monitor learning progress, and provide appropriate recommendations. These capabilities can assist instructors in making more informed decisions and enable students to become more aware of their strengths, weaknesses, and learning progress.
+The system will also incorporate progress training, which focuses on helping students improve continuously through structured learning activities, assessments, feedback, and progress monitoring. Rather than treating learning as a process that ends with the submission of requirements or completion of examinations, the proposed system promotes continuous development by allowing students to track their performance and work toward identified learning objectives. This approach can encourage students to take a more active role in managing their own learning.
+Integrated analytics can provide instructors and academic administrators with a broader view of students performance. Data presented through dashboards and reports can help stakeholders monitor trends, identify potential academic concerns, evaluate student engagement, and support evidence-based academic interventions. By consolidating learning management and analytics into one system, the proposed platform can reduce dependence on fragmented tools and manual monitoring processes.
+Project Motivation
+The motivation for developing the proposed system stems from the need to make learning management more intelligent, personalized, data-driven, and responsive to students needs. Traditional LMS platforms are effective in organizing educational resources and activities, but they may not sufficiently address the growing demand for personalized learning support and timely academic intervention. The increasing availability of AI technologies provides an opportunity to extend the functionality of an LMS beyond basic course management toward a system capable of generating actionable learning insights.
+For students, the system is motivated by the need for greater visibility into their academic progress. Students may find it difficult to determine whether they are meeting learning expectations when information is limited to grades, scores, and completed requirements. Through progress tracking and AI-supported insights, the proposed system can present students with clearer information about their performance and areas that may require additional attention. This can encourage self-directed learning, continuous improvement, and greater engagement with academic activities.
+For instructors, the motivation is to provide tools that can simplify and improve the process of monitoring students. Managing large numbers of students can make it challenging to consistently identify performance patterns and students who may need additional assistance. Integrated analytics can help instructors interpret relevant learning data and identify students or learning areas that warrant attention. This can support more timely and targeted academic interventions while reducing the burden associated with manual monitoring and reporting.
+For academic administrators, the system can provide centralized and organized information that may support academic planning and decision-making. Aggregated analytics can offer insights into student performance and engagement across courses or learning activities, allowing administrators to better understand areas of concern and potential opportunities for improvement.
+The project is motivated by the goal of developing a learning management environment that does not merely store academic information but transforms learning data into useful insights and actionable support. By combining AI, learning management, analytics, and progress training, the proposed system seeks to create a more adaptive and student-centered educational platform for Bestlink College of the Philippines.
+1.2.Problem Statement
+This study aims to design and develop an AI-based Learning Management System for Bestlink College of the Philippines wit integrated analytics and progress tracking. The proposed system is intended to provide a centralized, intelligent, and user-friendly platform that can support learning management, monitor academic performance, and provide meaningful insights into students’ learning progress.
+How can an AI-based Learning Management System be designed and developed to provide a centralized platform for managing courses, learning materials, activities, assessments, and student information?
+How can an AI-powered learning support feature be designed and developed to provide personalized learning recommendations, automated feedback, and relevant learning resources based on students’ academic needs and performance?
+How can an integrated analytics module be designed and developed to collect, process, and present students’ academic performance and learning activity data through dashboards and visual reports?
+How can a progress tracking feature be designed and developed to monitor students’ learning activities, assessment results, task completion, and overall academic progress over time?
+How can a notification and monitoring mechanism be designed and developed to provide timely updates to students and instructors regarding assignments, assessments, learning activities, and academic progress?
+How can a user-friendly system interface be designed and developed to enable students, instructors, and administrators to efficiently access, manage, and monitor learning-related information and activities?
+How will an integrated SMS 2 benefit students, faculty or instructors, and the administration of the school?
+1.3.Project Vision and Scope
+Project Vision
+The project envisions the development of an AI-Based Learning Management System (LMS) for Bestlink College of the Philippines that provides an intelligent, centralized, and user-friendly digital learning environment for students, instructors, and administrators. The proposed system aims to improve the management and delivery of academic activities by integrating learning materials, courses, assessments, student information, AI-powered learning support, analytics, progress tracking, and notifications into a single platform.
+The system will use AI to support personalized learning by analyzing students’ academic performance and learning activities to provide appropriate learning recommendations, automated feedback, and relevant educational resources. Through integrated analytics and progress tracking, students and instructors will be able to monitor learning performance, identify areas that require improvement, and make informed academic decisions based on available data.
+The project envisions a system that promotes efficient academic management and continuous learning improvement. Students will be able to access learning resources, complte activities, monitor their progress, and receive timely academic updates. Instructors will be able to manage courses, learning materials, assessments, student performance, and progress reports, while administrators will be able to manage users and oversee system operations.
+The proposed LMS will be developed following the software quality characteristics of ISO/IEC 25010, particularly functional suitability, performance efficiency, compatibility, usability, reliability, security, maintainability, and portaility. By incorporating these characteristics, the system aims to provide a reliable, secure, efficient, accessible, and sustainable, learning platform that can support the academic needs of Bestlink College of the Philippines. 
+Project Scope
+The project covers the design and development of an AI-based Learning Management Sytem intended for estlink College of the Philippines. The system will focus on the management, delivery, monitoring, and analysis of learning-related activities
+• Learning Management
+The system will provide a centralized platform for managing courses, learning materials, activities, assessments, and student information. Students will be able to access assigned learning resources and activities, while instructors will be ale to create, organize, update, and manage course-related content.
+• AI-Powered Learning Support
+The system will incorporate AI-based features that provide personalized learning assistance based on students' academic needs and performance. These features will include personalized learning recommendations, automated feedback, and suggestions for relevant learning resources. The AI functionality will serve as a learning support mechanism rather than a replacement for instructors' academic judgement.
+• Integrated Learning Analytics
+The system will collect and process relevant academic and learning activity data, including assessment results, activity participation, task completion, and other available performance indicators. The collected data will be presented through dashborads, visual reports, and other appropriate analytics tools to help students, instructors, and administrators understanding learning performance and trends.
+• Student Progress Tracking
+The system will provide mechanisms for monitoring students' learning progress over time. It will track learning activities, assessment results, task completion, and overall academic progress. Students will be able to view their own progress, while instructors will be able to monitor the progress of their students and identify areas that may require additional attention. 
+• Notification and Monitoring Mechanism
+The system will provide timely notifications and updates concerning assignments, asessments, learning activities, deadlines, and academic progress. Notifications will be designed to help students stay informed about their academic responsibillities and assist intructors in monitoring relevant learning activities.
+• User and Role Management
+The system will support different user roles primarili students, instructors, and administrators, with appropriate acess to system functions based on their responsiilities. Students will have access to their learning materials, activities, assessments, recommendations, analytics, and progress information. Instructors will have access to course and student management functions, while administrators will manage users and other system-level functions.
+• User Interface and Accessibility
+The proposed system will include a user-friendly interface designed to enable students, instructors, and administrators to efficiently access and manage learning-related information. The interface will prioritize ease of navigation, clarify of information, usability, and accessibility across supported devices and system environments.
+• Software Quality Compliance
+The development and evaluation of the system will consider the ISO/IEC 25010 software quality characteristics.
+Functional suitability - ensuring that the system provides the required learning management, AI support, analytics, progress tracking, and notification functions.
+Performance efficiency - enuring that the system performs tasks within reasonable response times and uses system resources efficiently.
+Compatibility - ensuring that the sytem can operate appropriately with relevant software, hardware, and supported environments.
+Usability - ensuring that users can learn, navigate, and use the system effectively and efficiently.
+Reliability - ensuring that the system performs consistently and remains available during intended use.
+Security - protecting user account, academic records, learning data, and other system information from unauthorized access.
+Maintability - facilitating system modification, updating, troubleshooting, and future enhancement.
+Portability - ensuring that the system can be adapted or transferred across supported computing environments when required.
+The project scope is centered on creating a centralized, intelligent, data-driven, and quality-orinted LMS that can support teaching and learning Bestlink College of the Philipines while enabling personalized learning, informed academic monitoring, and continuous progress improvement.
+Scope Limitations
+The project will focus on the development of the proposed LMS and its core AI-based learning support, analytics, progress tracking, notification, and management functions. The sytem’s AI recommendations and automated feedback will be limited to the data and learning resources available within the system and will not be intended to replace instructors, provide unrestricted academic decision-making, or guarantee improvements in student performance.
+The project will also focus on the system’s ability to collect, process, and present learning-related information rather than replacing the institution’s complete academic administration or student information infrastructure. Integration with external institutional systems, third-party platforms, or advanced AI services may be considered only when supported by the project’s technical requirements and available resources.
+1.4.Objectives and Goals
+The study aims to design and develop an AI-based Learning Management System for Bestlink College of the Philippines with integrated analytics and progress tracking to support efficient learning management, personalized learning, academic monitoring, and improved communication between students and instructors.
+Specific Objectives
+The study specifically aims to:
+• Design and develop an AI-based Learning Management System that provides a centralized platform for managing learning materials, courses, activities, and student information.
+• Design and develop an AI-powered learning support feature that assists student through personalized learning recommendations, automated feedback, and relevant learning resources based on their academic needs and performance.
+• Design and develop an integrated analytics module that collects, processes, and present students’ academic performance and learning activity data through dashboards and visual reports.
+• Design and develop a progress tracking feature that monitors students’ learning activities, assessment results, task completion, and overall academic progress over time.
+• Design and develop a notification and monitoring mechanism that provides timely updates to students and instructors regarding assignments, assessments, learning activities, and academic progress.
+• Design and develop a user-friendly system interface that enables students, instructors, and administrators to efficiently access, manage, and monitor learning-related information and activities.
+• Design and develop the proposed AI-based Learning Management System in accordance with the ISO/IEC 25010 software quality characteristics, particularly in terms of functional suitability, performance efficiency, compatibility, usability, reliability, security, maintainability, and portability, to ensure the system meets the required standards of quality and effectiveness.
+Project Goals
+The proposed system aims to achieve the following goals:
+• Centralized Learning Management: To provide a single platform where students and instructors can access and manage learning materials, courses, activities, assessments, and academic information.
+• Personalized Learning Support: To provide students with AI-assisted recommendations, feedback, and relevant learning resources based on their learning needs and academic performance.
+• Improved Academic Monitoring: To enable students and instructors to monitor academic performance, learning activities, assessment results, and progress through analytics and visual dashboards.
+• Efficient Communication and Notifications: To provide timely notifications regarding assignments, assessments, learning activities, and important academic updates.
+• Data-Driven Decision Support: To provide instructors and administrators with organized learning and performance data that can support academic monitoring and appropriate interventions.
+• Improved Learning Experience: To create a user-friendly and accessible learning environment that can support students in managing their academic activities and tracking their learning development.
+• Quality and Reliability: To develop a system that follows the relevant ISO/IEC 25010 software quality characteristics to ensure that the proposed LMS is functional, usable, secure, reliable, maintainable, and compatible.
+1.5. Significance and Relevance
+The proposed AI-based Learning Management System (LMS) with integrated analytics and progress tracking is significant because it provides a centralized, intelligent, and user-friendly platform that can support the teaching and learning processes of Bestlinnk College of the Philippines. The system is designed to address the need for efficient management of learning materials, academic activities, student information, performance monitoring, and communication between students and instructors. By integrating artificial intelligence, analytics, and progress tracking into one platform, the proposed system can provide more personalized and data-driven learning support.
+Students. The proposed system can help students access learning materials, courses, activities, assessments, and academic information through a centralized platform. The AI-powered learning support feature can provide personalized learning recommendations, automated feedback, and relevant resources based on students’ academic needs and performance. The progress tracking feature can also help students monitor their task completion, assessment results, learning activities, and overall academic progress, allowing them to identify areas that require improvement and become more aware of their learning development. 
+Instructors. The system can assist instructors in efficiently managing courses, learning materials, assessments, and student activities. Through the integrated analytics and dashboards, instructors can obtain organized information regarding student performance and participation. This can help them identify students who may need additional assistance and make more informed decisions when providing feedback, learning interventions, and academic support. The notification and monitoring mechanism can also help instructors keep track of assignments, assessments, and other learning activities.
+Administrators. The proposed LMS can provide administrators with a centralized system for managing and monitoring learning-related information. The analytics and reporting features can provide useful insights into academic performance and learning activities, which may support monitoring, evaluation, and decision-making. The centralized management of information can also contribute to more organized and efficient administration of academic processes.
+Bestlink College of the Philippines. The study can contribute to the institution efforts to enhance the delivery and management of technology-supported education. The proposed system can provide an integrated platform that combines learning management, AI-powered support, analytics, progress tracking, notifications, and monitoring. Its alignment with the ISO/IEC 25010 software quality characteristics can further support the development of a system that emphasizes functional sustainability, performance efficiency, compatibility, usability, reliability, security, maintainability, and portability.
+Future Researchers and Developers. The study can serve as a reference for future researchers and developers who intend to develop AI-based learning management systems, academic analytics platforms, or educational technologies. The proposed integration of personalized learning support, academic analytics, progress monitoring, and notification mechanisms may provide a basis for further studies involving artificial intelligence and data-driven approaches in education. Future researchers may also use the study as a reference for evaluating and improving the quality, functionality, and effectiveness of similar systems.
+1.6.Definition of Terms
+AI-Based Learning Management System. Refers to the proposed computerized platform that utilities artificial intelligence to support learning management, provide learning assistance, and help students and instructors manage educational activities and information.
+Artificial Intelligence (AI). Refers to the technology incorporated into the proposed system to analyze learning-related information and provide intelligent functions such as personalized recommendations, automated feedback, and learning support.
+Learning Management System (LMS). Refers to a software platform used to manage, deliver, organize, and monitor educational courses, learning materials, activities, assessments, and student-related information.
+Administrators. Refers to authorized users responsible for managing system accounts, user information, courses, system settings, and other administrative functions.
+Instructors. Refers to the intended users who manage courses, provide learning materials, create activities and assessments, monitor students’ performance, and review learning analytics through the system.
+Students. Refers to the intended users of the proposed system who access learning materials, participate in activities and assessments, receive feedback, and monitor their academic progress.
+1.7Structure of the Document
+Chapter 1 - Intruduction presents the introduction of the study, background and motivation, problem statement, project vision and scope, objectives and goals, significance and relevance, definition of terms, and the overall structure of the document.
+Chapter 2 - Related Literature, Studies, and Technical Background reviews related literature, studies, and existing learning management systems relevant to the proposed system. It discusses the Agile Scrum Methodology, emerging technologies and standards such as Artificial Intelligence (AI), Internet of Things (IoT), Data Analysis and Business Intelligence, Polyglot Persistence, Cybersecurity, Data Privacy, Software Quality Standars, Cloud Computing, and Edege Computing. It also presents DevOp Culture and CI/CD practices, Enterprise Architecture and System Integration, the Conceptual Framework and Theoritical Paradigm that serve as foundations for the development of the proposed AI-based learning management system.
+Chapter 3 - Methodology and Project Management describes the research methodologyand project management approach used in the development of the study. It discusses the adapted Agile Scrum Framework, including team roles and responsibilities, Scrum events, Scrum artifacts, sprint planning, and the developmet toolstack. It also presents the architectural design decisions, development and quality assurance methodology, DevOps practrice, testing strategy, and the innovation framework applied throughout the development process. 
+Chapter 4 - System Design, Development, and Implementation presents the requirements engineering process, stakeholder analysis, system requirements, user stories, and use cases. It also discuss the system architecture, business process models, application architecture, database design, technology architecture, infrastructure, development journey, implementation strategy, testing and quality assurance reports, user acceptance testing, system evaluation, validation of objectives, and project retrospective.
+Chapter 5 - Conclusion summarizes the entire project and presents the conclusions based on the findings, highlights the systems' contributions, and also provides recommendations for future system enhancements, additional AI and analytics capabilities, wider implementation, and future researchers. 
+ CHAPTER 2
+RELATED LITERATURE, STUDIES, AND TECHNICAL BACKGROUND
+2.1 Review of Related Literature
+Learning Management Systems (LMS) have become an important part of modern higher education because they provide a centralized platform where learning materials, assessments, student activities, grades, and communication can be managed. As schools increasingly use digital platforms for teaching and learning, LMS platforms have also started generating large amounts of information about how students interact with their courses. This information can be used to better understand student participation, performance, and academic progress. Recent studies show that LMS platforms are gradually developing beyond simple repositories for learning materials and are becoming more integrated environments that include learning analytics, personalization, assessment, and artificial intelligence (AI). A 2026 systematic review of LMS and learning analytics in higher education found that LMS implementation is increasingly associated with student engagement and academic outcomes. However, the study also emphasized that the effectiveness of an LMS depends not only on the technology itself but also on how it is integrated into teaching and learning practices.
+Learning Management Systems in Higher Education
+The use of Learning Management Systems in higher education is particularly important for institutions that need an organized and accessible way of managing academic activities. An LMS can provide students and instructors with a common platform for accessing learning materials, lessons, assignments, quizzes, grades, announcements, and other course-related activities. By bringing these functions together, an LMS can reduce the need to use several separate platforms and can create a more consistent learning experience.
+The usefulness of an LMS, however, goes beyond simply providing access to course materials. The system can also record information about student activities, such as participation, assessment performance, and interaction with learning resources. These records can help instructors understand how students are progressing and where additional support may be needed. The 2026 systematic review published by Social Sciences & Humanities Open emphasizes that LMS technology should be viewed as part of a wider socio-technical learning environment rather than as an independent technological tool. This suggests that an effective LMS should be designed around the actual needs of students and instructors and should support the educational processes of an institution.
+Online Learning and Student Engagement
+Student engagement is another important consideration in online learning. Engagement involves several dimensions, including how actively students participate in activities, how they think about and process learning materials, how they feel about the learning experience, and how they interact with others. Bergdahl et al. (2024), in their systematic review of 159 learning analytics studies in higher education, found that many studies measure student engagement using observable activities such as clicks, system interactions, and the amount of time spent on tasks. However, the researchers pointed out that these measures alone may not fully represent the different dimensions of student engagement.
+This finding is relevant to LMS development because student participation should not be judged only by the number of times a student logs in or clicks on a resource. Other indicators can provide a clearer picture of learning behavior, including assignment completion, quiz performance, access to lessons and learning materials, course progression, and interaction with course activities. Combining these indicators can give students and instructors a more meaningful understanding of engagement and academic progress.
+Learning Analytics in LMS
+The integration of Learning Analytics (LA) into LMS platforms provides a way to transform student activity data into useful information. Learning analytics generally involves collecting, measuring, analyzing, and interpreting data related to learners and their learning environment. Ifenthaler and Yau (2020) explained that learning analytics can support study success in higher education by helping identify patterns related to student progress and possible learning difficulties. Bergdahl et al. (2024) likewise noted that learning analytics can be used to monitor progression, examine learner behavior, predict performance, provide feedback, and support appropriate interventions.
+These capabilities are closely related to the proposed system because the project aims to integrate analytics into an LMS to help students and instructors understand academic performance and progress. Instead of simply storing activity records, the system can process relevant information and present it in a form that is easier to understand and use for decision-making.
+Student Progress Monitoring and Early Identification
+Learning analytics can also help instructors monitor student progress and identify possible learning difficulties at an earlier stage. An LMS can collect information such as completed lessons, submitted assignments, quiz scores, grades, login activity, and course completion. When these data are analyzed together, they can provide an overview of whether students are meeting expected learning requirements.
+According to Ifenthaler and Yau (2020), learning analytics can support study success by providing information that helps institutions understand learner progress and identify students who may require additional assistance. This demonstrates how an LMS can move beyond simply recording academic activities and become a tool for providing meaningful support. In relation to the proposed system, the progress-tracking component can use academic activity data to show students their current learning status while also giving instructors information that can help them determine when intervention or additional guidance may be appropriate.
+Learning Analytics Dashboards
+Learning analytics dashboards are another important feature of data-driven LMS platforms. These dashboards present learning information visually, allowing students and instructors to understand performance and progress more quickly. Paulsen and Lindsay (2024), in their review of student-facing learning analytics dashboards in higher education, identified a growing focus on dashboards that do more than display information. Modern dashboards are increasingly designed to support reflection, feedback, and appropriate learning actions.
+This supports the inclusion of analytics dashboards in the proposed system. A well-designed dashboard can present information such as course progress, assessment results, assignment completion, grades, and other learning indicators in a clear and understandable manner. For students, this can make it easier to recognize areas where they are performing well and areas that may require more attention. For instructors, the dashboard can provide a broader view of student performance and progress.
+Learning Analytics and User Experience
+Integrating analytics into an LMS can also contribute to the overall user experience of online learning. Ngulube and Ncube (2025) conducted a systematic review of learning analytics applications in LMS environments in higher education and examined how analytics can be used to improve LMS experiences. Their review of 41 studies identified several challenges, including difficulties in interpreting data, implementing analytics effectively, and making meaningful use of analytical results.
+The findings suggest that simply collecting large amounts of student data does not automatically improve learning. The information must be presented in a way that is understandable and useful to its intended users. For the proposed system, analytics should therefore focus on providing relevant information to both students and instructors. Instead of overwhelming users with unnecessary statistics, the system should present important learning indicators that can help them understand performance, identify concerns, and make informed decisions.
+Artificial Intelligence in Education
+Artificial Intelligence (AI) has created additional opportunities for improving the capabilities of LMS platforms. AI can be used to analyze learning data, identify patterns, provide recommendations, generate feedback, and support more personalized learning experiences. Fortuna et al. (2025), in a global systematic review of AI in personalized learning in tertiary and higher education, reported that AI-supported personalized learning has developed from traditional rule-based systems toward more advanced technologies, including machine learning, natural language processing, intelligent tutoring systems, and large language models.
+These technologies can support adaptive learning pathways, personalized content, and timely feedback. Their use in LMS platforms can therefore provide additional support for students who have different levels of knowledge, learning behaviors, and academic needs. However, the implementation of AI should still consider the role of instructors and the educational context in which the technology is being used.
+AI-Based Personalized Learning
+AI-based personalized learning is particularly relevant to the proposed research because students do not necessarily learn at the same pace or have the same academic needs. An AI-enabled LMS can use available learning information to identify patterns in student performance and potentially provide recommendations that are appropriate for individual learners.
+Merino-Campos (2025) found that AI has the potential to support personalized learning in higher education by adapting instructional content, learning pace, and feedback to individual learner needs. At the same time, the study identified several challenges, including data privacy, ethical concerns, teacher preparation, and the need for appropriate evaluation methods. These considerations indicate that AI should primarily serve as a support mechanism for learning and teaching rather than replace the instructor's role.
+Luo et al. (2025) further examined AI-based learning tools in higher education and identified personalization, real-time feedback, and flexibility as important benefits of AI-supported learning environments. These findings support the development of LMS features that can provide students with timely information about their performance and learning activities. In the proposed system, AI can complement existing LMS functions by analyzing learning information and assisting in the generation of recommendations or feedback based on student performance and progress.
+Personalized and Adaptive Learning
+Personalized learning is closely connected with adaptive learning and student progress. Personalized learning focuses on adjusting the learning experience based on an individual student's needs, while adaptive learning uses information about student performance to determine suitable activities, materials, or levels of difficulty.
+Fortuna et al. (2025) reported that AI-supported personalized learning can contribute to student engagement, motivation, and academic performance through adaptive learning pathways and tailored content. AI technologies such as machine learning, natural language processing, and intelligent tutoring systems can help create more individualized learning experiences. These findings are relevant to the proposed system's progress-training component because the system can use student performance and activity data to provide learning recommendations that are more responsive to individual needs.
+Feedback and Formative Assessment
+Feedback and formative assessment are also essential components of an effective LMS. Feedback helps students understand their current performance, recognize mistakes, and determine which areas they need to improve. In an LMS, feedback can be provided through assignments, quizzes, activities, and other assessments.
+AI-supported systems can potentially provide faster feedback by analyzing student responses and performance data. However, automated feedback should be implemented with appropriate human oversight because AI-generated responses may not always accurately reflect a student's actual learning situation. Luo et al. (2025) identified real-time feedback as one of the potential benefits of AI-based learning tools, while UNESCO (2023) emphasized the importance of a human-centered approach when applying AI in education. Such an approach considers safety, equity, ethics, privacy, and meaningful educational use.
+Data Privacy, Ethics, and Responsible AI
+Data privacy and ethical considerations are especially important when developing an AI-based LMS because educational platforms handle different types of student information. These may include account details, grades, assessment results, course activities, and learning behavior. Protecting this information is important to maintain student trust and ensure responsible use of educational technology.
+UNESCO (2023) identified privacy, ethical use, regulation, and human capacity as important concerns in the adoption of generative AI in education. The organization recommends a human-centered approach in which AI technologies are implemented with appropriate safeguards and educational considerations. Research on AI-based personalized learning has also identified privacy and ethical issues as continuing challenges. Therefore, the proposed system should include appropriate security and access-control mechanisms and ensure that AI-supported features assist instructors rather than replace their judgment.
+From Analytics to Actionable Learning Support
+The reviewed literature also shows that learning analytics should provide more than numerical information. Analytics become more useful when they help students and instructors understand what the information means and what actions can be taken from it. Paulsen and Lindsay (2024) observed that learning analytics dashboards are increasingly designed around student needs, with an emphasis on feedback, reflection, and learning-related actions rather than simply displaying activity statistics.
+Bergdahl et al. (2024) similarly cautioned that easily measured indicators, such as clicks and system interactions, may not provide a complete representation of student engagement. Therefore, an effective LMS should combine several types of learning information and present them through meaningful indicators. For the proposed system, these indicators may include course progress, assignment completion, quiz performance, grades, learning-material interaction, and other appropriate measures. Presenting these indicators together can provide students and instructors with a more complete understanding of learning progress.
+Synthesis of the Reviewed Literature
+Overall, the reviewed literature shows that Learning Management Systems are gradually developing into more integrated, intelligent, and data-driven learning environments. Traditional LMS functions, such as learning-material management, lessons, assignments, quizzes, grading, announcements, and communication, continue to serve as the foundation of online learning. However, the integration of learning analytics provides additional opportunities to understand student engagement, performance, and progress.
+The literature also demonstrates the potential of Artificial Intelligence to further improve LMS functionality through personalization, recommendations, adaptive learning, and timely feedback. At the same time, the reviewed studies emphasize that these technologies should be implemented responsibly. Issues involving data privacy, ethical use, human oversight, pedagogical alignment, and meaningful interpretation of learning data must be considered when designing an AI-based educational system.
+2.2 Analysis of Related Studies and Existing SystemsThe reviewed studies and existing systems provide the technological and conceptual foundation for the proposed LMS. The traditional LMS functions identified in existing platforms support the development of modules for learning materials, lessons, assignments, quizzes, grading, announcements, and student activities. Research on learning analytics supports the integration of dashboards and progress indicators for monitoring academic performance. Studies on AI-based personalized learning provide a basis for incorporating intelligent recommendations and learning support.
+The proposed system therefore does not aim to replace the fundamental functions of existing LMS platforms. Instead, it seeks to integrate these functions into a unified platform while strengthening the system through analytics and AI-supported progress training. By combining course management, assessment, progress monitoring, analytics, and AI-based recommendations, the proposed system aims to provide a more data-driven and personalized online learning environment.
+Overall, the analysis indicates that the development of an AI-based LMS with integrated analytics is consistent with the current direction of educational technology. Existing studies establish the importance of learning analytics, student progress monitoring, dashboards, personalized learning, and AI-supported feedback. Existing LMS platforms demonstrate the feasibility of centralized online learning management. However, the identified limitations and gaps support the development of an institution-focused system that integrates these capabilities into a single environment and presents learning information in a meaningful and actionable manner.
+2.3 Agile Scrum Methodology
+The proposed Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training will be developed using the Agile Scrum Methodology. Agile Scrum is an iterative and incremental software development approach that emphasizes flexibility, collaboration, continuous feedback, and continuous improvement. This methodology is appropriate for the development of an Online Learning and Learning Management System (LMS) because it allows the development team to gradually build, test, and improve essential learning features such as course management, learning materials, assignments, quizzes, grading, progress tracking, analytics, and AI-based learning support.
+The methodology focuses on developing functional system modules through short development cycles known as sprints, while continuously gathering feedback from the intended users and stakeholders of the LMS, including students, instructors, and administrators. This approach enables the development team to identify usability issues, address changing requirements, and improve system functionalities throughout the development process. By adopting Agile Scrum, the proposed Online Learning and LMS can be continuously refined to ensure that its features support effective digital learning, monitor student progress, provide meaningful learning analytics, and deliver AI-based recommendations that are aligned with the educational needs of Bestlink College of the Philippines.
+2.4 Emerging Technologies, Intelligent Systems, and Standards in Modern Information Systems
+Modern information systems use various technologies to improve efficiency, accuracy, accessibility, and the overall user experience. Technologies such as Artificial Intelligence (AI), cloud computing, data analytics, APIs, and microservices architecture help organizations manage information, automate processes, analyze data, and deliver reliable digital services. These technologies are particularly useful in educational institutions because they can support teaching, learning, assessment, and academic monitoring.
+The proposed AI-Based Learning Management System (LMS) for Bestlink College of the Philippines incorporates intelligent features to support both students and instructors. The system uses Integrated Analytics to collect and analyze learning data, such as grades, quiz results, assignment performance, course progress, and student participation. These analytics provide meaningful information that can help instructors monitor student performance and identify areas that may require improvement. These intelligent feature help reduce manual monitoring, support data-driven decision-making, and provide students with a more personalized learning experience.
+The proposed system also applies modern software development approaches through microservices architecture and API-based communication. These approaches allow the different LMS components to communicate efficiently while remaining organized and maintainable. The use of these technologies makes the system easier to develop, maintain, improve, and expand in the future. Overall, the proposed Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training aims to provide a centralized, intelligent, and reliable platform that enhances learning management and supports students and instructors through data-driven and AI-assisted educational services.
+2.4.1 Microservices Architecture
+The Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Tracking is designed using a microservices architecture, where the system is divided into independent services that communicate through APIs. Each major module can operate as a separate service. Each service can be developed, tested, deployed, and maintained independently based on its specific function within the system.
+This architecture improves the system's flexibility, scalability, and maintainability. Updates or enhancements to a specific service, such as the Integrated Analytics, or Progress Tracking, can be implemented without significantly affecting the other services. It also allows new learning features and services to be added in the future without requiring major changes to the overall system architecture. Through API-based communication, the different services can exchange data efficiently while maintaining their individual responsibilities.
+Overall, this architecture enables the proposed AI-based Learning Management System to efficiently support the learning and academic management needs of Bestlink College of the Philippines, while providing an adaptable and scalable foundation for future enhancements, analytics integration and other educational technologies.
+2.4.2 Artificial Intelligence (AI)
+In this study, Artificial Intelligence (AI) is utilized through the AI Analytics feature of the proposed Learning Management System. The system analyzes students' academic performance, such as quiz scores, assignment results, grades, activity completion, and learning progress, to determine whether a student is on track or at risk in their learning. Students who consistently demonstrate satisfactory performance and progress are identified as being on track, while students who show declining performance, incomplete activities, or insufficient progress may be identified as at risk. The results of the AI analysis are also made visible to instructors, allowing them to monitor the learning status of their students and identify those who may require additional support or intervention. By integrating AI analytics into the LMS, the system provides a more personalized and data-driven learning experience while helping instructors make informed decisions and provide timely academic assistance to students.
+2.4.3 Internet of Things (IoT)
+The proposed Online Learning and Learning Management System (LMS) does not utilize Internet of Things (IoT) technology because its primary purpose is to manage, organize, and deliver learning-related information through a web-based platform. The system focuses on managing student and course information, delivering learning materials, administering assignments and quizzes, monitoring academic progress, generating analytics and reports, and providing AI-based learning recommendations using stored system data. Since the system does not require real-time data collection from physical devices such as sensors, or any connected hardware, IoT technology is not necessary to achieve the objectives of the study.
+2.4.4 Data Analytics and Business Intelligence
+Data Analytics and Business Intelligence (BI) are technologies that help educational institutions collect, organize, and analyze learning-related data to support informed decision-making. Data Analytics focuses on identifying patterns, trends, and insights from student and course data, while Business Intelligence presents these insights through reports, dashboards, and visual summaries that are easier for instructors and administrators to understand.
+In the Online Learning and Learning Management System (LMS), Data Analytics and Business Intelligence are applied through the LMS Analytics and Reporting features. The system collects and organizes data such as student enrollment, course progress, assessment results, assignment submissions, quiz performance, attendance, and learning activities. These data can be transformed into reports and dashboards that allow instructors and administrators to monitor student performance, identify learners who may need additional support, evaluate course effectiveness, and make informed decisions regarding learning strategies. These technologies also help reduce manual data processing, improve the accuracy of academic reports, and provide useful insights for improving the overall online learning experience.
+2.4.5 Polyglot Persistence 
+Polyglot Persistence is the practice of using different data storage technologies within a single system, where each database is selected according to the type and requirements of the data it manages. Instead of relying on a single database for all system information, this approach allows the system to use the most appropriate storage solution for structured records, learning content, analytics, and AI-related data, improving performance, flexibility, and scalability.
+The proposed AI-Based Learning Managemet System primarily uses a relational database to manage structured data uch as student records, instructor information, courses, enrollments, assessments, grades, attendance, and academic progress. A document-oriented database may be used to manage flexible learning materials, modules, quizzes, and AI-generated educational content. As the system is designed to support an integrated and scalable architecture, it can accommodate additional data storage technologies as the system develops. Each component use the database that best fits its specific purpose, allowing the LMS to efficiently manage academic information, learning resources, student activities, analytics, and AI-generated insights. 
+2.4.6 Cybersecurity
+Cybersecurity refers to the protection of information systems, networks, applications, and data from unauthorized access, cyberattacks, data breaches, and other security threats. In the Philippine context, securing digital platforms is guided by the Cybercrime Prevention Act of 2012 (Republic Act No. 10175) and the Data Privacy Act of 2012 (Republic Act No. 10173). These laws emphasize the protection of information systems and personal data against unauthorized access, data interference, misuse, and illegal disclosure. For educational institutions such as Bestlink College of the Philippines, cybersecurity is essential because the proposed AI-Based Learning Management System will handle sensitive student information, academic records, assessment results, learning activities, and progress analytics.
+To support these security requirements, cybersecurity in the proposed AI-Based Learning Management System is implemented through user authentication, password hashing, HTTPS/SSL encryption, role-based access control, input validation, and SQL injection prevention. User authentication ensures that only registered and authorized students, instructors, and administrators can access the system. Password hashing protects user credentials from unauthorized disclosure, while HTTPS/SSL encryption secures data transmitted between users and the learning management system. Role-based access control ensures that users can only access the information and system functions appropriate to their assigned roles.
+2.4.7 Data Privacy
+Data privacy refers to the proper collection, processing, storage, and protection of personal and academic information to prevent unauthorized access, disclosure, misuse, or alteration. In the Philippine context, data privacy is primarily governed by the Data Privacy Act of 2012 (Republic Act No. 10173), which requires organizations to protect personal information and implement appropriate organizational, physical, and technical security measures. For Bestlink College of the Philippines, data privacy is particularly important in the proposed AI-Based Learning Management System because the platform will collect and process student profiles, academic records, assessment results, learning activities, progress reports, and analytics data. 
+To comply with data privacy requirements, the proposed AI-Based Learning Management System implements user consent, data minimization, role-based access control, secure data storage, encryption, and proper user authentication. User consent ensures that students and other users are informed about the collection and processing of their personal information. Data minimization ensures that the system only collects information necessary for learning management, analytics, and progress training. Role-based access control restricts access to sensitive information based on the responsibilities of students, instructors, and administrators.
+2.4.8 Software Quality Standards
+Software quality standards refer to the established criteria and practices used to ensure that a software system is reliable, efficient, secure, usable, and capable of meeting the needs of its intended users. For the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, software quality is essential to ensure that the system effectively supports online learning, manages academic information, provides accurate learning analytics, and monitors student progress. The quality of the system can be guided by the ISO/IEC 25010 software product quality model, which evaluates software based on characteristics such as functional suitability, performance efficiency, compatibility, usability, reliability, security, maintainability, and portability.
+To achieve these quality standards, the proposed AI-Based Learning Management System is designed to provide functional suitability, usability, performance efficiency, reliability, security, and maintainability. Functional suitability ensures that the LMS provides the necessary features for managing courses, learning materials, assessments, student records, analytics, and progress training. Usability ensures that students, instructors, and administrators can easily navigate and use the system. Performance efficiency ensures that the system responds quickly and can handle multiple users accessing learning resources and analytics simultaneously.
+2.4.9 Cloud Computing 
+Cloud computing refers to the delivery of computing resources and services, such as servers, databases, storage, processing power, and applications, through the internet. For the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, cloud computing provides a flexible and scalable environment for storing student information, managing learning resources, processing academic data, and delivering AI-based analytics and progress-training services. By utilizing cloud-based infrastructure, the system can provide users with access to learning resources and services without depending entirely on local computer storage or infrastructure.
+To support the requirements of the proposed system, cloud computing can be implemented through cloud-based storage, database services, scalable computing resources, automated backup, and secure remote access. Cloud-based storage allows the system to securely store student profiles, course materials, assessment results, learning activities, and progress records. Cloud database services provide centralized management of academic and learning information, while scalable computing resources allow the system to accommodate increasing numbers of students, instructors, and learning activities. Automated backups help prevent permanent data loss and support the recovery of important system information.
+2.4.10 Edge Computing 
+Edge computing refers to a computing approach in which data processing and analysis are performed closer to the users, devices, or source where the data is generated instead of relying entirely on a centralized cloud server. For the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, edge computing can help improve the speed, responsiveness, and availability of selected learning management functions. It can support the processing of learning activities, assessment data, and progress information closer to the users while reducing unnecessary data transmission to centralized servers.
+To support the proposed system, edge computing can be implemented through local data processing, caching of learning resources, real-time activity monitoring, and distributed processing. Local processing can allow selected student learning activities and assessment information to be processed closer to the user, reducing delays in system responses. Caching can provide frequently accessed learning materials and resources closer to students, which can improve access even when network connectivity is limited. Edge-based monitoring can also support the collection and processing of learning activity data for more responsive progress tracking.
+2.5 DevOps Culture and CI/CD Practices
+DevOps culture refers to a collaborative approach to software development and operations that promotes communication, automation, continuous improvement, and shared responsibility among developers, system administrators, testers, and other stakeholders. For the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, adopting DevOps practices can help ensure that the system is developed, tested, deployed, and maintained efficiently. This approach is particularly useful for an AI-based LMS because its learning management, analytics, and progress-training features may require continuous updates, improvements, and monitoring based on user requirements and system performance.
+To support the development of the proposed system, Continuous Integration and Continuous Deployment (CI/CD) practices can be implemented to automate the process of building, testing, and deploying software updates. Continuous Integration allows developers to regularly integrate code changes into a shared repository, where automated tests can identify errors and compatibility issues at an early stage. Continuous Deployment enables successfully tested updates to be delivered to the appropriate system environment in a controlled and consistent manner. Automated testing can be applied to important LMS functions such as user authentication, course management, assessments, grade recording, analytics, and progress tracking.
+2.6 Enterprise Architecture & System Integration
+Enterprise architecture refers to the structured approach of organizing an organization's business processes, information, applications, and technology infrastructure to ensure that they work together effectively. For the proposed Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, enterprise architecture provides a framework for connecting the LMS with the institution's existing academic and administrative processes. It ensures that the system can support learning management, student information, academic activities, analytics, and AI-based progress training in an organized, scalable, and secure environment.
+To support the proposed system, enterprise architecture can be implemented through application integration, centralized data management, API-based communication, role-based access, and cloud-based infrastructure. The LMS serves as the central platform for managing courses, learning materials, assessments, student activities, grades, and progress records. Application Programming Interfaces (APIs) can facilitate secure communication between the LMS and other institutional systems, allowing authorized information to be exchanged without unnecessary duplication of data. Centralized data management also helps maintain consistency and accuracy across student, academic, and learning records.
+2.7 Conceptual Framework
+The conceptual framework of the study presents the relationship among the resources, processes, and expected outcomes involved in the Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training. The framework is based on the Input-Process-Output (IPO) Model, which provides a structured approach for identifying the necessary inputs, development processes, and expected outputs of the proposed system.
+Input - consists of the requirements and resources needed for the development of the system. These include the student and faculty information, course and learning materials, assessment and academic records, learning activities, user requirements, system requirements, cybersecurity requirements, data privacy requirements, and technological resources. These inputs serve as the foundation for designing an LMS that addresses the learning management and academic monitoring needs of Bestlink College of the Philippines.
+Process - involves the analysis, design, development, testing, implementation, and evaluation of the proposed system. During this stage, the development team applies AI technologies, integrated analytics, cloud and edge computing, cybersecurity mechanisms, data privacy measures, DevOps and CI/CD practices, and enterprise architecture and system integration. The AI component processes relevant learning data to identify patterns in student performance, while analytics tools generate meaningful reports and insights. The progress-training component uses these insights to support personalized monitoring and learning recommendations. System testing and evaluation are also conducted to assess functionality, usability, performance, reliability, security, and overall software quality.
+Output - is the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training. The system is expected to provide centralized learning management, secure student and academic data management, integrated learning analytics, student progress monitoring, AI-assisted learning insights, and progress-training support. It is also expected to provide students, instructors, and administrators with an efficient and user-friendly platform for managing and monitoring educational activities.
+2.8 Theoretical Paradigm
+The theoretical paradigm provides the foundation for the Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training. It identifies the theories, models, and standards that guide the design, development, implementation, and evaluation of the proposed system. The study incorporates Constructivist Learning Theory, Learning Analytics, Artificial Intelligence, Information Systems Success Model, and ISO/IEC 25010 Software Quality Model.
+Theoretical Foundation
+Constructivist Learning Theory. A learning theory that emphasizes active participation, interaction, experience, and the learner's ability to construct knowledge through meaningful learning activities.
+Guides the development of interactive learning activities, assessments, feedback, and progress-training features that encourage students to actively participate in their learning.
+Learning Analytics. The process of collecting, measuring, analyzing, and interpreting learning-related data to understand student performance and improve learning outcomes.
+Supports the integrated analytics component by analyzing assessment results, learning activities, performance records, and progress data to provide meaningful insights to students and instructors.
+Artificial Intelligence (AI). A technology that enables computer systems to analyze data, identify patterns, generate insights, and perform tasks that normally require human intelligence.
+Supports AI-based features by analyzing student learning data, identifying performance patterns, and providing AI-assisted insights for progress monitoring and training.
+Information Systems Success Model. A framework for evaluating information-system success through system quality, information quality, service quality, use, user satisfaction, and resulting benefits.
+Provides a basis for evaluating the effectiveness, information quality, and benefits of the proposed LMS for students, instructors, and administrators.
+ISO/IEC 25010 Software Quality Model. An international software quality standard that evaluates software based on functional suitability, performance efficiency, compatibility, usability, reliability, security, maintainability, and portability.
+Provides the quality criteria for evaluating the proposed LMS and determining whether its learning management, analytics, AI, security, and progress-training features meet required software quality standards.
+CHAPTER 3
+METHODOLOGY AND PROJECT MANAGEMENT
+3.1 The Adapted Agile Scrum Framework
+The development team adopts an Adapted Agile Scrum Framework as the primary software development methodology. Scrum is appropriate for the project because the LMS contains several interconnected modules that may require continuous refinement based on feedback from students, instructors, and administrators.
+Unlike a traditional sequential development approach, the adapted Scrum framework divides the project into manageable iterations called Sprints. Each Sprint focuses on the analysis, design, development, integration, and testing of selected system features. At the end of each Sprint, the completed features are reviewed and evaluated before additional requirements are incorporated into the next iteration
+The framework is adapted to the academic capstone environment by simplifying certain Scrum activities while maintaining its core principles of iterative development, transparency, inspection, and adaptation. The development team conducts planning meetings, progress monitoring, reviews, and retrospectives to ensure that the system remains aligned with its objectives.
+The adapted framework allows the team to prioritize critical LMS functions first while progressively implementing advanced features such as analytics and AI-supported learning progress monitoring.
+3.1.1 Team Roles and Responsibilities 
+| | | | | 
+Role | | | | 
+Responsibilities
+| | | | | 
+Product Owner | | | | 
+Represents the project requirements and stakeholder expectations; prioritizes system features; validates completed functions; and ensures that the product meets the intended objectives of the LMS.
+| | | | | 
+Scrum Master / Project Manager | | | | 
+Facilitates Scrum activities, monitors Sprint progress, identifies and helps resolve impediments, coordinates team activities, and ensures that the development process follows the agreed methodology.
+| | | | | 
+System Analyst | | | | 
+Collects and analyzes requirements, documents business processes, identifies functional and non-functional requirements, and prepares system specifications.
+| | | | | 
+UI/UX Designer | | | | 
+Designs the user interface and user experience for students, instructors, and administrators; prepares wireframes, prototypes, navigation structures, and interface standards.
+| | | | | 
+Developer | | | | 
+Develops and maintains the complete LMS application, including the backend application logic, APIs, authentication, database structure and management, frontend interfaces and dashboards, responsive design, data integrity, security, and overall functionality of the system.
+| | | | | 
+QA Tester | | | | 
+Creates and executes test cases, performs functional and integration testing, documents defects, validates fixes, and evaluates whether the system satisfies the defined requirements.
+| | | | | 
+Documentation Specialist | | | | 
+Maintains technical documentation, user documentation, development records, diagrams, testing documentation, and project reports.
+3.1.2 Scrum Events 
+The Agile Scrum Framework organizes software development into a series of structured events that enable the development team to plan, develop, evaluate, and continuously improve the system throughout the project. These events promote collaboration, communication, transparency, and adaptability, allowing the development team to respond effectively to changing requirements and user feedback (Schwaber & Sutherland, 2020). In the development of the Online Learning and Learning Management System (LMS), Scrum events were used to guide the development of the system’s features and modules through a series of iterative sprints. Each sprint focused on specific system requirements that were designed, developed, tested, reviewed, and improved based on feedback from the intended users and project stakeholders. This iterative approach helped ensure that the Online Learning and LMS subsystem remained aligned with the requirements of the proposed AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training, while also supporting continuous improvement throughout the development process (Pressman & Maxim, 2020).
+3.1.3 Scrum Artifacts 
+The Scrum Artifacts applied in the development of the Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training served as essential tools for organizing system requirements, planning development activities, tracking progress, and ensuring that each sprint produced a functional improvement to the Learning Management System (LMS). According to Schwaber and Sutherland (2020), Scrum artifacts represent work or value and are designed to maximize transparency, allowing the Scrum Team and stakeholders to have a shared understanding of the product's current status and progress. The three primary Scrum artifacts—the Product Backlog, Sprint Backlog, and Increment—were applied to guide the development of LMS features such as course management, learning materials, assignments, quizzes, grading, progress tracking, notifications, and analytics. The Product Backlog contained the prioritized requirements and desired features of the LMS, while the Sprint Backlog identified the specific LMS functionalities selected for development during each sprint. The Increment represented the completed and tested features delivered at the end of each sprint, ensuring that the system continuously progressed toward the overall goal of providing an effective online learning platform (Schwaber & Sutherland, 2020).
+Product Backlog.
+| | | | | 
+User Story No. | | | | 
+Module/Feature | | | | 
+User Story | | | | 
+Priority | | | | 
+Status
+| | | | | 
+F1 | | | | 
+User Authentication and Security | | | | 
+securely log in and log out so that my account and academic information are protected from unauthorized access. | | | | 
+High | | | | 
+Done
+| | | | | 
+F2 | | | | 
+User Account and Role Management | | | | 
+As an administrator, I want to manage user accounts and roles so that students, teachers, and administrators can access only the features assigned to them. | | | | 
+High | | | | 
+Done
+| | | | | 
+F3 | | | | 
+Student Dashboard | | | | 
+As a student, I want to view my courses, assignments, quizzes, grades, and learning progress in one dashboard so that I can easily monitor my academic activities. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F4 | | | | 
+Teacher Dashboard | | | | 
+As a teacher, I want to view my classes, students, activities, submissions, and grades in one dashboard so that I can efficiently manage my courses. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F5 | | | | 
+Course Management | | | | 
+As a teacher, I want to create and manage courses so that I can provide students with organized online learning content. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F6 | | | | 
+Course Assignment and Access | | | | 
+As a student, I want to access my assigned courses so that I can view the learning activities and materials required for my subjects. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F7 | | | | 
+Learning Materials | | | | 
+As a teacher, I want to upload and organize learning materials such as documents, presentations, videos, and links so that students can easily access their lessons. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F8 | | | | 
+Lesson and Module Management | | | | 
+As a teacher, I want to organize lessons and learning materials into modules so that students can follow a structured learning sequence. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F9 | | | | 
+Assignment Management | | | | 
+As a teacher, I want to create assignments with instructions and deadlines so that students know the academic tasks they need to complete. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F10 | | | | 
+Assignment Submission | | | | 
+As a student, I want to submit assignments online so that I can complete my academic requirements through the LMS. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F11 | | | | 
+Assignment Feedback | | | | 
+As a teacher, I want to provide feedback on student submissions so that students can understand their mistakes and improve their work. | | | | 
+Medium | | | | 
+Not Yet Done
+| | | | | 
+F12 | | | | 
+Online Quiz | | | | 
+As a teacher, I want to create online quizzes and assessments so that I can evaluate students' understanding of the lessons. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F13 | | | | 
+Quiz Taking and Scoring | | | | 
+As a student, I want to take quizzes and receive my scores so that I can monitor my understanding of the course topics. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F14 | | | | 
+Gradebook | | | | 
+As a teacher, I want to manage student grades in a centralized gradebook so that I can monitor academic performance. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F15 | | | | 
+Student Grades | | | | 
+As a student, I want to view my grades and assessment results so that I can monitor my academic performance | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F16 | | | | 
+Module Completion Tracking | | | | 
+As a student, I want the system to record my completed lessons, modules, assignments, and quizzes so that I can monitor my learning activities. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F17 | | | | 
+Course Progress Tracking | | | | 
+As a student, I want to view my course completion percentage so that I can determine how much of the course I have completed. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F18 | | | | 
+Learning Progress Dashboard | | | | 
+As a student, I want to view my learning progress through visual indicators so that I can easily identify completed and incomplete activities. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F19 | | | | 
+Learning Analytics | | | | 
+As a teacher, I want the system to analyze student activity, grades, and completion data so that I can better understand student learning progress. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F20 | | | | 
+Analytics Dashboard | | | | 
+As a teacher, I want to view learning analytics through charts and summaries so that I can easily identify performance and progress trends. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F21 | | | | 
+Progress Reports | | | | 
+As a teacher, I want to generate student progress reports so that I can review and monitor individual learning performance. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F22 | | | | 
+AI Learning Assistant | | | | 
+As a student, I want to receive personalized learning recommendations based on my academic performance and learning activities so that I can identify resources that may help improve my learning. | | | | 
+High | | | | 
+Not Yet Done
+| | | | | 
+F23 | | | | 
+AI-Based Student Monitoring | | | | 
+As a teacher, I want the system to identify students who may require additional academic support based on performance and incomplete learning activities so that I can provide appropriate intervention. | | | | 
+Medium | | | | 
+Not Yet Done
+Sprint Backlog.
+w:type="textWrapping"/>
+| | | | | 
+Sprint | | | | 
+Major Activities
+| | | | | 
+Sprint 1 | | | | 
+Requirements analysis, user roles, authentication, database foundation
+| | | | 
+Sprint 2 | | | | 
+Course, subject, lesson, and learning material management
+| | | | 
+Sprint 3 | | | 
+Assignment submission and assessment functionality
+| | | | 
+Sprint 4 | | | 
+Online quizzes, grading, feedback, and comments
+| | | | 
+Sprint 5 | | | 
+Module completion and learner progress tracking
+| | | | 
+Sprint 6 | | | 
+Notifications and virtual class link integration
+| | | | 
+Sprint 7 | | | 
+LMS analytics and student/instructor dashboards
+| | | | 
+Sprint 8 | | | 
+AI-supported analytics, recommendations, integration, and system optimization
+| | | | | 
+Final Sprint | | | | 
+Comprehensive testing, bug fixing, deployment preparation, documentation, and user acceptance testing
+3.1.4 Toolstack
+| | | | 
+Category | | | 
+Tool/Technology | | | 
+Purpose
+| | | | 
+Code Editor | | | 
+Visual Studio Code | | | 
+Source-code development and project management
+| | | | 
+Version Control | | | 
+Git | | | 
+Source-code version tracking
+| | | | 
+Repository | | | 
+GitHub | | | 
+Collaborative source-code hosting and issue tracking
+| | | | 
+Frontend | | | 
+HTML, CSS, JavaScript, | | | 
+Development of responsive LMS interfaces
+| | | | 
+Backend | | | 
+PHP / Node.js-based API services | | | 
+Server-side processing and application services
+| | | | 
+Database | | | 
+MySQL | | | 
+Storage and management of LMS data
+| | | | 
+Local Server | | | 
+XAMPP | | | 
+Local development and testing environment when PHP/MySQL is used
+| | | | 
+AI/Analytics | | | 
+Python-based analytics/AI services | | | 
+Data processing, learner analytics, and AI-assisted functions
+| | | | 
+UI/UX Design | | | 
+Figma | | | 
+Wireframes, prototypes, and interface design
+| | | | 
+API Testing | | | 
+Postman | | | 
+Testing and validation of API endpoints
+| | | | 
+Project Management | | | 
+Trello, GitHub Projects | | | 
+Backlog, task, and Sprint monitoring
+| | | | 
+Communication | | | 
+Discord, Messenger | | | 
+Team communication and coordination
+| | | | 
+Documentation | | | 
+Microsoft Word, WPS | | | 
+Technical and academic documentation
+| | | | 
+Diagramming | | | 
+Draw.io | | | 
+System architecture, workflows, ERD, and process diagrams
+3.2 Architectural Design Decisions
+The Design and Development of an AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Tracking was carefully planned to provide an organized, scalable, and maintainable platform for online learning. The architectural design was based on the needs of the system's primary users, including students, teachers, and administrators, as well as the functional requirements of the Online Learning and Learning Management System. Each module is designed to perform a specific function while remaining connected to other modules to support the overall learning process. This approach makes the system easier to develop, maintain, update, and expand as the educational needs of the institution and its users change.
+The system architecture considers the proper flow of information between the major modules, including User and Role Management, Learning Materials, Lessons and Modules, Assignments, Online Quizzes, Virtual Class Integration, Grade Management, Feedback and Comments, Progress and Module Completion Tracking, Notifications, and Learning Analytics. These modules work together to allow teachers to manage courses and learning materials, students to access lessons and complete learning activities, and administrators to monitor system and academic information. The architecture ensures that data such as course activities, assessment results, grades, and student progress can be properly recorded, updated, and accessed by authorized users.
+3.2.1 Why Microservices? Justify the choice over Monolithic architecture.
+We chose Microservices Architecture because our proposed AI-Based Learning Management System (LMS) consists of several functional modules that handle different learning and academic processes. Each module has a specific purpose and can be developed as an independent service. Using microservices allows each service to be developed, tested, updated, and maintained separately without significantly affecting other parts of the system. This approach helps make the development process more organized and reduces the risk of system-wide issues when changes or updates are introduced.
+Compared to Monolithic Architecture, where all LMS functions are combined into a single application, Microservices Architecture provides greater flexibility, scalability, and maintainability. For the proposed system, the Integrated Analytics and Progress Tracking features can process learning and performance data separately, while the AI-based components can provide personalized learning recommendations and support student progress monitoring. If Bestlink College of the Philippines decides to add new learning features or improve existing modules in the future, developers can modify or expand the specific service without rebuilding the entire system. This architecture also allows different parts of the LMS to be developed and improved independently, making it suitable for a system that is expected to continuously grow and adapt to the changing needs of students, instructors, and administrators.
+3.2.2 Core Architectural Patterns Used 
+The AI-Based Learning Management System for Bestlink College of the Philippines with Integrated Analytics and Progress Training uses architectural patterns to promote modularity, maintainability, scalability, and efficient management of learning data. These patterns help organize the different components of the system and ensure that students, instructors, and administrators can access and manage learning-related functions effectively.
+The system follows a client-server architecture, where users access the Learning Management System through a web browser, while the server manages business logic, data processing, authentication, and communication with the database. This architecture allows learning data such as courses, lessons, assignments, quizzes, grades, attendance, and student progress to be processed and managed centrally. It also provides better control over user access and helps ensure that learning resources and records are handled securely.
+The system also applies the Model-View-Controller (MVC) pattern, which is supported by the Laravel Framework. The Model manages learning-related data and database operations, the View presents information and interfaces to students, instructors, and administrators, while the Controller processes user requests and coordinates system operations. Separating these responsibilities keeps the application organized and makes it easier to develop, test, update, and maintain different LMS functions.
+In addition, the system uses API Architecture to facilitate communication between system components and external services. APIs allow standardized data exchange and support the integration of AI-based features, such as student progress analysis, learning recommendations, and intelligent activity suggestions. Through APIs, relevant learning data can be processed by AI services and the resulting insights or recommendations can be returned to the LMS for presentation to users.
+By combining these architectural patterns, the proposed AI-Based Learning Management System achieves a structured and maintainable architecture that supports online learning, academic management, integrated analytics, and progress tracking. This approach improves code organization and system performance while providing a flexible foundation for future enhancements and additional AI-driven learning features at Bestlink College of the Philippines.
+3.3 Development, Operations, and Quality Assurance (QA) Methodology
+The development, operations, and quality assurance (QA) methodology for the Online Learning and Learning Management System (LMS) combines DevOps practices and software testing to ensure that the system is reliable, secure, and functions as intended. By integrating development, testing, and operations processes, the development team can efficiently implement, test, and deploy LMS features such as course management, learning materials, assignments, online quizzes, grading, progress tracking, and integrated analytics, while maintaining the overall stability and performance of the system.
+This phase of the project focuses on organizing the development and deployment processes while minimizing repetitive tasks through automation and structured workflows. It also includes securing the database configuration during local development and testing the system's web pages and API endpoints to verify proper communication between the frontend and backend components. The QA process uses appropriate testing tools to evaluate backend functions, API responses, database operations, and the system's user interface. These tests help ensure that the student, teacher, and administrator features of the LMS operate correctly and consistently when handling different amounts of learning materials, assessments, student records, user activities, and progress data.
+3.3.1 DevOps Toolchain 
+The Online Learning and Learning Management System (LMS) applies DevOps practices to manage software development and version control. As the sole developer, the developer uses Git to track changes made to the application's source code and manage different versions of the LMS. Git maintains a history of code modifications, allowing the developer to review changes, prevent code loss, and restore previous versions when necessary. This supports the development and maintenance of important LMS features such as course management, learning materials, assignments, online quizzes, grading, progress tracking, and analytics.
+The developer also uses GitHub to store and manage the source code of the Online Learning and LMS. GitHub provides a centralized repository where the developer can organize the project's code, monitor updates, and maintain different versions of the application. The combined use of Git and GitHub provides an organized DevOps workflow that supports continuous development, version control, testing, and system maintenance. Through these tools, the developer can efficiently manage the LMS and maintain its reliability while continuously improving its learning features and functionality.
+3.3.2 CI/CD Pipeline Design
+The Online Learning and Learning Management System (LMS) follows a Continuous Integration and Continuous Deployment (CI/CD) process to manage code changes and deploy updated versions of the system in an organized and efficient manner. This process supports the continuous development, testing, and improvement of the LMS features and functionalities.
+During the development stage, new LMS features, enhancements, and bug fixes are developed and tested in the development environment. Once the changes have been reviewed and confirmed to be functioning properly, the updated source code is committed to Git and pushed to the project's GitHub repository. Git is used to track changes and maintain different versions of the source code, while GitHub provides a centralized repository that supports organized code management and collaboration.
+After the updated code is committed to the repository, the latest version of the Online Learning and LMS application is deployed to the designated hosting environment for further testing and evaluation. This allows the developers to verify that newly implemented features, such as learning materials, assignments, quizzes, grading, progress tracking, and analytics, function properly within the system.
+Overall, the CI/CD process used in the Online Learning and LMS is simple but effective in supporting continuous development. By integrating Git and GitHub with the deployment process, the development workflow becomes more organized, allowing the developer to track changes, manage source code versions, test updates, and continuously improve the system throughout its development.
+3.3.3 Testing Strategy 
+Testing will be conducted on the proposed Online Learning and Learning Management System (LMS) to ensure that its functions work properly and meet the functional and technical requirements of the intended users. For the mockup testing, the proposed system interfaces, workflows, and features will be reviewed and evaluated during the development process. Any errors, inconsistencies, or usability issues identified during testing will be documented and addressed before the final implementation of the system.
+Unit Testing: To verify whether the features and modules, such as Learning Materials, Assignments, Online Quizzes, Grade Management, Progress Tracking and Notifications, function according to their intended requirements.
+System Testing: To evaluate the overall functionality, performance, reliability, usability, and security of the proposed Online Learning and LMS as a complete system.
+Integration Testing: To determine whether the different LMS modules work and communicate properly when integrated, particularly the connection between courses, learning materials, assignments, quizzes, grades, and student progress.
+API Testing: To verify the communication between the LMS and its connected services or APIs, ensuring that data can be properly requested, transmitted, and received.
+Security Testing: To ensure that the proposed LMS can protect student and teacher accounts, academic records, learning materials, grades, and other important information from unauthorized access and common security threats.
+3.4 Innovation Framework
+The development and implementation of the AI-Based Learning Management System with Integrated Analytics and Progress Tracking is guided by an innovation framework that focuses on using digital technologies to improve the delivery and management of online learning. The framework aims to provide a more organized, accessible, and efficient learning environment that will help students, teachers, and administrators manage courses, learning materials, academic activities, and student progress through a centralized platform.
+While existing learning processes may rely on face-to-face instruction, printed materials, separate files, and traditional methods of monitoring student performance, the proposed innovation introduces a centralized web-based Learning Management System (LMS) that integrates essential online learning processes. These include Learning Material Management, Assignment Submission, Online Quizzes, Virtual Class Integration, Grading and Feedback, Student Progress Tracking, Notifications, and Learning Analytics. Through these integrated modules, learning resources and academic records can be stored and accessed more efficiently by authorized users, reducing the use of scattered records and improving the overall management of online learning activities.
+The innovation framework also integrates AI-Based Learning Support, Integrated Analytics, and Progress Tracking into the Learning Management System. Integrated Analytics allows the system to generate organized information and reports based on students' grades, quiz results, assignment performance, course completion, and learning activities. Progress Tracking enables students and teachers to monitor learning progress and identify areas that may require improvement. On the other hand, AI-Based Learning Support can provide personalized learning recommendations based on students' performance, learning activities, and progress. These features can help teachers better understand student learning patterns while allowing students to receive more relevant learning resources and recommendations based on their individual needs.
+References
+Bergdahl, N., Bond, M., Sjöberg, J., Dougherty, M., & Oxley, E. (2024). Unpacking student engagement in higher education learning analytics: A systematic review. International Journal of Educational Technology in Higher Education, 21, 63. 
+Fortuna, A., Prasetya, F., Samala, A. D., Rawas, S., Criollo-C, S., Kaya, D., Raihan, M., Andriani, W., Safitri, D., & Nabawi, R. A. (2025). Artificial intelligence in personalized learning: A global systematic review of current advancements and shaping future opportunities. Social Sciences & Humanities Open, 12, 102114.
+Ifenthaler, D., & Yau, J. Y.-K. (2020). Utilising learning analytics to support study success in higher education: A systematic review. Educational Technology Research and Development, 68, 1961–1990.
+Luo, J., Zheng, C., Yin, J., & Teo, H. H. (2025). Design and assessment of AI-based learning tools in higher education: A systematic review. International Journal of Educational Technology in Higher Education, 22, 42.
+Merino-Campos, C. (2025). The impact of artificial intelligence on personalized learning in higher education: A systematic review. Trends in Higher Education, 4(2), 17.
+Ngulube, P., & Ncube, M. M. (2025). Leveraging learning analytics to improve the user experience of learning management systems in higher education institutions. Information, 16(5), 419.
+Paulsen, L., & Lindsay, E. (2024). Learning analytics dashboards are increasingly becoming about learning and not just analytics—A systematic review. Education and Information Technologies, 29(11), 14279–14308.
+Schwaber, K., & Sutherland, J. (2020). The Scrum Guide: The definitive guide to Scrum: The rules of the game. Scrum.org.
+Pressman, R. S., & Maxim, B. R. (2020). Software engineering: A practitioner's approach (9th ed.). McGraw-Hill Education.
+Appendix E: Grammarian Curriculum Vitae
+Appendix F: Technical Adviser Curriculum Vitae

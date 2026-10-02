@@ -11,6 +11,7 @@ use App\Models\Module;
 use App\Models\Rubric;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -18,8 +19,6 @@ class AssignmentController extends Controller
     public function index(Course $course): View
     {
         $this->authorize('viewAny', Assignment::class);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $assignments = Assignment::whereHas('class.course', fn ($q) => $q->where('id', $course->id))
             ->orWhere(function ($q) use ($course) {
@@ -38,8 +37,6 @@ class AssignmentController extends Controller
     public function create(Course $course): View
     {
         $this->authorize('create', Assignment::class);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $classes = ClassModel::where('course_id', $course->id)
             ->where('instructor_id', auth()->id())
@@ -61,8 +58,6 @@ class AssignmentController extends Controller
     public function store(Request $request, Course $course): RedirectResponse
     {
         $this->authorize('create', Assignment::class);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $validated = $request->validate([
             'class_id' => 'nullable|exists:classes,id',
@@ -90,6 +85,7 @@ class AssignmentController extends Controller
         }
 
         $validated['created_by'] = auth()->id();
+        $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
         $validated['allow_late'] = $validated['allow_late'] ?? false;
         $validated['allow_resubmission'] = $validated['allow_resubmission'] ?? false;
 
@@ -103,8 +99,6 @@ class AssignmentController extends Controller
     {
         $this->authorize('view', $assignment);
 
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
-
         $assignment->load(['class', 'module', 'lesson', 'rubric.criteria', 'attachments', 'submissions.student']);
 
         return view('instructor.courses.assignments.show', compact('course', 'assignment'));
@@ -113,8 +107,6 @@ class AssignmentController extends Controller
     public function edit(Course $course, Assignment $assignment): View
     {
         $this->authorize('update', $assignment);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $classes = ClassModel::where('course_id', $course->id)
             ->where('instructor_id', auth()->id())
@@ -136,8 +128,6 @@ class AssignmentController extends Controller
     public function update(Request $request, Course $course, Assignment $assignment): RedirectResponse
     {
         $this->authorize('update', $assignment);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $validated = $request->validate([
             'class_id' => 'nullable|exists:classes,id',
@@ -177,8 +167,6 @@ class AssignmentController extends Controller
     {
         $this->authorize('delete', $assignment);
 
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
-
         $assignment->delete();
 
         return redirect()->route('instructor.courses.assignments.index', $course)
@@ -188,8 +176,6 @@ class AssignmentController extends Controller
     public function publish(Course $course, Assignment $assignment): RedirectResponse
     {
         $this->authorize('update', $assignment);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $assignment->update(['status' => Assignment::STATUS_PUBLISHED]);
 
@@ -201,8 +187,6 @@ class AssignmentController extends Controller
     {
         $this->authorize('update', $assignment);
 
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
-
         $assignment->update(['status' => Assignment::STATUS_CLOSED]);
 
         return redirect()->route('instructor.courses.assignments.index', $course)
@@ -213,8 +197,6 @@ class AssignmentController extends Controller
     {
         $this->authorize('view', $assignment);
 
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
-
         $assignment->load('submissions.student');
         $submissions = $assignment->submissions()->with('student', 'files')->paginate(20);
 
@@ -224,8 +206,6 @@ class AssignmentController extends Controller
     public function showSubmission(Course $course, Assignment $assignment, AssignmentSubmission $submission): View
     {
         $this->authorize('view', $assignment);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($submission->assignment_id !== $assignment->id, 404);
 
         $submission->load('student', 'files', 'rubricAssessments.criterion', 'grade');
@@ -236,8 +216,6 @@ class AssignmentController extends Controller
     public function gradeSubmission(Request $request, Course $course, Assignment $assignment, AssignmentSubmission $submission): RedirectResponse
     {
         $this->authorize('update', $assignment);
-
-        abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($submission->assignment_id !== $assignment->id, 404);
 
         $validated = $request->validate([

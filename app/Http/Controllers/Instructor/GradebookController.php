@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCategory;
 use App\Models\GradeItem;
+use App\Models\AssignmentSubmission;
 use App\Models\User;
+use App\Services\FeedbackSuggestionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,35 +21,35 @@ class GradebookController extends Controller
 {
     public function index(ClassModel $class): View
     {
-        $this->authorize('viewAny', Grade::class);
+        $this->authorize('view', Grade::class, ['class' => $class]);
 
-        abort_if($class->instructor_id !== auth()->id(), 403);
-
-        $class->load(['gradeCategories.items', 'enrollments.student']);
+        $class->load(['gradeItems', 'enrollments.student']);
 
         $students = $class->enrollments()
             ->where('status', 'active')
-            ->with('student')
+            ->with(['student', 'student.submissions' => fn ($q) => $q->latest('submitted_at')])
             ->paginate(20);
 
-        $gradeCategories = GradeCategory::where('class_id', $class->id)
-            ->with('items.grades')
-            ->orderBy('position', 'asc')
-            ->get();
-
         $gradeItems = GradeItem::where('class_id', $class->id)
-            ->with('grades', 'category')
+            ->with('grades')
             ->orderBy('position', 'asc')
             ->get();
 
-        return view('instructor.gradebook.index', compact('class', 'students', 'gradeCategories', 'gradeItems'));
+        return view('instructor.gradebook.index', compact('class', 'students', 'gradeItems'));
+    }
+
+    public function suggestFeedback(AssignmentSubmission $submission, FeedbackSuggestionService $feedback): JsonResponse
+    {
+        $this->authorize('view', Grade::class, ['class' => $submission->assignment?->class]);
+
+        return response()->json([
+            'draft' => $feedback->suggestForSubmission($submission),
+        ]);
     }
 
     public function storeGrade(Request $request, ClassModel $class): RedirectResponse
     {
-        $this->authorize('create', Grade::class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('create', Grade::class, ['class' => $class]);
 
         $validated = $request->validate([
             'grade_item_id' => 'required|exists:grade_items,id',
@@ -81,9 +83,7 @@ class GradebookController extends Controller
 
     public function updateGrade(Request $request, ClassModel $class, Grade $grade): RedirectResponse
     {
-        $this->authorize('update', $grade);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('update', $grade, ['class' => $class]);
 
         $validated = $request->validate([
             'points' => 'required|numeric|min:0',
@@ -111,9 +111,7 @@ class GradebookController extends Controller
 
     public function releaseGrades(Request $request, ClassModel $class): RedirectResponse
     {
-        $this->authorize('update', Grade::class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('update', Grade::class, ['class' => $class]);
 
         $validated = $request->validate([
             'grade_item_ids' => 'nullable|array',
@@ -137,9 +135,7 @@ class GradebookController extends Controller
 
     public function storeBulkGrades(Request $request, ClassModel $class): RedirectResponse
     {
-        $this->authorize('create', Grade::class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('create', Grade::class, ['class' => $class]);
 
         $validated = $request->validate([
             'grade_item_id' => 'required|exists:grade_items,id',
@@ -194,12 +190,10 @@ class GradebookController extends Controller
 
     public function export(Request $request, ClassModel $class): StreamedResponse
     {
-        $this->authorize('viewAny', Grade::class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('view', Grade::class, ['class' => $class]);
 
         $gradeItems = GradeItem::where('class_id', $class->id)
-            ->with('grades', 'category')
+            ->with('grades')
             ->orderBy('position', 'asc')
             ->get();
 
@@ -250,21 +244,14 @@ class GradebookController extends Controller
 
     public function studentGrades(ClassModel $class, User $student): View
     {
-        $this->authorize('viewAny', Grade::class);
-
-        abort_if($class->instructor_id !== auth()->id(), 403);
+        $this->authorize('view', Grade::class, ['class' => $class]);
 
         $enrollment = Enrollment::where('class_id', $class->id)
             ->where('student_id', $student->id)
             ->firstOrFail();
 
         $gradeItems = GradeItem::where('class_id', $class->id)
-            ->with(['category', 'grades' => fn ($q) => $q->where('student_id', $student->id)])
-            ->orderBy('position', 'asc')
-            ->get();
-
-        $gradeCategories = GradeCategory::where('class_id', $class->id)
-            ->with('items.grades')
+            ->with(['grades' => fn ($q) => $q->where('student_id', $student->id)])
             ->orderBy('position', 'asc')
             ->get();
 
@@ -284,7 +271,6 @@ class GradebookController extends Controller
             'student',
             'enrollment',
             'gradeItems',
-            'gradeCategories',
             'totalPoints',
             'earnedPoints'
         ));

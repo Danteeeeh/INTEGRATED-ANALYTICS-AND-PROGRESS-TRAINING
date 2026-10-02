@@ -38,6 +38,7 @@
                                 <th>Student</th>
                                 <th>Email</th>
                                 <th>Identifier</th>
+                                <th>Section</th>
                                 <th>Status</th>
                                 <th>Enrollments</th>
                                 <th>Actions</th>
@@ -57,6 +58,7 @@
                                     </td>
                                     <td>{{ $student->email }}</td>
                                     <td>{{ $student->identifier ?: '—' }}</td>
+                                    <td>{{ optional($student->section)->name ?: '—' }}@if($student->section?->code) ({{ $student->section->code }})@endif</td>
                                     <td><x-user-status-badge status="{{ $student->status }}" /></td>
                                     <td>{{ $student->enrollments->count() }}</td>
                                     <td>

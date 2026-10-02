@@ -11,7 +11,9 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'course_categories' => ['view', 'create', 'update', 'delete'],
+            'departments' => ['view', 'create', 'update', 'delete'],
+            'programs' => ['view', 'create', 'update', 'delete'],
+            'sections' => ['view', 'create', 'update', 'delete'],
             'courses' => ['view', 'create', 'update', 'delete', 'publish', 'archive', 'duplicate', 'export'],
             'classes' => ['view', 'create', 'update', 'delete', 'archive', 'roster', 'export'],
             'enrollments' => ['view', 'create', 'update', 'delete', 'approve', 'reject', 'drop', 'transfer', 'bulk', 'export'],
@@ -36,7 +38,6 @@ class PermissionSeeder extends Seeder
             'calendar' => ['view', 'create', 'update', 'delete'],
             'virtual_classes' => ['view', 'create', 'update', 'delete', 'join', 'start'],
             'attendance' => ['view', 'create', 'update', 'delete', 'mark', 'export', 'reports'],
-            'grade_categories' => ['view', 'create', 'update', 'delete'],
             'grade_items' => ['view', 'create', 'update', 'delete'],
             'grades' => ['view', 'create', 'update', 'delete', 'override', 'release', 'history', 'export'],
             'grade_history' => ['view'],
@@ -60,6 +61,7 @@ class PermissionSeeder extends Seeder
             'permissions' => ['view', 'update'],
             'schedule' => ['view', 'create', 'update', 'delete'],
             'documents' => ['view', 'create', 'update', 'delete', 'download'],
+            'backup' => ['view', 'create', 'restore', 'download'],
         ];
 
         $ids = [];
@@ -80,7 +82,6 @@ class PermissionSeeder extends Seeder
         $admin = Role::where('slug', Role::ADMIN)->first();
         $instructor = Role::where('slug', Role::INSTRUCTOR)->first();
         $student = Role::where('slug', Role::STUDENT)->first();
-        $registrar = Role::where('slug', Role::REGISTRAR)->first();
 
         // Admin: full institutional control (all permissions)
         $admin->permissions()->sync(array_values($ids));
@@ -108,7 +109,6 @@ class PermissionSeeder extends Seeder
             'calendar.view', 'calendar.create', 'calendar.update', 'calendar.delete',
             'virtual_classes.view', 'virtual_classes.create', 'virtual_classes.update', 'virtual_classes.delete', 'virtual_classes.start',
             'attendance.view', 'attendance.create', 'attendance.update', 'attendance.mark', 'attendance.export',
-            'grade_categories.view', 'grade_categories.create', 'grade_categories.update',
             'grade_items.view', 'grade_items.create', 'grade_items.update',
             'grades.view', 'grades.create', 'grades.update', 'grades.release', 'grades.history',
             'grade_history.view',
@@ -124,7 +124,6 @@ class PermissionSeeder extends Seeder
             'reports.view', 'reports.export',
             'analytics.view', 'analytics.export',
             'documents.view',
-            'course_categories.view',
         ];
         $instructor->permissions()->sync($this->resolveIds($ids, $instructorAllowed));
 
@@ -163,21 +162,6 @@ class PermissionSeeder extends Seeder
         ];
         $student->permissions()->sync($this->resolveIds($ids, $studentAllowed));
 
-        $registrarAllowed = [
-            'students.view', 'students.create', 'students.update', 'students.import', 'students.export',
-            'enrollments.view', 'enrollments.create', 'enrollments.update', 'enrollments.delete',
-            'enrollments.drop', 'enrollments.bulk', 'enrollments.export',
-            'classes.view',
-            'courses.view',
-            'academic_periods.view',
-            'progress.view',
-            'course_completion.view',
-            'grades.view',
-            'reports.view', 'reports.export',
-            'search.view',
-            'notifications.view',
-        ];
-        $registrar?->permissions()->sync($this->resolveIds($ids, $registrarAllowed));
     }
 
     protected function resolveIds(array $ids, array $names): array

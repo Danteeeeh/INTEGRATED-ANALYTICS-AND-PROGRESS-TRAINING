@@ -12,21 +12,21 @@
 <section class="dash-panel">
     <form class="table-toolbar" method="GET" action="{{ route('admin.reports.attendance') }}">
         <input name="search" value="{{ request('search') }}" placeholder="Search student..." aria-label="Search attendance">
-        <select name="status" aria-label="Filter status">
+        <select name="status" aria-label="Filter status" onchange="this.form.submit()">
             <option value="">All statuses</option>
             <option value="present" @selected(request('status')==='present')>Present</option>
             <option value="late" @selected(request('status')==='late')>Late</option>
             <option value="absent" @selected(request('status')==='absent')>Absent</option>
             <option value="excused" @selected(request('status')==='excused')>Excused</option>
         </select>
-        <select name="class_id" aria-label="Filter class">
+        <select name="class_id" aria-label="Filter class" onchange="this.form.submit()">
             <option value="">All classes</option>
             @foreach($classes as $class)
                 <option value="{{ $class->id }}" @selected((string) request('class_id') === (string) $class->id)>{{ $class->code }}</option>
             @endforeach
         </select>
-        <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
         <a class="btn btn-secondary" href="{{ route('admin.reports.attendance') }}">Clear</a>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('importAttendanceModal').classList.add('active')"><i class="fa-solid fa-file-import"></i> Import</button>
         <a class="btn btn-primary" href="{{ route('admin.reports.export', array_merge(['type' => 'attendance'], request()->query())) }}"><i class="fa-solid fa-download"></i> Export</a>
     </form>
     <table class="dash-table">
@@ -55,4 +55,11 @@
     </table>
     {{ $attendanceRecords->appends(request()->query())->links() }}
 </section>
+@include('admin.reports._import_modal', [
+    'modalId' => 'importAttendanceModal',
+    'importTitle' => 'Attendance',
+    'importAction' => route('admin.reports.attendance.import'),
+    'importColumns' => 'student_email, class_code, attendance_date, session_title, status, joined_at, left_at, duration_minutes, notes',
+])
+
 @endsection

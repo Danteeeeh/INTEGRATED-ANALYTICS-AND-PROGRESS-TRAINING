@@ -36,7 +36,7 @@
                     </div>
                     <div class="form-field">
                         <label>Issue Date</label>
-                        <div>{{ optional($certificate['issue_date'] ?? null)?->format('F j, Y') ?? $certificate['issue_date'] ?? '—' }}</div>
+                        <div>{{ $certificate['issue_date'] ? \Carbon\Carbon::parse($certificate['issue_date'])->format('F j, Y') : '—' }}</div>
                     </div>
                     @if(($certificate['final_grade'] ?? null) !== null)
                         <div class="form-field">

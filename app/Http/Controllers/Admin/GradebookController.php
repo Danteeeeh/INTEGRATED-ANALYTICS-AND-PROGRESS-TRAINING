@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicPeriod;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\GradeCategory;
 use App\Models\GradeHistory;
 use App\Models\GradeItem;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,7 @@ class GradebookController extends Controller
     {
         $this->authorize('viewAny', Grade::class);
 
-        $query = ClassModel::with(['course', 'instructor', 'enrollments.student', 'gradeCategories.items']);
+        $query = ClassModel::with(['course', 'instructor', 'enrollments.student', 'gradeItems']);
 
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->course_id);
@@ -57,23 +58,19 @@ class GradebookController extends Controller
         $class->load([
             'course',
             'instructor',
-            'gradeCategories.items',
+            'gradeItems',
             'enrollments.student',
         ]);
 
         $students = $class->enrollments()->with('student')->where('status', 'active')->get()->pluck('student');
 
-        $gradeItems = GradeItem::whereHas('category', function ($q) use ($class) {
-            $q->where('class_id', $class->id);
-        })->with('category')->orderBy('position')->get();
+        $gradeItems = GradeItem::where('class_id', $class->id)->orderBy('position')->get();
 
-        $grades = Grade::whereHas('item.category', function ($q) use ($class) {
+        $grades = Grade::whereHas('item', function ($q) use ($class) {
             $q->where('class_id', $class->id);
         })->get()->keyBy(function ($g) {
             return $g->grade_item_id.'-'.$g->student_id;
         });
-
-        $categories = GradeCategory::where('class_id', $class->id)->with('items')->orderBy('position')->get();
 
         $releaseStatus = $request->get('release_status');
 
@@ -82,7 +79,6 @@ class GradebookController extends Controller
             'students',
             'gradeItems',
             'grades',
-            'categories',
             'releaseStatus'
         ));
     }
@@ -98,9 +94,7 @@ class GradebookController extends Controller
             'action' => 'required|in:release,unrelease',
         ]);
 
-        $query = GradeItem::whereHas('category', function ($q) use ($class) {
-            $q->where('class_id', $class->id);
-        });
+        $query = GradeItem::where('class_id', $class->id);
 
         if (! $request->boolean('release_all', false) && $request->filled('grade_item_ids')) {
             $query->whereIn('id', $validated['grade_item_ids']);
@@ -122,20 +116,67 @@ class GradebookController extends Controller
         return back();
     }
 
+    public function gradeStatus(Request $request): View
+    {
+        $this->authorize('viewAny', Grade::class);
+
+        $query = ClassModel::with(['course', 'instructor'])
+            ->withCount([
+                'enrollments as active_enrollments' => fn ($q) => $q->where('status', 'active'),
+                'enrollments as graded_enrollments' => fn ($q) => $q->where('status', '!=', 'dropped')->whereNotNull('final_grade'),
+            ])
+            ->orderBy('code');
+
+        if ($request->filled('academic_period_id')) {
+            $query->where('academic_period_id', $request->integer('academic_period_id'));
+        }
+
+        $classes = $query->paginate(15)->withQueryString();
+        $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
+
+        return view('admin.gradebook.status', compact('classes', 'academicPeriods'));
+    }
+
+    public function classGrades(ClassModel $class): View
+    {
+        $this->authorize('view', Grade::class);
+        $class->load(['course', 'instructor', 'enrollments.student']);
+
+        return view('admin.gradebook.status-class', compact('class'));
+    }
+
+    public function returnForCorrection(ClassModel $class): RedirectResponse
+    {
+        $this->authorize('update', Grade::class);
+        $enrollments = Enrollment::where('class_id', $class->id)
+            ->where('status', '!=', 'dropped')
+            ->whereNotNull('final_grade')
+            ->get();
+
+        foreach ($enrollments as $enrollment) {
+            $enrollment->update([
+                'final_grade' => null,
+                'notes' => trim(($enrollment->notes ?? '')."\nGrades returned for correction on ".now()->toDateTimeString()),
+            ]);
+        }
+
+        return back()->with('status', "Grades for {$class->code} were returned for correction.");
+    }
+
     public function gradeHistory(Request $request): View
     {
         $this->authorize('view', GradeHistory::class);
 
-        $query = GradeHistory::with(['grade.item.category.class.course', 'grade.student', 'changedBy']);
+        $query = GradeHistory::with(['grade.item.class.course', 'grade.student', 'changedBy']);
 
         if ($request->filled('class_id')) {
-            $query->whereHas('grade.item.category.class', function ($q) use ($request) {
+            $query->whereHas('grade.item.class', function ($q) use ($request) {
                 $q->where('id', $request->class_id);
             });
         }
 
         if ($request->filled('course_id')) {
-            $query->whereHas('grade.item.category.class.course', function ($q) use ($request) {
+            $query->whereHas('grade.item.class.course', function ($q) use ($request) {
                 $q->where('id', $request->course_id);
             });
         }

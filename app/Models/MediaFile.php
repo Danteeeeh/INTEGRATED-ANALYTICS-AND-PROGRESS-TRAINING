@@ -68,11 +68,26 @@ class MediaFile extends Model
             return Storage::disk($this->disk)->url($this->path);
         }
 
-        return route('media.download', ['id' => $this->id]);
+        return route('files.download', ['mediaFile' => $this->id]);
     }
 
     public function getFullPathAttribute(): string
     {
         return Storage::disk($this->disk)->path($this->path);
+    }
+
+    /**
+     * Compatibility accessors: several controllers and the file service still
+     * reference `file_path` / `file_type`, which were never columns. Map them
+     * onto the real `path` / `mime_type` columns so those call sites work.
+     */
+    public function getFilePathAttribute(): string
+    {
+        return (string) $this->path;
+    }
+
+    public function getFileTypeAttribute(): ?string
+    {
+        return $this->mime_type;
     }
 }

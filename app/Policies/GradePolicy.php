@@ -19,7 +19,7 @@ class GradePolicy
         return $user->hasPermission('grades.view');
     }
 
-    public function view(User $user, mixed $grade = null): bool
+    public function view(User $user, mixed $grade = null, array $context = []): bool
     {
         if ($user->isAdmin()) {
             return true;
@@ -27,6 +27,17 @@ class GradePolicy
 
         if (! $user->hasPermission('grades.view') && ! $user->isInstructor() && ! $user->isStudent()) {
             return false;
+        }
+
+        // Handle class-based authorization (for gradebook views)
+        if (isset($context['class']) && $context['class'] instanceof ClassModel) {
+            $class = $context['class'];
+            if ($user->isInstructor()) {
+                return $class->instructor_id === $user->id;
+            }
+            if ($user->isStudent()) {
+                return $user->enrolledClasses()->where('classes.id', $class->id)->exists();
+            }
         }
 
         if (! $grade instanceof Grade) {
@@ -46,16 +57,26 @@ class GradePolicy
         return false;
     }
 
-    public function create(User $user): bool
+    public function create(User $user, array $context = []): bool
     {
-        if ($user->isAdmin() || $user->isInstructor()) {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // Handle class-based authorization (for gradebook operations)
+        if (isset($context['class']) && $context['class'] instanceof ClassModel) {
+            $class = $context['class'];
+            return $user->isInstructor() && $class->instructor_id === $user->id;
+        }
+
+        if ($user->isInstructor()) {
             return true;
         }
 
         return $user->hasPermission('grades.create');
     }
 
-    public function update(User $user, mixed $grade = null): bool
+    public function update(User $user, mixed $grade = null, array $context = []): bool
     {
         if ($user->isAdmin()) {
             return true;
@@ -63,6 +84,12 @@ class GradePolicy
 
         if (! $user->hasPermission('grades.update') && ! $user->hasPermission('grades.release') && ! $user->isInstructor()) {
             return false;
+        }
+
+        // Handle class-based authorization (for gradebook operations)
+        if (isset($context['class']) && $context['class'] instanceof ClassModel) {
+            $class = $context['class'];
+            return $user->isInstructor() && $class->instructor_id === $user->id;
         }
 
         if (! $grade instanceof Grade) {

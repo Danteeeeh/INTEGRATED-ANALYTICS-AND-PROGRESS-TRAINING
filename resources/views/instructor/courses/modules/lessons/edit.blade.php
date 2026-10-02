@@ -90,6 +90,46 @@
                 </div>
             </div>
 
+            @php
+                $crRules = is_array($lesson->completion_rules) ? $lesson->completion_rules : [];
+                $crContent = (bool) ($crRules['require_content_view'] ?? false);
+                $crMaterials = (bool) ($crRules['require_all_materials'] ?? false);
+                $crMinutes = (int) ($crRules['min_minutes'] ?? 0);
+            @endphp
+            <div class="modal-section" style="padding: 24px; border-top: 1px solid var(--lms-border, rgba(148,174,222,.18));">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <i class="fa-solid fa-clipboard-check" style="color:var(--lms-accent,#62c9f5);"></i>
+                    <label style="font-size:.95rem;font-weight:800;margin:0;">Completion Rules</label>
+                </div>
+                <p style="margin:0 0 14px;color:var(--dash-muted,#9eafca);font-size:.78rem;">
+                    Requirements the student must meet before they can mark this lesson complete. Leave all unchecked for no requirements.
+                </p>
+
+                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;cursor:pointer;">
+                    <input type="checkbox" name="cr_require_content_view" value="1" {{ old('cr_require_content_view', $crContent) ? 'checked' : '' }} style="margin-top:2px;width:16px;height:16px;">
+                    <span>
+                        <strong style="font-size:.85rem;">Require opening the lesson content</strong>
+                        <span style="display:block;color:var(--dash-muted,#9eafca);font-size:.75rem;">Student must open this lesson page before completing.</span>
+                    </span>
+                </label>
+
+                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;cursor:pointer;border-top:1px solid var(--lms-border, rgba(148,174,222,.18));">
+                    <input type="checkbox" name="cr_require_all_materials" value="1" {{ old('cr_require_all_materials', $crMaterials) ? 'checked' : '' }} style="margin-top:2px;width:16px;height:16px;">
+                    <span>
+                        <strong style="font-size:.85rem;">Require reviewing all materials</strong>
+                        <span style="display:block;color:var(--dash-muted,#9eafca);font-size:.75rem;">Student must open every attached material at least once.</span>
+                    </span>
+                </label>
+
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--lms-border, rgba(148,174,222,.18));">
+                    <input type="number" name="cr_min_minutes" value="{{ old('cr_min_minutes', $crMinutes) }}" min="0" max="600" class="form-input" style="width:100px;" placeholder="0">
+                    <span>
+                        <strong style="font-size:.85rem;display:block;">Minimum time on lesson (minutes)</strong>
+                        <span style="display:block;color:var(--dash-muted,#9eafca);font-size:.75rem;">Leave 0 for no time requirement.</span>
+                    </span>
+                </div>
+            </div>
+
             <div class="modal-footer" style="justify-content:flex-end; gap:10px; padding: 18px 24px;">
                 <a href="{{ route('instructor.courses.modules.lessons.show', [$course, $module, $lesson]) }}" class="btn-modal-cancel">Cancel</a>
                 <button type="submit" class="btn-modal-save">

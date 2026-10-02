@@ -46,6 +46,10 @@
                         <i class="fa-solid fa-times"></i>
                         Clear
                     </a>
+                    <a href="{{ route('admin.courses.export', request()->query()) }}" class="btn btn-success">
+                        <i class="fa-solid fa-download"></i>
+                        Export
+                    </a>
                 </div>
             </div>
         </form>
@@ -53,28 +57,49 @@
 
     <div class="card-body">
         @if($courses->count() > 0)
+            <div class="bulk-actions-bar" style="margin-bottom: 15px; display: none;">
+                <div class="form-row" style="align-items: center;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <span style="margin-right: 10px;">Selected: <span id="selected-count">0</span></span>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <select id="bulk-action" class="form-control" style="display: inline-block; width: auto; margin-right: 10px;">
+                            <option value="">Bulk Action</option>
+                            <option value="publish">Publish</option>
+                            <option value="unpublish">Unpublish</option>
+                            <option value="archive">Archive</option>
+                            <option value="delete">Delete</option>
+                        </select>
+                        <button type="button" id="apply-bulk-action" class="btn btn-primary">Apply</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table class="table">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="select-all-courses"></th>
                             <th>Code</th>
                             <th>Title</th>
-                            <th>Category</th>
+                            <th>Program</th>
                             <th>Duration</th>
                             <th>Status</th>
                             <th>Classes</th>
+                            <th>Enrollments</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($courses as $course)
                             <tr>
+                                <td><input type="checkbox" class="course-checkbox" value="{{ $course->id }}"></td>
                                 <td><strong>{{ $course->code }}</strong></td>
                                 <td>
                                     <div>{{ $course->title }}</div>
                                     <small class="text-muted">{{ Str::limit($course->description, 50) }}</small>
                                 </td>
-                                <td>{{ $course->category?->name ?? '-' }}</td>
+                                <td>{{ $course->program?->name ?? '-' }}</td>
                                 <td>{{ $course->duration_weeks ? $course->duration_weeks . ' weeks' : '-' }}</td>
                                 <td>
                                     <span class="badge badge-{{ $course->status }}">
@@ -82,11 +107,17 @@
                                     </span>
                                 </td>
                                 <td>{{ $course->classes()->count() }}</td>
+                                <td>{{ $course->classes->sum(function($class) { return $class->enrollments->count(); }) }}</td>
                                 <td>
                                     <div class="action-buttons">
                                         @can('courses.view')
                                             <a href="{{ route('admin.courses.show', $course) }}" class="btn btn-sm btn-icon" title="View">
                                                 <i class="fa-solid fa-eye"></i>
+                                            </a>
+                                        @endcan
+                                        @can('courses.view')
+                                            <a href="{{ route('admin.courses.stats', $course) }}" class="btn btn-sm btn-icon" title="Quick Stats">
+                                                <i class="fa-solid fa-chart-bar"></i>
                                             </a>
                                         @endcan
                                         @can('courses.update')
@@ -229,6 +260,113 @@
     color: #666;
     font-size: 12px;
 }
+
+.bulk-actions-bar {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all-courses');
+    const courseCheckboxes = document.querySelectorAll('.course-checkbox');
+    const bulkActionsBar = document.querySelector('.bulk-actions-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const applyBulkActionButton = document.getElementById('apply-bulk-action');
+    const bulkActionSelect = document.getElementById('bulk-action');
+
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        courseCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkActionsBar();
+    });
+
+    // Individual checkbox functionality
+    courseCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBulkActionsBar();
+            // Update select all checkbox state
+            const allChecked = Array.from(courseCheckboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+        });
+    });
+
+    // Update bulk actions bar visibility
+    function updateBulkActionsBar() {
+        const selectedCount = Array.from(courseCheckboxes).filter(cb => cb.checked).length;
+        selectedCountSpan.textContent = selectedCount;
+
+        if (selectedCount > 0) {
+            bulkActionsBar.style.display = 'block';
+        } else {
+            bulkActionsBar.style.display = 'none';
+        }
+    }
+
+    // Apply bulk action
+    applyBulkActionButton.addEventListener('click', function() {
+        const action = bulkActionSelect.value;
+        if (!action) {
+            alert('Please select a bulk action');
+            return;
+        }
+
+        const selectedIds = Array.from(courseCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        if (selectedIds.length === 0) {
+            alert('Please select at least one course');
+            return;
+        }
+
+        if (action === 'delete') {
+            if (!confirm(`Are you sure you want to delete ${selectedIds.length} course(s)?`)) {
+                return;
+            }
+        } else {
+            if (!confirm(`Are you sure you want to ${action} ${selectedIds.length} course(s)?`)) {
+                return;
+            }
+        }
+
+        // Submit bulk action form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("admin.courses.bulk-action") }}';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = action;
+        form.appendChild(actionInput);
+
+        selectedIds.forEach(id => {
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'course_ids[]';
+            idInput.value = id;
+            form.appendChild(idInput);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    });
+});
+</script>
 @endpush
 @endsection

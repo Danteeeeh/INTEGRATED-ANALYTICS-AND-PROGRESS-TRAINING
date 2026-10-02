@@ -38,3 +38,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# EvoX cleanup backups
+/.backup-*/
+
+# Laravel storage runtime (regenerated automatically)
+/storage/framework/*
+/storage/app/*
+!/storage/framework/.gitignore
+!/storage/app/.gitignore
+
+/dist

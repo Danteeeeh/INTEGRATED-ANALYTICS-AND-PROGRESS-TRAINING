@@ -1,11 +1,11 @@
 /* Sidebar structure and interaction polish — shared by every role. */
-.sidebar { display:flex; flex-direction:column; height:auto !important; min-height:100vh !important; overflow:visible !important; }
+.sidebar { display:flex; flex-direction:column; }
 .sidebar-header { flex:0 0 auto; }
 .sidebar-brand-lockup { min-height:42px; }
 .sidebar-brand-lockup img { object-fit:contain; filter:drop-shadow(0 4px 8px rgba(0,0,0,.22)); }
 .sidebar-header h2 { max-width:126px; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:800; }
 .sidebar-subtitle { display:block; margin-top:3px; }
-.sidebar-nav { flex:0 0 auto; min-height:0; overflow:visible !important; padding:10px 8px 16px !important; }
+.sidebar-nav { flex:1 1 auto; min-height:0; padding:10px 8px 16px !important; }
 .sidebar-nav .nav-group { margin:0 0 12px; }
 .sidebar-nav .nav-group:last-child { margin-bottom:0; }
 .nav-group-label { width:100%; border:0; background:transparent; cursor:pointer; text-align:left; color:#7f91b0 !important; }

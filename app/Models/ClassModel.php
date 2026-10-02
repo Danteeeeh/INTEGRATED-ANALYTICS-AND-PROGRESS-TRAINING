@@ -20,6 +20,7 @@ class ClassModel extends Model
         'code',
         'course_id',
         'academic_period_id',
+        'section_id',
         'instructor_id',
         'schedule',
         'room',
@@ -38,6 +39,7 @@ class ClassModel extends Model
 
     public function getMaxStudentsAttribute(): ?int
     {
+        // Keep the legacy max_students API backed by the actual schema column.
         return $this->attributes['capacity'] ?? null;
     }
 
@@ -54,6 +56,11 @@ class ClassModel extends Model
     public function academicPeriod(): BelongsTo
     {
         return $this->belongsTo(AcademicPeriod::class);
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
     }
 
     public function instructor(): BelongsTo
@@ -128,19 +135,9 @@ class ClassModel extends Model
         return $this->hasMany(AttendanceRecord::class, 'class_id');
     }
 
-    public function gradeCategories(): HasMany
+    public function gradeItems(): HasMany
     {
-        return $this->hasMany(GradeCategory::class, 'class_id');
-    }
-
-    public function gradeItems(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            GradeItem::class,
-            GradeCategory::class,
-            'class_id',
-            'grade_category_id'
-        );
+        return $this->hasMany(GradeItem::class, 'class_id');
     }
 
     public function grades(): HasManyThrough

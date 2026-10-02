@@ -4,16 +4,24 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Mail\LoginOtpMail;
+use App\Models\LoginVerification;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LoginThrottleService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class LoginController extends Controller
 {
+    use LoginOtpVerification;
     public function create()
     {
         return view('auth.login');
@@ -54,36 +62,63 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request): RedirectResponse
     {
-        $credentials = $request->only('email', 'password');
+        $throttle = app(LoginThrottleService::class);
+        $email = mb_strtolower(trim((string) $request->string('email')));
+        $credentials = ['email' => $email, 'password' => (string) $request->string('password')];
+        $throttle->ensureNotLocked($email);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages([
-                'email' => __('These credentials do not match our records.'),
-            ]);
+        if (! Auth::validate($credentials)) {
+            $throttle->registerFailure($email);
+            throw ValidationException::withMessages(['email' => __('These credentials do not match our records.')]);
         }
 
-        $request->session()->regenerate();
-
-        $user = Auth::user();
-
+        $user = User::where('email', $email)->firstOrFail();
         if (! $user->isActive()) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            throw ValidationException::withMessages([
-                'email' => __('Your account has been deactivated. Contact an administrator.'),
-            ]);
+            throw ValidationException::withMessages(['email' => __('Your account has been deactivated. Contact an administrator.')]);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
+        $otpExempt = in_array($email, config('lms.login_otp.exempt_emails', []), true);
+        if (! config('lms.login_otp.enabled', true) || $otpExempt) {
+            Auth::login($user, $request->boolean('remember'));
+            $throttle->clear($email);
+            $request->session()->regenerate();
+            $user->forceFill(['last_login_at' => now()])->save();
+            return redirect($this->dashboardRouteFor($user->role?->slug));
+        }
 
-        return redirect($this->dashboardRouteFor($user->role?->slug));
+        $this->beginOtpChallenge($request, $user, $request->boolean('remember'));
+        return redirect()->route('login.verify');
+    }
+
+    public function showOtpForm(Request $request): View|RedirectResponse
+    {
+        $pending = $this->pendingUser($request);
+        if (! $pending) return redirect()->route('login');
+        $verification = LoginVerification::where('user_id', $pending['user_id'])->whereNull('consumed_at')->latest('id')->first();
+        if (! $verification || ! $verification->isUsable()) {
+            $this->clearPendingOtp($request);
+            return redirect()->route('login')->withErrors(['email' => 'Your verification code expired. Please sign in again.']);
+        }
+        return view('auth.verify-login', [
+            'maskedEmail' => $this->maskEmail($pending['email']),
+            'expiresInMinutes' => (int) max(1, ceil(now()->diffInMinutes($verification->expires_at))),
+            'resendCooldown' => (int) config('lms.login_otp.resend_cooldown_seconds', 60),
+            'lastSentAt' => $verification->last_sent_at,
+            'resendWait' => $verification->last_sent_at
+                ? (int) max(0, ((int) config('lms.login_otp.resend_cooldown_seconds', 60)) - ceil(now()->diffInSeconds($verification->last_sent_at)))
+                : 0,
+        ]);
+    }
+
+    public function keepAlive(): JsonResponse
+    {
+        return response()->json(['ok' => true]);
     }
 
     public function destroy(Request $request): RedirectResponse
     {
         Auth::logout();
+        $this->clearPendingOtp($request);
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -97,7 +132,6 @@ class LoginController extends Controller
             Role::ADMIN => route('admin.dashboard'),
             Role::INSTRUCTOR => route('instructor.dashboard'),
             Role::STUDENT => route('student.dashboard'),
-            Role::REGISTRAR => route('registrar.dashboard'),
             default => '/login',
         };
     }

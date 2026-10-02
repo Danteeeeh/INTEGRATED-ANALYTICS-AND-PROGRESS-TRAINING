@@ -14,7 +14,7 @@ class CourseController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Course::with(['creator', 'category', 'academicPeriod']);
+        $query = Course::with(['creator', 'academicPeriod', 'department', 'program']);
 
         // Apply filters
         if ($request->filled('search')) {
@@ -29,10 +29,6 @@ class CourseController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-
         if ($request->filled('academic_period_id')) {
             $query->where('academic_period_id', $request->academic_period_id);
         }
@@ -44,7 +40,7 @@ class CourseController extends Controller
 
     public function show(Course $course): CourseResource
     {
-        $course->load(['creator', 'category', 'academicPeriod', 'modules']);
+        $course->load(['creator', 'academicPeriod', 'department', 'program', 'modules']);
 
         return new CourseResource($course);
     }
@@ -61,7 +57,6 @@ class CourseController extends Controller
                 'prerequisites' => 'nullable|string',
                 'duration_weeks' => 'nullable|integer|min:1',
                 'credits' => 'nullable|integer|min:1',
-                'category_id' => 'nullable|exists:course_categories,id',
                 'academic_period_id' => 'nullable|exists:academic_periods,id',
                 'thumbnail' => 'nullable|string',
                 'status' => 'required|in:draft,published,archived',
@@ -69,7 +64,7 @@ class CourseController extends Controller
 
             $validated['created_by'] = auth()->id();
             $course = Course::create($validated);
-            $course->load(['creator', 'category', 'academicPeriod']);
+            $course->load(['creator', 'academicPeriod', 'department', 'program']);
 
             return response()->json([
                 'success' => true,
@@ -97,14 +92,13 @@ class CourseController extends Controller
                 'prerequisites' => 'nullable|string',
                 'duration_weeks' => 'nullable|integer|min:1',
                 'credits' => 'nullable|integer|min:1',
-                'category_id' => 'nullable|exists:course_categories,id',
                 'academic_period_id' => 'nullable|exists:academic_periods,id',
                 'thumbnail' => 'nullable|string',
                 'status' => 'sometimes|in:draft,published,archived',
             ]);
 
             $course->update($validated);
-            $course->load(['creator', 'category', 'academicPeriod']);
+            $course->load(['creator', 'academicPeriod', 'department', 'program']);
 
             return response()->json([
                 'success' => true,

@@ -12,13 +12,12 @@
 <section class="dash-panel">
     <form class="table-toolbar" method="GET" action="{{ route('admin.reports.instructor-performance') }}">
         <input name="search" value="{{ request('search') }}" placeholder="Search instructor..." aria-label="Search instructors">
-        <select name="academic_period_id" aria-label="Filter academic period">
+        <select name="academic_period_id" aria-label="Filter academic period" onchange="this.form.submit()">
             <option value="">All periods</option>
             @foreach($academicPeriods as $period)
                 <option value="{{ $period->id }}" @selected((string) request('academic_period_id') === (string) $period->id)>{{ $period->code }} — {{ $period->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
         <a class="btn btn-secondary" href="{{ route('admin.reports.instructor-performance') }}">Clear</a>
         <a class="btn btn-primary" href="{{ route('admin.reports.export', array_merge(['type' => 'instructor-performance'], request()->query())) }}"><i class="fa-solid fa-download"></i> Export</a>
     </form>

@@ -18,7 +18,7 @@
         <thead>
             <tr>
                 <th>Item</th>
-                <th>Category</th>
+                <th>Type</th>
                 <th>Score</th>
                 <th>Status</th>
             </tr>
@@ -28,7 +28,7 @@
                 @php($grade = $item->grades->first())
                 <tr>
                     <td>{{ $item->title }}</td>
-                    <td>{{ $item->category?->name ?? '—' }}</td>
+                    <td>{{ ucfirst($item->item_type) }}</td>
                     <td>{{ $grade ? number_format($grade->points, 1) . ' / ' . number_format($item->max_points, 1) : '—' }}</td>
                     <td>{{ $item->is_released ? 'Released' : 'Hidden' }}</td>
                 </tr>

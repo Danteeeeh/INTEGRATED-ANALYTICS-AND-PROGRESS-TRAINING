@@ -5,8 +5,8 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
-                'resources/css/app.css', 
-                'resources/js/app.js', 
+                'resources/css/app.css',
+                'resources/js/app.js',
                 'resources/css/sms-template.css',
                 'resources/css/admin-ui.css',
                 'resources/css/compact-ui.css',
@@ -21,9 +21,15 @@ export default defineConfig({
                 'resources/css/gradebook-ui.css',
                 'resources/css/role-admin-parity.css',
                 'resources/css/user-ui-system.css',
+                'resources/css/student-progress-ui.css',
                 'resources/css/lms-polish.css',
+                'resources/css/sidebar-layout-fix.css',
             ],
             refresh: true,
         }),
     ],
+    build: {
+        outDir: 'public/build',
+        emptyOutDir: true,
+    },
 });

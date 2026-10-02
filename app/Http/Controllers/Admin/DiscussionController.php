@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Discussion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class DiscussionController extends Controller
@@ -77,6 +78,7 @@ class DiscussionController extends Controller
         ]);
 
         $validated['created_by'] = $request->user()->id;
+        $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
         $validated['is_pinned'] = $request->boolean('is_pinned', false);
         $validated['is_locked'] = $request->boolean('is_locked', false);
 

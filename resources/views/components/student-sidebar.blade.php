@@ -26,21 +26,32 @@
                         <span>My Courses</span>
                     </a>
                 </li>
-
+                <li class="nav-item {{ $activeNav === 'modules' ? 'active' : '' }}">
+                    <a href="{{ route('student.courses.index') }}" class="nav-link" @if($activeNav === 'modules') aria-current="page" @endif>
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span>Modules & Lessons</span>
+                        <span class="link-hint">Pick course</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'enrollments' ? 'active' : '' }}">
                     <a href="{{ route('student.enrollments.index') }}" class="nav-link" @if($activeNav === 'enrollments') aria-current="page" @endif>
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Enrollments</span>
                     </a>
                 </li>
-
+                <li class="nav-item {{ $activeNav === 'classes' ? 'active' : '' }}">
+                    <a href="{{ route('student.classes.index') }}" class="nav-link" @if($activeNav === 'classes') aria-current="page" @endif>
+                        <i class="fa-solid fa-school"></i>
+                        <span>My Classes</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'gradebook' ? 'active' : '' }}">
                     <a href="{{ route('student.classes.index') }}" class="nav-link" @if($activeNav === 'gradebook') aria-current="page" @endif>
                         <i class="fa-solid fa-graduation-cap"></i>
                         <span>My Grades</span>
+                        <span class="link-hint">Pick class</span>
                     </a>
                 </li>
-
                 <li class="nav-item {{ $activeNav === 'virtual_classes' ? 'active' : '' }}">
                     <a href="{{ route('student.classes.index') }}" class="nav-link" @if($activeNav === 'virtual_classes') aria-current="page" @endif>
                         <i class="fa-solid fa-video"></i>
@@ -55,25 +66,30 @@
             <button type="button" class="nav-group-label" data-sidebar-group="courses" aria-expanded="true">In your courses</button>
             <ul class="nav-list">
                 <li class="nav-item {{ $activeNav === 'assignments' ? 'active' : '' }}">
-                    <a href="{{ route('student.courses.index') }}" class="nav-link" @if($activeNav === 'assignments') aria-current="page" @endif>
+                    <a href="{{ route('student.courses.index', ['feature' => 'assignments']) }}" class="nav-link" @if($activeNav === 'assignments') aria-current="page" @endif>
                         <i class="fa-solid fa-tasks"></i>
                         <span>Assignments</span>
                         <span class="link-hint">Pick course</span>
                     </a>
                 </li>
-
                 <li class="nav-item {{ $activeNav === 'quizzes' ? 'active' : '' }}">
-                    <a href="{{ route('student.courses.index') }}" class="nav-link" @if($activeNav === 'quizzes') aria-current="page" @endif>
+                    <a href="{{ route('student.courses.index', ['feature' => 'quizzes']) }}" class="nav-link" @if($activeNav === 'quizzes') aria-current="page" @endif>
                         <i class="fa-solid fa-question-circle"></i>
                         <span>Quizzes</span>
                         <span class="link-hint">Pick course</span>
                     </a>
                 </li>
-
                 <li class="nav-item {{ $activeNav === 'discussions' ? 'active' : '' }}">
-                    <a href="{{ route('student.courses.index') }}" class="nav-link" @if($activeNav === 'discussions') aria-current="page" @endif>
+                    <a href="{{ route('student.courses.index', ['feature' => 'discussions']) }}" class="nav-link" @if($activeNav === 'discussions') aria-current="page" @endif>
                         <i class="fa-solid fa-comments"></i>
                         <span>Discussions</span>
+                        <span class="link-hint">Pick course</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ $activeNav === 'announcements' ? 'active' : '' }}">
+                    <a href="{{ route('student.courses.index', ['feature' => 'announcements']) }}" class="nav-link" @if($activeNav === 'announcements') aria-current="page" @endif>
+                        <i class="fa-solid fa-bullhorn"></i>
+                        <span>Announcements</span>
                         <span class="link-hint">Pick course</span>
                     </a>
                 </li>
@@ -81,38 +97,31 @@
         </div>
 
         <div class="nav-group">
-            <button type="button" class="nav-group-label" data-sidebar-group="coming-soon" aria-expanded="true">Coming soon</button>
+            <button type="button" class="nav-group-label" data-sidebar-group="assistant" aria-expanded="true">Assist</button>
             <ul class="nav-list">
-                <li class="nav-item disabled">
-                    <div class="nav-link">
+                <li class="nav-item {{ $activeNav === 'assistant' ? 'active' : '' }}">
+                    <a href="{{ route('student.assistant.index') }}" class="nav-link" @if($activeNav === 'assistant') aria-current="page" @endif>
+                        <i class="fa-solid fa-robot"></i>
+                        <span>Study Assistant</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="nav-group">
+            <button type="button" class="nav-group-label" data-sidebar-group="learning" aria-expanded="true">Learning</button>
+            <ul class="nav-list">
+                <li class="nav-item {{ $activeNav === 'progress' ? 'active' : '' }}">
+                    <a href="{{ route('student.progress') }}" class="nav-link" @if($activeNav === 'progress') aria-current="page" @endif>
                         <i class="fa-solid fa-chart-line"></i>
                         <span>My Progress</span>
-                        <span class="soon-badge">Soon</span>
-                    </div>
+                    </a>
                 </li>
-
-                <li class="nav-item disabled">
-                    <div class="nav-link">
-                        <i class="fa-solid fa-certificate"></i>
-                        <span>Certificates</span>
-                        <span class="soon-badge">Soon</span>
-                    </div>
-                </li>
-
-                <li class="nav-item disabled">
-                    <div class="nav-link">
-                        <i class="fa-solid fa-medal"></i>
-                        <span>Badges</span>
-                        <span class="soon-badge">Soon</span>
-                    </div>
-                </li>
-
-                <li class="nav-item disabled">
-                    <div class="nav-link">
+                <li class="nav-item {{ $activeNav === 'calendar' ? 'active' : '' }}">
+                    <a href="{{ route('student.calendar') }}" class="nav-link" @if($activeNav === 'calendar') aria-current="page" @endif>
                         <i class="fa-solid fa-calendar"></i>
                         <span>Calendar</span>
-                        <span class="soon-badge">Soon</span>
-                    </div>
+                    </a>
                 </li>
             </ul>
         </div>

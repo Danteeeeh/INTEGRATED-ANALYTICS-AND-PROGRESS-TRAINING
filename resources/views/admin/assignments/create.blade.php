@@ -29,8 +29,9 @@
                 </div>
 
                 <div class="form-field full">
-                    <label>Instructions</label>
-                    <textarea name="instructions" rows="5" placeholder="Assignment instructions and requirements...">{{ old('instructions') }}</textarea>
+                    <label>Instructions <span class="req">*</span></label>
+                    <textarea name="instructions" rows="5" required placeholder="Assignment instructions and requirements...">{{ old('instructions') }}</textarea>
+                    <span class="field-error">{{ $errors->first('instructions') }}</span>
                 </div>
 
                 <div class="form-field">
@@ -49,7 +50,17 @@
                 <div class="form-field">
                     <label>Points <span class="req">*</span></label>
                     <input type="number" name="points" required min="0" placeholder="e.g. 100" value="{{ old('points') }}">
+                    <span class="field-error">{{ $errors->first('points') }}</span>
                     <span class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label>Status <span class="req">*</span></label>
+                    <select name="status" required>
+                        @foreach(['draft' => 'Draft', 'published' => 'Published', 'closed' => 'Closed'] as $value => $label)
+                            <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <span class="field-error">{{ $errors->first('status') }}</span>
                 </div>
 
                 <div class="form-field">

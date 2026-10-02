@@ -17,6 +17,12 @@
             <i class="fa-solid fa-arrow-left"></i>
             Back to Courses
         </a>
+        @can('courses.view')
+            <a href="{{ route('admin.courses.stats', $course) }}" class="btn btn-info">
+                <i class="fa-solid fa-chart-bar"></i>
+                Quick Stats
+            </a>
+        @endcan
         @can('courses.update')
             <a href="{{ route('admin.courses.edit', $course) }}" class="btn btn-primary">
                 <i class="fa-solid fa-edit"></i>
@@ -46,9 +52,9 @@
                         <span class="badge badge-{{ $course->status }}">
                             {{ ucfirst($course->status) }}
                         </span>
-                        @if($course->category)
-                            <span class="badge badge-category">
-                                {{ $course->category->name }}
+                        @if($course->program)
+                            <span class="badge badge-program">
+                                {{ $course->program->name }}
                             </span>
                         @endif
                     </div>
@@ -68,8 +74,8 @@
                             <span>{{ $course->title }}</span>
                         </div>
                         <div class="detail-item">
-                            <label>Category</label>
-                            <span>{{ $course->category?->name ?? '-' }}</span>
+                            <label>Program</label>
+                            <span>{{ $course->program?->name ?? '-' }}</span>
                         </div>
                         <div class="detail-item">
                             <label>Duration</label>
@@ -296,7 +302,7 @@
 .badge-draft { background: #95a5a6; color: white; }
 .badge-published { background: #2ecc71; color: white; }
 .badge-archived { background: #e74c3c; color: white; }
-.badge-category { background: #3498db; color: white; }
+.badge-program { background: #3498db; color: white; }
 
 .detail-section {
     margin-bottom: 30px;
@@ -390,6 +396,15 @@
 
 .btn-warning:hover {
     background: #e67e22;
+}
+
+.btn-info {
+    background: #3498db;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #2980b9;
 }
 
 .btn-sm {

@@ -28,7 +28,6 @@ class GradeItem extends Model
     public const TYPE_OTHER = 'other';
 
     protected $fillable = [
-        'grade_category_id',
         'class_id',
         'title',
         'description',
@@ -53,16 +52,6 @@ class GradeItem extends Model
             'is_released' => 'boolean',
             'released_at' => 'timestamp',
         ];
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(GradeCategory::class, 'grade_category_id');
-    }
-
-    public function gradeCategory(): BelongsTo
-    {
-        return $this->category();
     }
 
     public function class(): BelongsTo

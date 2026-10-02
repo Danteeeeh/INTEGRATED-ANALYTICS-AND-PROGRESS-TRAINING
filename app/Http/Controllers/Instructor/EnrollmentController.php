@@ -86,11 +86,8 @@ class EnrollmentController extends Controller
         }
 
         // Check class capacity
-        $currentEnrollments = Enrollment::where('class_id', $validated['class_id'])
-            ->where('status', '!=', 'dropped')
-            ->count();
 
-        if ($currentEnrollments >= $class->max_students) {
+        if ($class->isFull()) {
             return back()->with('error', 'Class is already at full capacity.');
         }
 

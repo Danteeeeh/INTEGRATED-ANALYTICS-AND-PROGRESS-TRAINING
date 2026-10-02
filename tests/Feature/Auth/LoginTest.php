@@ -61,6 +61,25 @@ class LoginTest extends TestCase
         $response->assertSessionHasErrors();
     }
 
+    public function test_login_normalizes_email_before_authentication(): void
+    {
+        $role = Role::where('slug', Role::STUDENT)->firstOrFail();
+        User::factory()->create([
+            'email' => 'test@example.com',
+            'password' => bcrypt('password123'),
+            'role_id' => $role->id,
+            'status' => 'active',
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => '  TEST@EXAMPLE.COM  ',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('student.dashboard'));
+        $this->assertAuthenticated();
+    }
+
     public function test_inactive_user_cannot_login(): void
     {
         $role = Role::where('slug', Role::STUDENT)->firstOrFail();

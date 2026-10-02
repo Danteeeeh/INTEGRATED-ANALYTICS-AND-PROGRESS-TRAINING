@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('grade_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('grade_category_id')->constrained('grade_categories')->cascadeOnDelete();
             $table->foreignId('class_id')->constrained('classes')->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
@@ -26,7 +25,6 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['grade_category_id', 'position']);
             $table->index(['class_id', 'due_date']);
             $table->index(['related_type', 'related_id']);
         });

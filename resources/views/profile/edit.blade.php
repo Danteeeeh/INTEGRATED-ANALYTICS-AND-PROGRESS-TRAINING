@@ -4,7 +4,6 @@
 @section('sidebar')
     @if(auth()->user()->isAdmin()) @include('components.admin-sidebar', ['activeNav' => 'profile'])
     @elseif(auth()->user()->isInstructor()) @include('components.instructor-sidebar', ['activeNav' => 'profile'])
-    @elseif(auth()->user()->isRegistrar()) @include('components.registrar-sidebar', ['activeNav' => 'profile'])
     @else @include('components.student-sidebar', ['activeNav' => 'profile']) @endif
 @endsection
 
@@ -18,7 +17,7 @@
         @if($user->profile_photo_path)<img class="profile-avatar profile-avatar-image" src="{{ asset('storage/'.$user->profile_photo_path) }}" alt="{{ $user->name }} profile photo">
         @else<div class="profile-avatar">{{ strtoupper(substr($user->first_name ?: $user->email, 0, 1)) }}</div>@endif
         <h2>{{ $user->name }}</h2><p>{{ $user->email }}</p><span class="profile-role">{{ $user->role?->name ?? $user->role?->slug ?? 'User' }}</span>
-        <dl><div><dt>Identifier</dt><dd>{{ $user->identifier ?: 'Not set' }}</dd></div><div><dt>Account status</dt><dd>{{ ucfirst($user->status ?? 'active') }}</dd></div><div><dt>Member since</dt><dd>{{ $user->created_at?->format('M Y') }}</dd></div><div><dt>Last login</dt><dd>{{ $user->last_login_at?->diffForHumans() ?? 'Not yet recorded' }}</dd></div></dl>
+        <dl><div><dt>Identifier</dt><dd>{{ $user->identifier ?: 'Not set' }}</dd></div><div><dt>Account status</dt><dd>{{ ucfirst($user->status ?? 'active') }}</dd></div><div><dt>Member since</dt><dd>{{ $user->created_at?->format('M Y') }}</dd></div><div><dt>Last login</dt><dd>{{ $user->last_login_at?->diffForHumans() ?? 'Not yet recorded' }}</dd></div><div><dt>Department</dt><dd>{{ $user->department?->name ?? '—' }}</dd></div><div><dt>Program</dt><dd>{{ $user->program?->name ?? '—' }}</dd></div><div><dt>Section</dt><dd>{{ $user->section?->name ?? '—' }}@if($user->section?->code) ({{ $user->section->code }})@endif</dd></div></dl>
     </section>
 
     <section class="profile-card">
