@@ -3,6 +3,8 @@ export default {
     content: [
         './resources/views/**/*.blade.php',
         './resources/js/**/*.js',
+        './app/View/Components/**/*.php',
+        './public/js/**/*.js',
     ],
     theme: {
         extend: {
