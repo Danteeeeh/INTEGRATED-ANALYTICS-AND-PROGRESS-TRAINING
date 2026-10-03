@@ -63,9 +63,19 @@ class AssignmentSubmission extends Model
         return $this->hasMany(SubmissionFile::class, 'assignment_submission_id');
     }
 
-    public function grade(): HasOne
+    public function getGradeAttribute()
     {
-        return $this->hasOne(Grade::class, 'gradable_id')->where('gradable_type', self::class);
+        $gradeItem = GradeItem::where('related_type', Assignment::class)
+            ->where('related_id', $this->assignment_id)
+            ->first();
+
+        if (!$gradeItem) {
+            return null;
+        }
+
+        return Grade::where('grade_item_id', $gradeItem->id)
+            ->where('student_id', $this->student_id)
+            ->first();
     }
 
     public function rubricAssessments(): HasMany
