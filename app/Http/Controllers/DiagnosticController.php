@@ -12,15 +12,32 @@ class DiagnosticController extends Controller
 {
     public function index(Request $request)
     {
-        // Simple security check - only allow in development or with the APP_KEY as secret
         $secret = $request->query('secret');
         if (config('app.env') === 'production' && $secret !== config('app.key')) {
             return response('Unauthorized - Add ?secret=<APP_KEY> to URL', 401);
         }
 
-        $diagnostics = [];
+        $diagnostics = [
+            'database_connection' => [
+                'status' => 'unknown',
+                'error' => null,
+            ],
+            'tables' => [],
+            'users' => ['total' => null, 'active' => null],
+            'user_list' => [],
+            'seeded_accounts' => [],
+            'environment' => [
+                'app_env' => config('app.env'),
+                'app_debug' => config('app.debug'),
+                'app_url' => config('app.url'),
+                'db_connection' => config('database.default'),
+                'db_host' => config('database.connections.' . config('database.default') . '.host'),
+                'db_database' => config('database.connections.' . config('database.default') . '.database'),
+                'session_driver' => config('session.driver'),
+                'cache_default' => config('cache.default'),
+            ],
+        ];
 
-        // 1. Database connection
         try {
             DB::connection()->getPdo();
             $diagnostics['database_connection'] = [
@@ -28,39 +45,71 @@ class DiagnosticController extends Controller
                 'database' => DB::connection()->getDatabaseName(),
                 'connection' => DB::connection()->getName(),
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $diagnostics['database_connection'] = [
                 'status' => 'failed',
                 'error' => $e->getMessage(),
             ];
+            $diagnostics['tables'] = [
+                'users' => null,
+                'roles' => null,
+                'permissions' => null,
+                'role_permissions' => null,
+                'note' => 'Skipped — DB unreachable',
+            ];
+            $diagnostics['seeded_accounts'] = [
+                'note' => 'Skipped — DB unreachable',
+            ];
+            $diagnostics['users'] = [
+                'total' => null,
+                'active' => null,
+                'note' => 'Skipped — DB unreachable',
+            ];
+            $diagnostics['user_list'] = [];
+
+            return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT);
         }
 
-        // 2. Check tables
-        $diagnostics['tables'] = [
-            'users' => Schema::hasTable('users'),
-            'roles' => Schema::hasTable('roles'),
-            'permissions' => Schema::hasTable('permissions'),
-            'role_permissions' => Schema::hasTable('role_permissions'),
-        ];
-
-        // 3. User count
-        $diagnostics['users'] = [
-            'total' => User::count(),
-            'active' => User::where('status', 'active')->count(),
-        ];
-
-        // 4. List users
-        $diagnostics['user_list'] = User::with('role')->get()->map(function ($user) {
-            return [
-                'email' => $user->email,
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'role' => $user->role?->slug,
-                'status' => $user->status,
-                'password_hash_length' => strlen($user->password),
+        try {
+            $diagnostics['tables'] = [
+                'users' => Schema::hasTable('users'),
+                'roles' => Schema::hasTable('roles'),
+                'permissions' => Schema::hasTable('permissions'),
+                'role_permissions' => Schema::hasTable('role_permissions'),
             ];
-        });
+        } catch (\Throwable $e) {
+            $diagnostics['tables'] = [
+                'error' => $e->getMessage(),
+            ];
+        }
 
-        // 5. Check seeded accounts
+        try {
+            $diagnostics['users'] = [
+                'total' => User::count(),
+                'active' => User::where('status', 'active')->count(),
+            ];
+        } catch (\Throwable $e) {
+            $diagnostics['users'] = [
+                'total' => null,
+                'active' => null,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        try {
+            $diagnostics['user_list'] = User::with('role')->limit(20)->get()->map(function ($user) {
+                return [
+                    'email' => $user->email,
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'role' => $user->role?->slug,
+                    'status' => $user->status,
+                    'password_hash_length' => strlen($user->password),
+                ];
+            });
+        } catch (\Throwable $e) {
+            $diagnostics['user_list'] = ['error' => $e->getMessage()];
+        }
+
         $seededEmails = [
             'admin@lms.local',
             'instructor@lms.local',
@@ -68,24 +117,17 @@ class DiagnosticController extends Controller
             'johncedrickdayandante6@gmail.com',
         ];
 
-        $diagnostics['seeded_accounts'] = [];
-        foreach ($seededEmails as $email) {
-            $user = User::where('email', $email)->first();
-            $diagnostics['seeded_accounts'][$email] = [
-                'exists' => $user !== null,
-                'password_valid' => $user ? \Illuminate\Support\Facades\Hash::check('Password123!', $user->password) : false,
-            ];
+        try {
+            foreach ($seededEmails as $email) {
+                $user = User::where('email', $email)->first();
+                $diagnostics['seeded_accounts'][$email] = [
+                    'exists' => $user !== null,
+                    'password_valid' => $user ? \Illuminate\Support\Facades\Hash::check('Password123!', $user->password) : false,
+                ];
+            }
+        } catch (\Throwable $e) {
+            $diagnostics['seeded_accounts']['error'] = $e->getMessage();
         }
-
-        // 6. Environment info
-        $diagnostics['environment'] = [
-            'app_env' => config('app.env'),
-            'app_debug' => config('app.debug'),
-            'app_url' => config('app.url'),
-            'db_connection' => config('database.default'),
-            'db_host' => config('database.connections.' . config('database.default') . '.host'),
-            'db_database' => config('database.connections.' . config('database.default') . '.database'),
-        ];
 
         return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT);
     }

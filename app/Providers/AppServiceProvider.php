@@ -71,7 +71,74 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $sessionDriver = $this->app['config']->get('session.driver', 'file');
+        $cacheDefault = $this->app['config']->get('cache.default', 'file');
+
+        $dbDrivers = ['database', 'dynamodb', 'memcached', 'redis'];
+        $sessionDbBacked = in_array($sessionDriver, $dbDrivers, true);
+        $cacheDbBacked = in_array($cacheDefault, $dbDrivers, true);
+
+        if (! $sessionDbBacked && ! $cacheDbBacked) {
+            return;
+        }
+
+        $dbReachable = $this->isDatabaseReachable();
+
+        if ($sessionDbBacked && ! $dbReachable) {
+            $fallback = env('SESSION_FALLBACK_DRIVER', 'file');
+            $this->app['config']->set('session.driver', $fallback);
+        }
+
+        if ($cacheDbBacked && ! $dbReachable) {
+            $fallback = env('CACHE_FALLBACK_STORE', 'file');
+            $this->app['config']->set('cache.default', $fallback);
+        }
+    }
+
+    private function isDatabaseReachable(): bool
+    {
+        $defaultConn = env('DB_CONNECTION', 'mysql');
+        $config = $this->app['config']->get("database.connections.$defaultConn");
+        if (! is_array($config)) {
+            return false;
+        }
+
+        $host = $config['host'] ?? '127.0.0.1';
+        $port = (int) ($config['port'] ?? 3306);
+        $timeoutS = (int) ini_get('default_socket_timeout') ?: 3;
+        $timeoutUs = min($timeoutS, 2) * 1000000;
+
+        if ($host === '' || $host === null) {
+            return false;
+        }
+
+        if (str_contains($host, '/')) {
+            $errno = 0;
+            $errstr = '';
+            $fp = @stream_socket_client(
+                'unix://'.$host,
+                $errno,
+                $errstr,
+                2
+            );
+            if (is_resource($fp)) {
+                fclose($fp);
+                return true;
+            }
+
+            return false;
+        }
+
+        $fp = @fsockopen($host, $port, $errno, $errstr, 0);
+        if (! is_resource($fp)) {
+            return false;
+        }
+
+        stream_set_timeout($fp, 0, $timeoutUs);
+        $meta = stream_get_meta_data($fp);
+        fclose($fp);
+
+        return empty($meta['timed_out']);
     }
 
     public function boot(): void
