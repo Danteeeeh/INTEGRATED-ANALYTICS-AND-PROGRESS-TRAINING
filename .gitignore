@@ -49,3 +49,5 @@ Thumbs.db
 !/storage/app/.gitignore
 
 /dist
+storage/framework/views/*
+storage/framework/views/*
