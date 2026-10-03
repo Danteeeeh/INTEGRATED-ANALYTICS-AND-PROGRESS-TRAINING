@@ -91,7 +91,41 @@ Set health check path to:
    Replace `<YOUR_APP_KEY>` with your actual APP_KEY from environment variables
 5. Test the application at `https://lms-lms-2.hostforgeplatforms.com`
 
-## 🐛 If Still Failing After Database Fix
+## � Fixing Deployment Sync Issues
+
+If HostForge is not pulling the latest changes from GitHub:
+
+### 1. Check GitHub Connection
+- Go to HostForge dashboard → Your application → Settings
+- Verify GitHub repository is connected: `Danteeeeh/INTEGRATED-ANALYTICS-AND-PROGRESS-TRAINING`
+- Verify branch is set to: `master`
+- If not connected, click "Connect Repository" and select the correct repo
+
+### 2. Check Working Directory
+- If your app is in a subdirectory, set the working directory to: `lms/`
+- This tells HostForge where the Laravel app is located
+
+### 3. Enable Auto-Deploy
+- Go to deployment settings
+- Enable "Automatic Deployment" or "Auto-deploy on push"
+- This will trigger deployment when you push to GitHub
+
+### 4. Manual Deploy if Auto-Deploy is Disabled
+- Go to HostForge dashboard
+- Click "Deployments" or "Build & Deploy"
+- Click "Redeploy" or "Deploy latest commit"
+- Monitor the deployment logs
+
+### 5. Clear Route Cache After Deployment
+- Add to release command: `php artisan route:clear`
+- Or run manually: `php artisan route:clear`
+
+### 6. Verify Deployment Status
+- Check deployment logs for errors
+- Verify the commit hash matches your latest GitHub commit
+- Test the `/up` health check endpoint
+
+## �🐛 If Still Failing After Database Fix
 
 Check for these common issues:
 
