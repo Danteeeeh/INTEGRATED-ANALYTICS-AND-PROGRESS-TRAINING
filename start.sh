@@ -5,6 +5,12 @@
 
 echo "Starting application..."
 
+# Ensure .env file exists
+if [ ! -f .env ]; then
+    echo "Creating .env file from .env.example..."
+    cp .env.example .env
+fi
+
 # Ensure storage directories exist
 mkdir -p storage/framework/cache
 mkdir -p storage/framework/sessions

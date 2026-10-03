@@ -3,6 +3,16 @@
 # Release script for HostForge deployment
 # This runs after the build is complete
 
+# Create .env file from environment variables if it doesn't exist
+if [ ! -f .env ]; then
+    cp .env.example .env
+fi
+
+# Generate application key if not set
+if [ -z "$APP_KEY" ]; then
+    php artisan key:generate --ansi
+fi
+
 # Discover packages (moved from composer.json to avoid build errors)
 php artisan package:discover --ansi
 
