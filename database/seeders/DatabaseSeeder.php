@@ -12,8 +12,8 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             PermissionSeeder::class,
             UserSeeder::class,
-            PhaseTwoSeeder::class,
-            DemoDataSeeder::class,
+            // PhaseTwoSeeder::class, // Temporarily disabled due to deployment sync issues
+            // DemoDataSeeder::class,
             // Commented out problematic seeders that require sections/programs
             // BulkFiftySeeder::class,
             // BulkFiftyTwoSeeder::class,
