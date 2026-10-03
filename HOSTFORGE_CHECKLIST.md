@@ -55,8 +55,18 @@ This is likely causing the "Unknown database" error.
 ### 1. Release Command
 Make sure the release command is set to:
 ```
-php artisan migrate --force
+bash release.sh
 ```
+
+This will run the release.sh script which includes:
+- php artisan storage:link (for file uploads)
+- php artisan migrate --force (database migrations)
+- php artisan config:cache
+- php artisan route:cache
+- php artisan view:cache
+- php artisan cache:clear
+- php artisan session:clear
+- chmod -R 775 storage bootstrap/cache (permissions)
 
 ### 2. Build Command
 Make sure the build command is set to:
@@ -67,8 +77,13 @@ npm install && npm run build
 ### 3. Start Command
 Make sure the start command is (or Procfile is used):
 ```
-php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"
+bash start.sh
 ```
+
+The start.sh script will:
+- Create necessary storage directories
+- Set proper permissions
+- Start the application on the correct PORT
 
 ### 4. Health Check Path
 Set health check path to:
