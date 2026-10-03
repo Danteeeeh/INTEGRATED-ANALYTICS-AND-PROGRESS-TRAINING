@@ -69,7 +69,7 @@ class DashboardController extends Controller
             'published_quizzes' => Quiz::where('quizzes.status', 'published')->count(),
             'quiz_attempts' => QuizAttempt::count(),
             'quiz_completion_rate' => $this->calculateQuizCompletionRate(),
-            'average_quiz_score' => QuizAttempt::whereNotNull('score')->avg('score') ?? 0,
+            'average_quiz_score' => QuizAttempt::whereNotNull('score_percent')->avg('score_percent') ?? 0,
 
             // Course Completion
             'total_completions' => CourseCompletion::count(),
@@ -246,7 +246,7 @@ class DashboardController extends Controller
             'published_quizzes' => Quiz::where('quizzes.status', 'published')->count(),
             'quiz_attempts' => QuizAttempt::count(),
             'quiz_completion_rate' => $this->calculateQuizCompletionRate(),
-            'average_quiz_score' => QuizAttempt::whereNotNull('score')->avg('score') ?? 0,
+            'average_quiz_score' => QuizAttempt::whereNotNull('score_percent')->avg('score_percent') ?? 0,
 
             // Course Completion
             'total_completions' => CourseCompletion::count(),
@@ -426,7 +426,7 @@ class DashboardController extends Controller
             'attendance_rate' => VirtualClass::withCount('attendees')
                 ->get()
                 ->avg(function ($class) {
-                    return $class->attendees_count / max($class->enrollments()->count(), 1) * 100;
+                    return $class->attendees_count / max(VirtualClassAttendee::where('virtual_class_id', $class->id)->count(), 1) * 100;
                 }) ?? 0,
         ];
     }

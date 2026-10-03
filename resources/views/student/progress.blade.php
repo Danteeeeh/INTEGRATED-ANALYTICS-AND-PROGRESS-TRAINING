@@ -121,29 +121,27 @@
             <span class="dash-section-kicker">Your learning activity over the past 7 days</span>
         </div>
     </div>
-    <div class="card">
-        <div class="card-body">
-            <div class="activity-chart">
-                @foreach($weeklyActivity as $day)
-                    <div class="activity-day">
-                        <div class="activity-label">{{ $day['date'] }}</div>
-                        <div class="activity-bars">
-                            <div class="activity-bar" style="height: {{ min($day['lessons_completed'] * 20, 100) }}%" title="{{ $day['lessons_completed'] }} lessons">
-                                <span>{{ $day['lessons_completed'] }}</span>
-                            </div>
-                            <div class="activity-bar" style="height: {{ min($day['quizzes_taken'] * 20, 100) }}%" title="{{ $day['quizzes_taken'] }} quizzes">
-                                <span>{{ $day['quizzes_taken'] }}</span>
-                            </div>
+    <section class="student-activity-panel" aria-label="Weekly learning activity">
+        <div class="activity-chart">
+            @foreach($weeklyActivity as $day)
+                <div class="activity-day">
+                    <div class="activity-label">{{ $day['date'] }}</div>
+                    <div class="activity-bars">
+                        <div class="activity-bar activity-bar--lessons" style="height: {{ min($day['lessons_completed'] * 20, 100) }}%" title="{{ $day['lessons_completed'] }} lessons">
+                            <span>{{ $day['lessons_completed'] }}</span>
+                        </div>
+                        <div class="activity-bar activity-bar--quizzes" style="height: {{ min($day['quizzes_taken'] * 20, 100) }}%" title="{{ $day['quizzes_taken'] }} quizzes">
+                            <span>{{ $day['quizzes_taken'] }}</span>
                         </div>
                     </div>
-                @endforeach
-            </div>
-            <div class="activity-legend">
-                <span class="legend-item"><span class="legend-color lessons"></span> Lessons Completed</span>
-                <span class="legend-item"><span class="legend-color quizzes"></span> Quizzes Taken</span>
-            </div>
+                </div>
+            @endforeach
         </div>
-    </div>
+        <div class="activity-legend">
+            <span class="legend-item"><span class="legend-color lessons"></span> Lessons Completed</span>
+            <span class="legend-item"><span class="legend-color quizzes"></span> Quizzes Taken</span>
+        </div>
+    </section>
 
     {{-- ═══ COMPLETION TIMELINE ═══ --}}
     @if($completionTimeline)
@@ -153,21 +151,20 @@
                 <span class="dash-section-kicker">Courses you've completed</span>
             </div>
         </div>
-        <div class="card">
-            <div class="card-body">
-                <div class="timeline">
-                    @foreach($completionTimeline as $completion)
-                        <div class="timeline-item">
-                            <div class="timeline-date">{{ $completion['completed_at'] }}</div>
-                            <div class="timeline-content">
-                                <h4>{{ $completion['course'] }}</h4>
-                                <span class="badge badge--success">{{ $completion['completion_percent'] }}% complete</span>
-                            </div>
+        <section class="student-timeline-panel">
+            <div class="student-timeline">
+                @foreach($completionTimeline as $completion)
+                    <article class="student-timeline-item">
+                        <span class="student-timeline-dot" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+                        <div>
+                            <span class="student-timeline-date">{{ $completion['completed_at'] }}</span>
+                            <h4>{{ $completion['course'] }}</h4>
                         </div>
-                    @endforeach
-                </div>
+                        <span class="user-status completed">{{ $completion['completion_percent'] }}% complete</span>
+                    </article>
+                @endforeach
             </div>
-        </div>
+        </section>
     @endif
 </div>
 @endsection

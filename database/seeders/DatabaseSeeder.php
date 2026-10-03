@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             PhaseTwoSeeder::class, // Re-enabled - now uses firstOrCreate to avoid duplicates
             DemoDataSeeder::class, // Re-enabled - depends on PhaseTwoSeeder
-            // BulkFiftySeeder::class, // Still disabled - requires sections/programs from school hierarchy
+            // BulkFiftySeeder::class, // Permanently disabled - HostForge deployment sync issues
             // BulkFiftyTwoSeeder::class,
             // FiftyTopUpSeeder::class,
             // FiftyTopUpTwoSeeder::class,

@@ -425,8 +425,8 @@
                                 <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
                             </div>
                             <div class="dash-list-meta">
-                                <span class="dash-meta-chip m-blue">{{ $vc->start_time?->format('M j, g:i A') }}</span>
-                                <span class="dash-list-date">{{ $vc->start_time?->diffForHumans() }}</span>
+                                <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
+                                <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
                             </div>
                         </a>
                     </li>

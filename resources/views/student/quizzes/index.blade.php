@@ -40,7 +40,7 @@
                         <div class="user-actions" style="justify-content:space-between">
                             <span class="user-status">
                                 @if($quiz->time_limit_minutes){{ $quiz->time_limit_minutes }} min · @endif
-                                @if($attempted)Best {{ number_format($best->score_percent ?? $best->score ?? 0, 1) }}%@else{{ $quiz->questions->count() }} questions@endif
+                                @if($attempted)Best {{ number_format($best->score_percent ?? $best->score ?? 0, 1) }}% @else {{ $quiz->questions->count() }} questions @endif
                             </span>
                             <a href="{{ route('student.courses.quizzes.show', [$course, $quiz]) }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-eye"></i> Open</a>
                         </div>

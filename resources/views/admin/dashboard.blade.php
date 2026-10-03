@@ -41,7 +41,7 @@
             label="Students"
             value="{{ $stats['total_students'] ?? 0 }}"
             icon="fa-user-graduate"
-            trend="{{ $stats['active_users'] ?? 0 }} active"
+            trend="{{ $stats['total_students'] ?? 0 }} active students"
             footer="{{ $stats['pending_users'] ?? 0 }} pending accounts"
         />
         <x-user-stat-card
@@ -55,7 +55,7 @@
             label="Classes"
             value="{{ $stats['total_classes'] ?? 0 }}"
             icon="fa-school"
-            trend="{{ $stats['active_classes'] ?? 0 }} running"
+            trend="{{ $stats['active_classes'] ?? 0 }} active"
             footer="{{ $stats['total_courses'] ?? 0 }} courses"
         />
         <x-user-stat-card

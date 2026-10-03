@@ -133,5 +133,22 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('formatFileSize', function ($bytes) {
             return "<?php echo \\App\\Helpers\\FileHelper::formatFileSize($bytes); ?>";
         });
+
+        // Share unread notifications with every view (admin/instructor/student shell)
+        view()->composer('*', function ($view) {
+            $user = auth()->user();
+            if (! $user) {
+                $view->with('sharedUnreadNotifications', collect());
+                $view->with('sharedUnreadCount', 0);
+                return;
+            }
+            $unread = Notification::where('user_id', $user->id)
+                ->whereNull('read_at')
+                ->orderByDesc('created_at')
+                ->limit(10)
+                ->get();
+            $view->with('sharedUnreadNotifications', $unread);
+            $view->with('sharedUnreadCount', Notification::where('user_id', $user->id)->whereNull('read_at')->count());
+        });
     }
 }

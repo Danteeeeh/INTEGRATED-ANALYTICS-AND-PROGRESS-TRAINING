@@ -41,7 +41,9 @@ class ProgressController extends Controller
                     ->first();
 
                 $moduleProgress = ModuleProgress::where('student_id', $studentId)
-                    ->where('class_id', $enrollment->class_id)
+                    ->whereHas('module', function ($query) use ($course) {
+                        $query->where('course_id', $course->id);
+                    })
                     ->with('module')
                     ->get();
 
@@ -74,7 +76,9 @@ class ProgressController extends Controller
         $classIds = $activeEnrollments->pluck('class_id');
         $totalAssignments = Assignment::whereIn('class_id', $classIds)->count();
         $submittedAssignments = AssignmentSubmission::where('student_id', $studentId)
-            ->whereIn('class_id', $classIds)
+            ->whereHas('assignment', function ($query) use ($classIds) {
+                $query->whereIn('class_id', $classIds);
+            })
             ->count();
         $assignmentProgress = $totalAssignments > 0 
             ? ($submittedAssignments / $totalAssignments) * 100 
@@ -83,7 +87,7 @@ class ProgressController extends Controller
         // Quiz progress
         $totalQuizzes = \App\Models\Quiz::whereIn('class_id', $classIds)->count();
         $quizAttempts = QuizAttempt::where('student_id', $studentId)
-            ->whereInHas('quiz', function ($query) use ($classIds) {
+            ->whereHas('quiz', function ($query) use ($classIds) {
                 $query->whereIn('class_id', $classIds);
             })
             ->count();
@@ -123,7 +127,11 @@ class ProgressController extends Controller
             'overallProgress',
             'totalCourses',
             'assignmentProgress',
+            'submittedAssignments',
+            'totalAssignments',
             'quizProgress',
+            'quizAttempts',
+            'totalQuizzes',
             'recentGrades',
             'averageGrade',
             'learningStreak',

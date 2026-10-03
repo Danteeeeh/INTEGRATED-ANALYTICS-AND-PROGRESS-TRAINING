@@ -16,20 +16,43 @@ class LessonController extends Controller
 {
     public function __construct(private ReorderService $reorder) {}
 
-    public function index(Module $module, Request $request): View
+    public function index(?Module $module, Request $request): View
     {
         $this->authorize('viewAny', Lesson::class);
-        $this->authorize('view', $module);
 
-        $query = Lesson::where('module_id', $module->id)->with('materials');
+        // Standalone /admin/lessons has no {module}: only treat as course-context
+        // when the module id actually came from the route (not an empty instance).
+        $hasRouteModule = $module !== null && $module->exists;
 
+        $query = Lesson::with(['module.course', 'materials'])->withCount('materials');
+
+        if ($hasRouteModule) {
+            $this->authorize('view', $module);
+            $query->where('module_id', $module->id);
+        }
+
+        // Standalone filters
+        if ($request->filled('module_id')) {
+            $query->where('module_id', $request->module_id);
+        }
+        if ($request->filled('course_id')) {
+            $query->whereHas('module', fn ($q) => $q->where('course_id', $request->course_id));
+        }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        $lessons = $query->orderBy('position')->orderBy('id')->paginate(20);
+        $lessons = $query->orderBy('module_id')->orderBy('position')->orderBy('id')->paginate(20);
 
-        return view('admin.lessons.index', compact('module', 'lessons'));
+        $modules = \App\Models\Module::with('course')->orderBy('title')->get(['id', 'title', 'course_id']);
+        $courses = \App\Models\Course::orderBy('code')->get(['id', 'code', 'title']);
+
+        // For the standalone page, the view must not see an empty Module instance.
+        if (! $hasRouteModule) {
+            $module = null;
+        }
+
+        return view('admin.lessons.index', compact('module', 'lessons', 'modules', 'courses'));
     }
 
     public function create(Module $module): View

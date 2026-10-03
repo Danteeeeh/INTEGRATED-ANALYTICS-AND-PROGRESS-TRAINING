@@ -34,6 +34,10 @@ Seeded accounts (password for all: `Password123!`):
 php artisan test
 ```
 
+For production deployment, provision a managed MySQL/MariaDB database and
+configure the hosting environment variables before running migrations. See
+[DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Security: login lockout, inactivity logout, Gmail SMTP
 
 ### Account lockout (brute-force protection)

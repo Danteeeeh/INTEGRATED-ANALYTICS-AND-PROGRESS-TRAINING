@@ -31,6 +31,7 @@
                 <i class="fa-solid fa-sun"></i>
             </button>
             @auth
+                <x-notification-bell />
                 @if(auth()->user()->isAdmin())
                     <form class="search-wrap" id="globalTopSearch" action="{{ route('admin.search') }}" method="GET" role="search">
                         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -151,6 +152,49 @@
 @yield('notifications')
 
 <script>
+// Notification bell (shared across layouts)
+document.addEventListener('DOMContentLoaded', function () {
+    const bellWrap = document.getElementById('notifBellWrap');
+    const bellBtn = document.getElementById('notifBellBtn');
+    const dropdown = document.getElementById('notifDropdown');
+    if (!bellWrap || !bellBtn || !dropdown) return;
+    bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const open = bellWrap.classList.toggle('open');
+        bellBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (e) {
+        if (!bellWrap.contains(e.target)) {
+            bellWrap.classList.remove('open');
+            bellBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            bellWrap.classList.remove('open');
+            bellBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+});
+function openNotification(e, id) {
+    e.preventDefault();
+    fetch('/notifications/' + id + '/read', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+    }).then(function (res) {
+        if (res.ok) window.location.href = e.currentTarget.getAttribute('href') || '#';
+    }).catch(function () {
+        window.location.href = e.currentTarget.getAttribute('href') || '#';
+    });
+}
+function markAllNotificationsRead(e) {
+    if (e) e.preventDefault();
+    fetch('/notifications/read-all', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+    }).then(function () { window.location.reload(); });
+}
+
 // Sidebar toggle functionality
 document.addEventListener('DOMContentLoaded', function() {
     const hamburgerBtn = document.getElementById('hamburgerBtn');

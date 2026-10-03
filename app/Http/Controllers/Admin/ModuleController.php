@@ -20,7 +20,7 @@ class ModuleController extends Controller
     {
         $this->authorize('viewAny', Module::class);
 
-        $query = Module::with(['course', 'lessons']);
+        $query = Module::with(['course', 'lessons'])->withCount('lessons');
 
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->course_id);
