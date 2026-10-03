@@ -14,6 +14,12 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             PhaseTwoSeeder::class,
             DemoDataSeeder::class,
+            // Commented out problematic seeders that require sections/programs
+            // BulkFiftySeeder::class,
+            // BulkFiftyTwoSeeder::class,
+            // FiftyTopUpSeeder::class,
+            // FiftyTopUpTwoSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }
