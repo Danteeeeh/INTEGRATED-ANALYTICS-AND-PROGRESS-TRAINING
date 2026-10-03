@@ -38,10 +38,6 @@ return Application::configure(basePath: dirname(__DIR__))
             '127.0.0.1',
         ]);
 
-        if (str_starts_with(env('APP_URL', ''), 'https://')) {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
-        }
-
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'permission' => EnsureUserHasPermission::class,
