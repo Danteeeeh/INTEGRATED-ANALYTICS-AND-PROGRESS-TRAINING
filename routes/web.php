@@ -83,8 +83,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 
-Route::get('/up', fn () => response()->noContent(200));
-
 Route::get('/diagnostic', [DiagnosticController::class, 'index'])->name('diagnostic');
 
 Route::get('/certificate/verify/{code}', [CertificateController::class, 'verify'])->name('certificate.verify');

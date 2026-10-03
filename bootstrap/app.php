@@ -16,12 +16,30 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\ThrottleRequestsException;
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance;
+use Illuminate\Support\Facades\Route;
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
+        using: function () {
+            Route::get('/up', function () {
+                if (function_exists('fastcgi_finish_request') && PHP_SAPI === 'fpm-fcgi') {
+                    fastcgi_finish_request();
+                }
+
+                return response('', 204);
+            });
+
+            PreventRequestsDuringMaintenance::except(['/up']);
+
+            Route::middleware('api')
+                ->prefix('api')
+                ->group(__DIR__.'/../routes/api.php');
+
+            Route::middleware('web')
+                ->group(__DIR__.'/../routes/web.php');
+        },
         commands: __DIR__.'/../routes/console.php',
-        health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
