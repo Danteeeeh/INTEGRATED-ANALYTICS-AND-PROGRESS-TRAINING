@@ -84,7 +84,12 @@ Set health check path to:
    - Database connection success
    - Migration completion
    - Web server startup
-4. Test the application at `https://lms-lms-2.hostforgeplatforms.com`
+4. Run diagnostic via browser to verify database status:
+   ```
+   https://lms-lms-2.hostforgeplatforms.com/diagnostic?secret=<YOUR_APP_KEY>
+   ```
+   Replace `<YOUR_APP_KEY>` with your actual APP_KEY from environment variables
+5. Test the application at `https://lms-lms-2.hostforgeplatforms.com`
 
 ## 🐛 If Still Failing After Database Fix
 
