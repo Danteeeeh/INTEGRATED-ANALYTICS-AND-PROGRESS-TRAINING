@@ -14,8 +14,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             // PhaseTwoSeeder::class, // Temporarily disabled due to deployment sync issues
             // DemoDataSeeder::class,
-            // Commented out problematic seeders that require sections/programs
-            // BulkFiftySeeder::class,
+            // BulkFiftySeeder::class, // Temporarily disabled due to deployment sync issues
             // BulkFiftyTwoSeeder::class,
             // FiftyTopUpSeeder::class,
             // FiftyTopUpTwoSeeder::class,

@@ -59,6 +59,12 @@ class BulkFiftySeeder extends Seeder
             return;
         }
 
+        // Skip seeding if departments or programs don't exist
+        if (!$deptId || !$programId) {
+            $this->command?->warn('BulkFifty: No departments or programs found, skipping student creation.');
+            return;
+        }
+
         $firstNames = ['Maria', 'Jose', 'Juan', 'Ana', 'Rosa', 'Carlo', 'Dennis', 'Erika', 'Paolo', 'Liza', 'Marco', 'Bianca', 'Rafael', 'Sofia', 'Gabriel', 'Andrea', 'Miguel', 'Camille', 'Luis', 'Patricia', 'Andres', 'Nina', 'Ramon', 'Jasmine', 'Victor', 'Kyla', 'Emilio', 'Teresa', 'Noah', 'Angela', 'Ivan', 'Bea', 'Samuel', 'Clarissa', 'Oscar', 'Diane', 'Felix', 'Giselle', 'Hector', 'Iris', 'Jerome', 'Katrina', 'Leo', 'Mia', 'Nestor', 'Olivia', 'Pedro', 'Queen', 'Rico', 'Samantha'];
         $lastNames = ['Santos', 'Reyes', 'Garcia', 'Cruz', 'Mendoza', 'Bautista', 'Villanueva', 'Torres', 'Flores', 'Ramos', 'Aquino', 'Navarro', 'Domingo', 'Del Rosario', 'Salazar', 'Manalo', 'Pascual', 'Ocampo', 'Valdez', 'Corpuz', 'Lopez', 'Rivera', 'Castillo', 'Gutierrez', 'Ferrer', 'Marcelo', 'Alvarez', 'Padilla', 'Villamor', 'Dizon', 'Sy', 'Tan', 'Lim', 'Chua', 'Co', 'Uy', 'Ang', 'Yu', 'Go', 'Ong', 'Castro', 'Luna', 'Roxas', 'Morales', 'Agbayani', 'Tolentino', 'Buenaventura', 'Cortez', 'Mallari', 'Sison'];
 
