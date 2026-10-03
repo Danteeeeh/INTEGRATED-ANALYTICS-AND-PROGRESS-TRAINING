@@ -109,3 +109,12 @@ Error: Frontend assets not loading (404 on CSS/JS)
 Error: `/up` returns 404 or 500
 - Cause: Health check route not configured or web server not starting
 - Fix: Ensure `/up` route exists in routes/web.php and Procfile is correct
+
+### Login Fails with "These credentials do not match our records"
+Error: Login fails even with correct credentials
+- Cause: Database migrations didn't run or seeders didn't create user accounts
+- Fix: Run diagnostics and fix database:
+  ```bash
+  php artisan db:diagnose
+  php artisan migrate --force --seed
+  ```
