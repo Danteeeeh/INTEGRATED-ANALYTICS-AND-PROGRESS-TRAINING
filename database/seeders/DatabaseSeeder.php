@@ -12,9 +12,9 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             PermissionSeeder::class,
             UserSeeder::class,
-            // PhaseTwoSeeder::class, // Temporarily disabled due to deployment sync issues
-            // DemoDataSeeder::class,
-            // BulkFiftySeeder::class, // Temporarily disabled due to deployment sync issues
+            PhaseTwoSeeder::class, // Re-enabled - now uses firstOrCreate to avoid duplicates
+            DemoDataSeeder::class, // Re-enabled - depends on PhaseTwoSeeder
+            // BulkFiftySeeder::class, // Still disabled - requires sections/programs from school hierarchy
             // BulkFiftyTwoSeeder::class,
             // FiftyTopUpSeeder::class,
             // FiftyTopUpTwoSeeder::class,
