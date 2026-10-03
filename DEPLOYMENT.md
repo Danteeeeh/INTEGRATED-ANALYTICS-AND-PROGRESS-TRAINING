@@ -59,8 +59,11 @@ addresses point back to the app container, where MySQL is not running.
    (the local-development default) does not deliver email. Never commit
    database, app-key, or mail credentials.
 4. Confirm the database accepts connections from the app and the database user
-   can create and alter tables. Keep the HostForge release command set to
-   `php artisan migrate --force`.
+   can create and alter tables. Keep the HostForge release command set to:
+
+   ```sh
+   php artisan migrate --force --seed && php artisan route:clear && php artisan config:clear && php artisan cache:clear
+   ```
 5. Redeploy. The `/up` health check should pass when the web process is
    listening on the assigned port. The release command should complete
    migrations once the database connection is correct.
