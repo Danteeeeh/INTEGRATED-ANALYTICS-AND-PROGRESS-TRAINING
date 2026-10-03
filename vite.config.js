@@ -21,6 +21,7 @@ export default defineConfig({
                 'resources/css/gradebook-ui.css',
                 'resources/css/role-admin-parity.css',
                 'resources/css/user-ui-system.css',
+                'resources/css/student-progress-ui.css',
                 'resources/css/lms-polish.css',
                 'resources/css/sidebar-layout-fix.css',
             ],
@@ -28,7 +29,7 @@ export default defineConfig({
         }),
     ],
     build: {
-        outDir: 'dist',
+        outDir: 'public/build',
         emptyOutDir: true,
     },
 });

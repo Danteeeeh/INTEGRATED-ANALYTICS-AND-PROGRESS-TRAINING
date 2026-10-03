@@ -33,8 +33,16 @@ use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VirtualClassController as AdminVirtualClassController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+
+// Shared notification bell endpoints (all roles)
+Route::middleware('auth')->group(function () {
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+});
 
 Route::get('/files/{mediaFile}/serve', [FileController::class, 'serve'])->name('files.serve')->middleware('activity');
 use App\Http\Controllers\Admin\FeedbackController;
@@ -73,6 +81,8 @@ use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
+
+Route::get('/up', fn () => response()->noContent(200));
 
 Route::get('/certificate/verify/{code}', [CertificateController::class, 'verify'])->name('certificate.verify');
 
