@@ -28,7 +28,7 @@ class QuizController extends Controller
             ->orWhere(function ($q) use ($course) {
                 $q->whereHas('lesson.module.course', fn ($q2) => $q2->where('id', $course->id));
             })
-            ->with(['class', 'module', 'lesson', 'questions', 'attempts'])
+            ->with(['class.course', 'module.course', 'lesson.module.course', 'questions', 'attempts'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
