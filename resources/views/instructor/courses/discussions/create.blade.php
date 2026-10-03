@@ -182,13 +182,37 @@
                     </div>
 
                     <div class="cc-field">
-                        <label>Discussion Type</label>
-                        <select name="discussion_type">
+                        <label>Discussion Type <span class="req">*</span></label>
+                        <select name="discussion_type" required>
                             @foreach($discussionTypes as $key => $label)
                                 <option value="{{ $key }}" {{ old('discussion_type') == $key ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
                         @error('discussion_type')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+
+                    <div class="cc-field">
+                        <label>Status <span class="req">*</span></label>
+                        <select name="status" required>
+                            <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                            <option value="published" {{ old('status') == 'published' ? 'selected' : '' }}>Published</option>
+                            <option value="archived" {{ old('status') == 'archived' ? 'selected' : '' }}>Archived</option>
+                        </select>
+                        @error('status')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+
+                    <div class="cc-field">
+                        <label>&nbsp;</label>
+                        <div style="display: flex; gap: 16px; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="is_pinned" value="1" {{ old('is_pinned') ? 'checked' : '' }}>
+                                <span>Pin Discussion</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="is_locked" value="1" {{ old('is_locked') ? 'checked' : '' }}>
+                                <span>Lock Discussion</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -144,9 +144,11 @@ class AssignmentController extends Controller
 
         $validated = $request->validate([
             'submission_text' => $assignment->submission_type === Assignment::TYPE_TEXT ? 'required|string' : 'nullable|string',
-            'files' => $assignment->submission_type === Assignment::TYPE_FILE || $assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES
-                ? 'required'
-                : 'nullable',
+            'files' => $assignment->submission_type === Assignment::TYPE_FILE
+                ? 'required|file|max:10240'
+                : ($assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES
+                    ? 'required|array|min:1'
+                    : 'nullable'),
             'files.*' => $assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES ? 'file|max:10240' : 'file|max:10240',
         ]);
 
@@ -161,7 +163,11 @@ class AssignmentController extends Controller
         ]);
 
         if ($request->hasFile('files')) {
-            foreach ($request->file('files') as $file) {
+            $files = $request->file('files');
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+            foreach ($files as $file) {
                 $originalName = $file->getClientOriginalName();
                 $path = $file->storeAs(
                     "assignments/{$assignment->id}/submissions/{$submission->id}",

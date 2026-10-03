@@ -86,8 +86,8 @@ class AssignmentController extends Controller
 
         $validated['created_by'] = auth()->id();
         $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
-        $validated['allow_late'] = $validated['allow_late'] ?? false;
-        $validated['allow_resubmission'] = $validated['allow_resubmission'] ?? false;
+        $validated['allow_late'] = isset($validated['allow_late']);
+        $validated['allow_resubmission'] = isset($validated['allow_resubmission']);
 
         Assignment::create($validated);
 
@@ -154,8 +154,8 @@ class AssignmentController extends Controller
             abort_if(! $class || $class->instructor_id !== auth()->id(), 403);
         }
 
-        $validated['allow_late'] = $validated['allow_late'] ?? false;
-        $validated['allow_resubmission'] = $validated['allow_resubmission'] ?? false;
+        $validated['allow_late'] = isset($validated['allow_late']);
+        $validated['allow_resubmission'] = isset($validated['allow_resubmission']);
 
         $assignment->update($validated);
 

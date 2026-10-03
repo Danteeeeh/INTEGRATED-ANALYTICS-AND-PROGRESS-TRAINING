@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureUserHasPermission;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackUserActivity;
+use App\Http\Middleware\TrustProxies;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -24,6 +25,22 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
+
+        $middleware->replace(
+            \Illuminate\Http\Middleware\TrustProxies::class,
+            TrustProxies::class
+        );
+
+        $middleware->trustHosts(at: [
+            'online-learning.bcpsms2.com',
+            '*.bcpsms2.com',
+            'localhost',
+            '127.0.0.1',
+        ]);
+
+        if (str_starts_with(env('APP_URL', ''), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
 
         $middleware->alias([
             'role' => EnsureUserHasRole::class,

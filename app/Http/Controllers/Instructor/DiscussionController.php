@@ -77,8 +77,8 @@ class DiscussionController extends Controller
         $validated['course_id'] = $course->id;
         $validated['created_by'] = auth()->id();
         $validated['slug'] = Str::slug($validated['title']).'-'.Str::lower(Str::random(8));
-        $validated['is_pinned'] = $validated['is_pinned'] ?? false;
-        $validated['is_locked'] = $validated['is_locked'] ?? false;
+        $validated['is_pinned'] = isset($validated['is_pinned']);
+        $validated['is_locked'] = isset($validated['is_locked']);
 
         Discussion::create($validated);
 

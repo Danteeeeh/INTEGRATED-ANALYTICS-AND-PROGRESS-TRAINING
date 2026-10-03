@@ -21,18 +21,20 @@
                 @csrf
 
                 <div class="form-grid">
-                    <div class="form-field full">
-                        <label>Your Answer <span class="required">*</span></label>
-                        <textarea name="content" rows="8" required placeholder="Write your submission here...">{{ old('content', $existingSubmission->content ?? '') }}</textarea>
-                        <span class="field-error">{{ $errors->first('content') }}</span>
-                    </div>
-
-                    <div class="form-field full">
-                        <label>Attach Files</label>
-                        <input type="file" name="files[]" multiple>
-                        <span class="field-error">{{ $errors->first('files') }}</span>
-                        <small class="user-email">You may attach one or more files.</small>
-                    </div>
+                    @if($assignment->submission_type === 'text')
+                        <div class="form-field full">
+                            <label>Your Answer <span class="required">*</span></label>
+                            <textarea name="submission_text" rows="8" required placeholder="Write your submission here...">{{ old('submission_text', $existingSubmission->submission_text ?? '') }}</textarea>
+                            <span class="field-error">{{ $errors->first('submission_text') }}</span>
+                        </div>
+                    @else
+                        <div class="form-field full">
+                            <label>Attach Files <span class="required">*</span></label>
+                            <input type="file" name="files[]" {{ $assignment->submission_type === 'file' ? '' : 'multiple' }} required>
+                            <span class="field-error">{{ $errors->first('files') }}</span>
+                            <small class="user-email">{{ $assignment->submission_type === 'file' ? 'Attach one file.' : 'You may attach one or more files.' }}</small>
+                        </div>
+                    @endif
                 </div>
 
                 @if($existingSubmission)

@@ -80,7 +80,7 @@ class AnnouncementController extends Controller
         }
 
         $validated['created_by'] = auth()->id();
-        $validated['is_pinned'] = $validated['is_pinned'] ?? false;
+        $validated['is_pinned'] = isset($validated['is_pinned']);
 
         Announcement::create($validated);
 
@@ -147,7 +147,7 @@ class AnnouncementController extends Controller
             $validated['class_id'] = null;
         }
 
-        $validated['is_pinned'] = $validated['is_pinned'] ?? false;
+        $validated['is_pinned'] = isset($validated['is_pinned']);
 
         $announcement->update($validated);
 
