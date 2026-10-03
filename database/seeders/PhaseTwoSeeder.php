@@ -13,36 +13,45 @@ class PhaseTwoSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create Academic Periods
-        $preliminary = AcademicPeriod::create([
-            'name' => 'Preliminary',
-            'code' => 'PRELIM',
-            'start_date' => '2024-09-01',
-            'end_date' => '2024-12-20',
-            'is_current' => true,
-            'is_enrollment_open' => true,
-            'description' => 'Preliminary grading period.',
-        ]);
+        // Create Academic Periods (using firstOrCreate to avoid duplicates)
+        $preliminary = AcademicPeriod::firstOrCreate(
+            ['code' => 'PRELIM'],
+            [
+                'name' => 'Preliminary',
+                'code' => 'PRELIM',
+                'start_date' => '2024-09-01',
+                'end_date' => '2024-12-20',
+                'is_current' => true,
+                'is_enrollment_open' => true,
+                'description' => 'Preliminary grading period.',
+            ]
+        );
 
-        $finals = AcademicPeriod::create([
-            'name' => 'Finals',
-            'code' => 'FINALS',
-            'start_date' => '2025-05-16',
-            'end_date' => '2025-08-15',
-            'is_current' => false,
-            'is_enrollment_open' => false,
-            'description' => 'Final grading period.',
-        ]);
+        $finals = AcademicPeriod::firstOrCreate(
+            ['code' => 'FINALS'],
+            [
+                'name' => 'Finals',
+                'code' => 'FINALS',
+                'start_date' => '2025-05-16',
+                'end_date' => '2025-08-15',
+                'is_current' => false,
+                'is_enrollment_open' => false,
+                'description' => 'Final grading period.',
+            ]
+        );
 
-        $midterm = AcademicPeriod::create([
-            'name' => 'Midterm',
-            'code' => 'MIDTERM',
-            'start_date' => '2025-01-15',
-            'end_date' => '2025-05-15',
-            'is_current' => false,
-            'is_enrollment_open' => false,
-            'description' => 'Midterm grading period.',
-        ]);
+        $midterm = AcademicPeriod::firstOrCreate(
+            ['code' => 'MIDTERM'],
+            [
+                'name' => 'Midterm',
+                'code' => 'MIDTERM',
+                'start_date' => '2025-01-15',
+                'end_date' => '2025-05-15',
+                'is_current' => false,
+                'is_enrollment_open' => false,
+                'description' => 'Midterm grading period.',
+            ]
+        );
 
         // Create Courses
         $courses = [
@@ -103,7 +112,10 @@ class PhaseTwoSeeder extends Seeder
 
         foreach ($courses as $course) {
             $course['created_by'] = $admin->id;
-            $createdCourses[$course['code']] = Course::create($course);
+            $createdCourses[$course['code']] = Course::firstOrCreate(
+                ['code' => $course['code']],
+                $course
+            );
         }
 
         // Get instructor
@@ -155,24 +167,25 @@ class PhaseTwoSeeder extends Seeder
 
         $createdClasses = [];
         foreach ($classes as $class) {
-            $createdClasses[] = ClassModel::create($class);
+            $createdClasses[] = ClassModel::firstOrCreate(
+                ['code' => $class['code']],
+                $class
+            );
         }
 
         // Get student
         $student = User::where('email', 'student@lms.local')->first();
 
-        // Create some enrollments for the student
-        Enrollment::create([
-            'student_id' => $student->id,
-            'class_id' => $createdClasses[0]->id, // CS101-01
-            'status' => 'active',
-        ]);
+        // Create some enrollments for the student (using firstOrCreate to avoid duplicates)
+        Enrollment::firstOrCreate(
+            ['student_id' => $student->id, 'class_id' => $createdClasses[0]->id],
+            ['status' => 'active']
+        );
 
-        Enrollment::create([
-            'student_id' => $student->id,
-            'class_id' => $createdClasses[2]->id, // MATH101-01
-            'status' => 'active',
-        ]);
+        Enrollment::firstOrCreate(
+            ['student_id' => $student->id, 'class_id' => $createdClasses[2]->id],
+            ['status' => 'active']
+        );
 
         $this->command->info('Phase 2 data seeded successfully!');
         $this->command->info('Created: 2 academic periods, 5 courses, 4 classes, 2 enrollments');
