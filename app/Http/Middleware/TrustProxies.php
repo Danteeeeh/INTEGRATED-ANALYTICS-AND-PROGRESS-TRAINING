@@ -15,11 +15,4 @@ class TrustProxies extends Middleware
         | Request::HEADER_X_FORWARDED_PROTO
         | Request::HEADER_X_FORWARDED_PREFIX
         | Request::HEADER_FORWARDED;
-
-    protected function setTrustedProxyIpAddresses(Request $request): void
-    {
-        // Trust all proxies when behind a CDN/Load Balancer
-        $this->proxies = '*';
-        parent::setTrustedProxyIpAddresses($request);
-    }
 }
