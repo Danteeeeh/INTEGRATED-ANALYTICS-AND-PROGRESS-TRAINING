@@ -24,6 +24,14 @@ class AttendanceController extends Controller
             $query->where('week_number', $request->week_number);
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('attendance_date')) {
+            $query->whereDate('attendance_date', $request->attendance_date);
+        }
+
         $attendanceRecords = $query->orderBy('attendance_date', 'desc')
             ->paginate(20);
 
