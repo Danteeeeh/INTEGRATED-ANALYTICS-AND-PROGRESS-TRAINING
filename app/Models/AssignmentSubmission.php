@@ -63,7 +63,7 @@ class AssignmentSubmission extends Model
         return $this->hasMany(SubmissionFile::class, 'assignment_submission_id');
     }
 
-    public function getGradeAttribute()
+    public function grade()
     {
         $gradeItem = GradeItem::where('related_type', Assignment::class)
             ->where('related_id', $this->assignment_id)
@@ -74,8 +74,12 @@ class AssignmentSubmission extends Model
         }
 
         return Grade::where('grade_item_id', $gradeItem->id)
-            ->where('student_id', $this->student_id)
-            ->first();
+            ->where('student_id', $this->student_id);
+    }
+
+    public function getGradeAttribute()
+    {
+        return $this->grade()?->first();
     }
 
     public function rubricAssessments(): HasMany
