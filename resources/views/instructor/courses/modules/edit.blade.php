@@ -5,6 +5,7 @@
     $activeNav = 'courses';
     $pageTitle = 'Edit Module';
     $pageIcon = '<i class="fa-solid fa-pen-to-square"></i>';
+    $module->load('attachments.mediaFile');
 @endphp
 
 @section('page-title-bar')
@@ -37,7 +38,7 @@
 
     <div class="form-card">
         <h3>Edit Module</h3>
-        <form method="POST" action="{{ route('instructor.courses.modules.update', [$course, $module]) }}">
+        <form method="POST" action="{{ route('instructor.courses.modules.update', [$course, $module]) }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div class="form-grid">
@@ -68,6 +69,40 @@
                 <div class="form-field full">
                     <label>Objectives / Learning Outcomes</label>
                     <textarea name="objectives" rows="3" placeholder="List the key learning objectives...">{{ old('objectives', $module->objectives) }}</textarea>
+                </div>
+
+                <div class="form-field full">
+                    <label>Upload Additional Files (Optional)</label>
+                    <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.txt">
+                    <span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: block;">Accepted formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, GIF, MP4, MP3, ZIP, TXT (Max 10MB per file)</span>
+                    @if($module->attachments->count() > 0)
+                        <div style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <strong style="font-size: 0.85rem; color: #1e293b;">Current Attachments:</strong>
+                            <div style="margin-top: 8px; display: grid; gap: 8px;">
+                                @foreach($module->attachments as $attachment)
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <i class="fa-solid fa-file" style="color: #64748b;"></i>
+                                            <span style="font-size: 0.85rem; color: #1e293b;">{{ $attachment->title ?? $attachment->mediaFile->file_name }}</span>
+                                            <span style="font-size: 0.75rem; color: #64748b;">({{ $attachment->mediaFile->extension ?? '—' }})</span>
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <a href="{{ $attachment->mediaFile->url }}" target="_blank" style="color: #3b82f6; text-decoration: none; font-size: 0.8rem;">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                            <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete this attachment?');" style="display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
             <div class="form-submit" style="display: flex; gap: 10px; justify-content: flex-end;">

@@ -352,6 +352,11 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::post('/{module}/publish', [InstructorModuleController::class, 'publish'])->name('publish');
                     Route::post('/{module}/unpublish', [InstructorModuleController::class, 'unpublish'])->name('unpublish');
 
+                    // Module attachments
+                    Route::post('/{module}/attachments', [InstructorModuleController::class, 'uploadAttachment'])->name('attachments.upload');
+                    Route::delete('/{module}/attachments/{attachment}', [InstructorModuleController::class, 'deleteAttachment'])->name('attachments.delete');
+                    Route::post('/{module}/attachments/reorder', [InstructorModuleController::class, 'reorderAttachments'])->name('attachments.reorder');
+
                     Route::prefix('{module}/lessons')->name('lessons.')->group(function () {
                         Route::get('/', [InstructorLessonController::class, 'index'])->name('index');
                         Route::get('/create', [InstructorLessonController::class, 'create'])->name('create');

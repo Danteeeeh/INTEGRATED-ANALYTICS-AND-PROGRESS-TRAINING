@@ -57,6 +57,11 @@ class MediaFile extends Model
         return $this->hasMany(AssignmentAttachment::class);
     }
 
+    public function moduleAttachments(): HasMany
+    {
+        return $this->hasMany(ModuleAttachment::class);
+    }
+
     public function submissionFiles(): HasMany
     {
         return $this->hasMany(SubmissionFile::class);

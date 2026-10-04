@@ -1,7 +1,10 @@
 @extends('layouts.instructor')
 
 @section('title', $module->title)
-@php $activeNav = 'courses'; @endphp
+@php 
+    $activeNav = 'courses'; 
+    $module->load('attachments.mediaFile');
+@endphp
 
 @section('content')
 <div class="user-page module-detail-page">
@@ -62,6 +65,59 @@
                     @endif
                     @if(!$module->description && !$module->objectives)
                         <x-user-empty-state icon="fa-align-left" title="No module description yet" description="Add a description or learning objectives to guide your students." />
+                    @endif
+                </div>
+            </section>
+
+            <section class="user-panel module-attachments-panel" aria-labelledby="module-attachments-title">
+                <div class="user-panel-head">
+                    <div>
+                        <span class="user-kicker"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> Resources</span>
+                        <h3 id="module-attachments-title">Module Attachments ({{ $module->attachments->count() }})</h3>
+                    </div>
+                    <div class="user-actions">
+                        <button type="button" onclick="document.getElementById('attachmentUpload').click()" class="btn btn-primary btn-sm">
+                            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload Attachment
+                        </button>
+                        <form id="attachmentUploadForm" method="POST" action="{{ route('instructor.courses.modules.attachments.upload', [$course, $module]) }}" enctype="multipart/form-data" style="display:none;">
+                            @csrf
+                            <input type="file" id="attachmentUpload" name="file" onchange="this.form.submit()">
+                        </form>
+                    </div>
+                </div>
+
+                <div class="user-panel-body">
+                    @if(($module->attachments->count() ?? 0) > 0)
+                        <div class="module-attachment-list">
+                            @foreach($module->attachments as $attachment)
+                                <article class="module-attachment-card">
+                                    <span class="module-attachment-icon">
+                                        <i class="fa-solid fa-file" aria-hidden="true"></i>
+                                    </span>
+                                    <div class="module-attachment-body">
+                                        <strong>{{ $attachment->title ?? $attachment->mediaFile->file_name }}</strong>
+                                        <span class="module-attachment-meta">
+                                            <span><i class="fa-solid fa-hard-drive" aria-hidden="true"></i> {{ $attachment->mediaFile->size ? round($attachment->mediaFile->size / 1024 / 1024, 2) . ' MB' : '—' }}</span>
+                                            <span><i class="fa-solid fa-file-type" aria-hidden="true"></i> {{ $attachment->mediaFile->extension ?? '—' }}</span>
+                                        </span>
+                                    </div>
+                                    <div class="user-actions">
+                                        <a href="{{ $attachment->mediaFile->url }}" target="_blank" class="btn btn-icon" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></a>
+                                        <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete this attachment?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-icon btn-danger" title="Delete"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                                        </form>
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+                    @else
+                        <x-user-empty-state
+                            icon="fa-paperclip"
+                            title="No attachments yet"
+                            description="Upload files to share with students in this module."
+                        />
                     @endif
                 </div>
             </section>
@@ -130,6 +186,9 @@
 @endsection
 
 @push('styles')
+<style>
+.module-attachment-list{display:grid;gap:10px}.module-attachment-card{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px 16px;border:1px solid rgba(124,58,237,.18);border-radius:10px;background:var(--module-accent-soft);transition:all .2s ease}.module-attachment-card:hover{border-color:var(--module-accent);box-shadow:0 4px 12px rgba(124,58,237,.12)}.module-attachment-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;color:#fff;font-size:.9rem;background:#64748b}.module-attachment-body{display:grid;gap:4px}.module-attachment-body strong{color:#1e293b;font-size:.9rem}.module-attachment-meta{display:flex;gap:12px;color:#64748b;font-size:.75rem}.module-attachment-meta i{margin-right:4px}
+</style>
 <style>
 .module-detail-page{--module-accent:#c4b5fd;--module-accent-strong:#7c3aed;--module-accent-soft:rgba(139,92,246,.14);gap:16px}.module-detail-page .user-hero{display:flex;align-items:flex-end;justify-content:space-between;box-sizing:border-box}.module-detail-page *{box-sizing:border-box}.module-detail-layout{display:grid;grid-template-columns:minmax(230px,.38fr) minmax(0,1fr);gap:16px;align-items:start}.module-detail-summary{position:sticky;top:18px;display:grid;gap:15px;padding:20px;border:1px solid rgba(196,181,253,.26);border-radius:16px;background:linear-gradient(160deg,rgba(124,58,237,.2),rgba(15,31,75,.85));box-shadow:0 16px 36px rgba(3,8,20,.18)}.module-summary-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.module-summary-icon{display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(196,181,253,.32);border-radius:13px;color:var(--module-accent);background:rgba(139,92,246,.16)}.module-summary-kicker{color:var(--module-accent);font-size:.62rem;font-weight:850;letter-spacing:.12em;text-transform:uppercase}.module-detail-summary h2{margin:3px 0 0;color:#fff;font-size:1.18rem;line-height:1.2}.module-detail-summary>p{margin:8px 0 0;color:rgba(238,244,255,.72);font-size:.72rem;line-height:1.5}.module-summary-list{display:grid;gap:12px;margin:0;padding:16px 0;border-top:1px solid rgba(219,234,254,.14);border-bottom:1px solid rgba(219,234,254,.14)}.module-summary-list div{display:grid;gap:4px}.module-summary-list dt{color:rgba(238,244,255,.55);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em}.module-summary-list dt i{width:16px;color:var(--module-accent)}.module-summary-list dd{margin:0;color:#fff;font-size:.74rem;line-height:1.35}.module-overview-body{display:grid;gap:18px}.module-overview-block{display:grid;gap:7px}.module-overview-label{color:var(--module-accent-strong);font-size:.64rem;font-weight:850;letter-spacing:.09em;text-transform:uppercase}.module-overview-label i{margin-right:6px}.module-overview-block p{margin:0;color:var(--dash-muted);font-size:.78rem;line-height:1.65}.module-lesson-list{display:grid;gap:9px}.module-lesson-card{display:flex;align-items:center;gap:13px;min-width:0;padding:13px 14px;border:1px solid var(--dash-line);border-radius:12px;background:var(--dash-surface-raised);transition:border-color .16s,box-shadow .16s}.module-lesson-card:hover{border-color:rgba(196,181,253,.45);box-shadow:0 8px 20px rgba(3,8,20,.12)}.module-lesson-icon{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:11px}.lesson-type-video{color:#93c5fd;background:rgba(59,130,246,.16)}.lesson-type-quiz{color:#c4b5fd;background:rgba(139,92,246,.16)}.lesson-type-file{color:#6ee7b7;background:rgba(16,185,129,.14)}.lesson-type-text{color:#fcd34d;background:rgba(251,191,36,.14)}.module-lesson-body{display:grid;gap:5px;min-width:0;flex:1}.module-lesson-body>strong{overflow:hidden;color:var(--dash-text);font-size:.8rem;text-overflow:ellipsis;white-space:nowrap}.module-lesson-meta{display:flex;align-items:center;flex-wrap:wrap;gap:12px;color:var(--dash-muted);font-size:.66rem}.module-lesson-meta>span{display:inline-flex;align-items:center;gap:5px}.module-lesson-meta .user-status{font-size:.6rem;padding:3px 8px}body.light-mode .module-detail-summary{background:linear-gradient(160deg,rgba(124,58,237,.94),rgba(20,16,45,.98))}.light-mode .module-detail-summary h2{color:#fff}@media(max-width:860px){.module-detail-page .user-hero{align-items:flex-start;flex-direction:column;padding:20px}.module-detail-layout{grid-template-columns:1fr}.module-detail-summary{position:static}}@media(max-width:620px){.module-lesson-card{align-items:flex-start;flex-wrap:wrap}.module-lesson-body{flex-basis:calc(100% - 52px)}.module-lesson-card .user-actions{margin-left:auto}.module-detail-summary{padding:17px}}@media(prefers-reduced-motion:reduce){.module-lesson-card{transition:none}}
 </style>

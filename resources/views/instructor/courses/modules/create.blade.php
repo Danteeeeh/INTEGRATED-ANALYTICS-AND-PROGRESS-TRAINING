@@ -160,7 +160,7 @@
         <div class="cc-card-head">
             <h3><i class="fa-solid fa-layer-group"></i> Module Information</h3>
         </div>
-        <form method="POST" action="{{ $formAction }}" id="createForm" data-dirty-warn="true">
+        <form method="POST" action="{{ $formAction }}" id="createForm" data-dirty-warn="true" enctype="multipart/form-data">
             @csrf
             <div class="cc-section">
                 <div class="cc-grid">
@@ -206,6 +206,16 @@
                         <span class="cc-char" id="objCount">0 characters</span>
                         @error('objectives')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
+                </div>
+            </div>
+
+            <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-paperclip"></i> Module Attachments</div>
+                <div class="cc-field full">
+                    <label>Upload Files (Optional)</label>
+                    <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.txt">
+                    <span class="cc-hint">Accepted formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, GIF, MP4, MP3, ZIP, TXT (Max 10MB per file)</span>
+                    @error('attachments')<span class="error-message">{{ $message }}</span>@enderror
                 </div>
             </div>
 

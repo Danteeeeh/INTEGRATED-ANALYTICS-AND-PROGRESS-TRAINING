@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Instructor;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Module;
+use App\Models\ModuleAttachment;
+use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -57,7 +59,25 @@ class ModuleController extends Controller
         $validated['created_by'] = auth()->id();
         $validated['position'] = $validated['position'] ?? Module::where('course_id', $course->id)->max('position') + 1;
 
-        Module::create($validated);
+        $module = Module::create($validated);
+
+        // Handle file attachments
+        if ($request->hasFile('attachments')) {
+            $fileUploadService = new FileUploadService();
+            foreach ($request->file('attachments') as $index => $file) {
+                $mediaFile = $fileUploadService->uploadFile($file, 'module_attachments', [
+                    'uploadable_type' => Module::class,
+                    'uploadable_id' => $module->id,
+                ]);
+
+                ModuleAttachment::create([
+                    'module_id' => $module->id,
+                    'media_file_id' => $mediaFile->id,
+                    'title' => $request->input('attachment_titles.'.$index, $file->getClientOriginalName()),
+                    'position' => $index,
+                ]);
+            }
+        }
 
         return redirect()->route('instructor.courses.modules.index', $course)
             ->with('success', 'Module created successfully.');
@@ -70,7 +90,7 @@ class ModuleController extends Controller
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
 
-        $module->load('course', 'lessons.materials');
+        $module->load('course', 'lessons.materials', 'attachments.mediaFile');
 
         return view('instructor.courses.modules.show', compact('course', 'module'));
     }
@@ -81,6 +101,8 @@ class ModuleController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
+
+        $module->load('attachments.mediaFile');
 
         return view('instructor.courses.modules.edit', compact('course', 'module'));
     }
@@ -104,6 +126,26 @@ class ModuleController extends Controller
         ]);
 
         $module->update($validated);
+
+        // Handle new file attachments
+        if ($request->hasFile('attachments')) {
+            $fileUploadService = new FileUploadService();
+            $maxPosition = ModuleAttachment::where('module_id', $module->id)->max('position') ?? 0;
+            
+            foreach ($request->file('attachments') as $index => $file) {
+                $mediaFile = $fileUploadService->uploadFile($file, 'module_attachments', [
+                    'uploadable_type' => Module::class,
+                    'uploadable_id' => $module->id,
+                ]);
+
+                ModuleAttachment::create([
+                    'module_id' => $module->id,
+                    'media_file_id' => $mediaFile->id,
+                    'title' => $request->input('attachment_titles.'.$index, $file->getClientOriginalName()),
+                    'position' => $maxPosition + $index + 1,
+                ]);
+            }
+        }
 
         return redirect()->route('instructor.courses.modules.index', $course)
             ->with('success', 'Module updated successfully.');
@@ -167,5 +209,72 @@ class ModuleController extends Controller
 
         return redirect()->route('instructor.courses.modules.index', $course)
             ->with('success', 'Module unpublished successfully.');
+    }
+
+    public function uploadAttachment(Request $request, Course $course, Module $module): RedirectResponse
+    {
+        $this->authorize('update', $module);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+        abort_if($module->course_id !== $course->id, 404);
+
+        $request->validate([
+            'file' => 'required|file|max:10240', // 10MB max
+            'title' => 'nullable|string|max:255',
+        ]);
+
+        $fileUploadService = new FileUploadService();
+        $mediaFile = $fileUploadService->uploadFile($request->file('file'), 'module_attachments', [
+            'uploadable_type' => Module::class,
+            'uploadable_id' => $module->id,
+        ]);
+
+        $maxPosition = ModuleAttachment::where('module_id', $module->id)->max('position') ?? 0;
+
+        ModuleAttachment::create([
+            'module_id' => $module->id,
+            'media_file_id' => $mediaFile->id,
+            'title' => $request->input('title', $request->file('file')->getClientOriginalName()),
+            'position' => $maxPosition + 1,
+        ]);
+
+        return redirect()->route('instructor.courses.modules.show', [$course, $module])
+            ->with('success', 'Attachment uploaded successfully.');
+    }
+
+    public function deleteAttachment(Course $course, Module $module, ModuleAttachment $attachment): RedirectResponse
+    {
+        $this->authorize('update', $module);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+        abort_if($module->course_id !== $course->id, 404);
+        abort_if($attachment->module_id !== $module->id, 404);
+
+        $attachment->delete();
+
+        return redirect()->route('instructor.courses.modules.show', [$course, $module])
+            ->with('success', 'Attachment deleted successfully.');
+    }
+
+    public function reorderAttachments(Request $request, Course $course, Module $module): RedirectResponse
+    {
+        $this->authorize('update', $module);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+        abort_if($module->course_id !== $course->id, 404);
+
+        $validated = $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer|exists:module_attachments,id',
+        ]);
+
+        foreach ($validated['order'] as $position => $attachmentId) {
+            ModuleAttachment::where('id', $attachmentId)
+                ->where('module_id', $module->id)
+                ->update(['position' => $position + 1]);
+        }
+
+        return redirect()->route('instructor.courses.modules.show', [$course, $module])
+            ->with('success', 'Attachments reordered successfully.');
     }
 }

@@ -54,6 +54,11 @@ class Module extends Model
         return $this->hasMany(Lesson::class)->orderBy('position', 'asc');
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ModuleAttachment::class)->orderBy('position');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
