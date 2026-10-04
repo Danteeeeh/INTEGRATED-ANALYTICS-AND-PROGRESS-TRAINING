@@ -31,6 +31,12 @@ class ClassService
             });
         }
 
+        if (filled($filters['program_id'] ?? null)) {
+            $query->whereHas('course', function ($q) use ($filters) {
+                $q->where('program_id', $filters['program_id']);
+            });
+        }
+
         if (filled($filters['status'] ?? null)) {
             $query->where('status', $filters['status']);
         }

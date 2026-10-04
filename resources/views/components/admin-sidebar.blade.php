@@ -5,7 +5,7 @@
     </div>
 
     @php
-        $departments = \App\Models\Department::orderBy('name')->get();
+        $departments = \App\Models\Department::with('programs')->orderBy('name')->get();
     @endphp
 
     <nav class="sidebar-nav">
@@ -87,30 +87,67 @@
                             <i class="fa-solid fa-chevron-down nav-link__chevron"></i>
                         </button>
                         <ul class="nav-list nav-list--nested" id="academic-{{ $department->code }}">
-                            <li class="nav-item {{ $activeNav === 'courses' && request()->get('department') == $department->code ? 'active' : '' }}">
-                                <a href="{{ route('admin.courses.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'courses' && request()->get('department') == $department->code) aria-current="page" @endif>
-                                    <i class="fa-solid fa-book"></i>
-                                    <span>Courses</span>
-                                </a>
-                            </li>
-                            <li class="nav-item {{ $activeNav === 'modules' && request()->get('department') == $department->code ? 'active' : '' }}">
-                                <a href="{{ route('admin.modules.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'modules' && request()->get('department') == $department->code) aria-current="page" @endif>
-                                    <i class="fa-solid fa-layer-group"></i>
-                                    <span>Modules</span>
-                                </a>
-                            </li>
-                            <li class="nav-item {{ $activeNav === 'lessons' && request()->get('department') == $department->code ? 'active' : '' }}">
-                                <a href="{{ route('admin.lessons.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'lessons' && request()->get('department') == $department->code) aria-current="page" @endif>
-                                    <i class="fa-solid fa-book-open-reader"></i>
-                                    <span>Lessons</span>
-                                </a>
-                            </li>
-                            <li class="nav-item {{ $activeNav === 'classes' && request()->get('department') == $department->code ? 'active' : '' }}">
-                                <a href="{{ route('admin.classes.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'classes' && request()->get('department') == $department->code) aria-current="page" @endif>
-                                    <i class="fa-solid fa-school"></i>
-                                    <span>Classes</span>
-                                </a>
-                            </li>
+                            @if($department->programs->count() > 0)
+                                @foreach($department->programs->sortBy('name') as $program)
+                                    <li class="nav-item">
+                                        <div class="nav-program-label" title="{{ $program->code }}">
+                                            <i class="fa-solid fa-book-open"></i>
+                                            <span>{{ $program->name }}</span>
+                                        </div>
+                                        <ul class="nav-list nav-list--nested nav-list--program">
+                                            <li class="nav-item {{ $activeNav === 'courses' && request()->get('program') == $program->code ? 'active' : '' }}">
+                                                <a href="{{ route('admin.courses.index', ['department' => $department->code, 'program' => $program->code]) }}" class="nav-link" @if($activeNav === 'courses' && request()->get('program') == $program->code) aria-current="page" @endif>
+                                                    <i class="fa-solid fa-book"></i>
+                                                    <span>Courses</span>
+                                                </a>
+                                            </li>
+                                            <li class="nav-item {{ $activeNav === 'modules' && request()->get('program') == $program->code ? 'active' : '' }}">
+                                                <a href="{{ route('admin.modules.index', ['department' => $department->code, 'program' => $program->code]) }}" class="nav-link" @if($activeNav === 'modules' && request()->get('program') == $program->code) aria-current="page" @endif>
+                                                    <i class="fa-solid fa-layer-group"></i>
+                                                    <span>Modules</span>
+                                                </a>
+                                            </li>
+                                            <li class="nav-item {{ $activeNav === 'lessons' && request()->get('program') == $program->code ? 'active' : '' }}">
+                                                <a href="{{ route('admin.lessons.index', ['department' => $department->code, 'program' => $program->code]) }}" class="nav-link" @if($activeNav === 'lessons' && request()->get('program') == $program->code) aria-current="page" @endif>
+                                                    <i class="fa-solid fa-book-open-reader"></i>
+                                                    <span>Lessons</span>
+                                                </a>
+                                            </li>
+                                            <li class="nav-item {{ $activeNav === 'classes' && request()->get('program') == $program->code ? 'active' : '' }}">
+                                                <a href="{{ route('admin.classes.index', ['department' => $department->code, 'program' => $program->code]) }}" class="nav-link" @if($activeNav === 'classes' && request()->get('program') == $program->code) aria-current="page" @endif>
+                                                    <i class="fa-solid fa-school"></i>
+                                                    <span>Classes</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                @endforeach
+                            @else
+                                <li class="nav-item {{ $activeNav === 'courses' && request()->get('department') == $department->code ? 'active' : '' }}">
+                                    <a href="{{ route('admin.courses.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'courses' && request()->get('department') == $department->code) aria-current="page" @endif>
+                                        <i class="fa-solid fa-book"></i>
+                                        <span>Courses</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {{ $activeNav === 'modules' && request()->get('department') == $department->code ? 'active' : '' }}">
+                                    <a href="{{ route('admin.modules.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'modules' && request()->get('department') == $department->code) aria-current="page" @endif>
+                                        <i class="fa-solid fa-layer-group"></i>
+                                        <span>Modules</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {{ $activeNav === 'lessons' && request()->get('department') == $department->code ? 'active' : '' }}">
+                                    <a href="{{ route('admin.lessons.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'lessons' && request()->get('department') == $department->code) aria-current="page" @endif>
+                                        <i class="fa-solid fa-book-open-reader"></i>
+                                        <span>Lessons</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {{ $activeNav === 'classes' && request()->get('department') == $department->code ? 'active' : '' }}">
+                                    <a href="{{ route('admin.classes.index', ['department' => $department->code]) }}" class="nav-link" @if($activeNav === 'classes' && request()->get('department') == $department->code) aria-current="page" @endif>
+                                        <i class="fa-solid fa-school"></i>
+                                        <span>Classes</span>
+                                    </a>
+                                </li>
+                            @endif
                         </ul>
                     </li>
                 @endforeach

@@ -28,13 +28,21 @@ class ClassController extends Controller
     {
         $this->authorize('viewAny', ClassModel::class);
 
-        $filters = $request->only(['status', 'search', 'course_id', 'academic_period_id']);
+        $filters = $request->only(['status', 'search', 'course_id', 'academic_period_id', 'department_id', 'program_id']);
         
         // If department code is passed, convert it to department_id
         if ($request->filled('department')) {
             $department = \App\Models\Department::where('code', $request->department)->first();
             if ($department) {
                 $filters['department_id'] = $department->id;
+            }
+        }
+
+        // If program code is passed, convert it to program_id
+        if ($request->filled('program')) {
+            $program = \App\Models\Program::where('code', $request->program)->first();
+            if ($program) {
+                $filters['program_id'] = $program->id;
             }
         }
 

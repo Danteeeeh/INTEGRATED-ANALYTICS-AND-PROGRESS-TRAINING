@@ -28,13 +28,19 @@ class CourseController extends Controller
     {
         $this->authorize('viewAny', Course::class);
 
-        $filters = request()->only(['status', 'search', 'academic_period_id', 'department_id']);
-        
-        // If department code is passed, convert it to department_id
+        $filters = request()->only(['status', 'search', 'academic_period_id', 'department_id', 'program_id']);
+
         if (request()->filled('department')) {
             $department = Department::where('code', request()->department)->first();
             if ($department) {
                 $filters['department_id'] = $department->id;
+            }
+        }
+
+        if (request()->filled('program')) {
+            $program = Program::where('code', request()->program)->first();
+            if ($program) {
+                $filters['program_id'] = $program->id;
             }
         }
 

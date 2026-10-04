@@ -52,6 +52,16 @@ class LessonController extends Controller
             }
         }
 
+        // Filter by program code
+        if ($request->filled('program')) {
+            $program = \App\Models\Program::where('code', $request->program)->first();
+            if ($program) {
+                $query->whereHas('module.course', function ($q) use ($program) {
+                    $q->where('program_id', $program->id);
+                });
+            }
+        }
+
         $lessons = $query->orderBy('module_id')->orderBy('position')->orderBy('id')->paginate(20);
 
         $modules = \App\Models\Module::with('course')->orderBy('title')->get(['id', 'title', 'course_id']);

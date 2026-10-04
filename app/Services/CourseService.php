@@ -21,6 +21,10 @@ class CourseService
             $query->where('department_id', $filters['department_id']);
         }
 
+        if (filled($filters['program_id'] ?? null)) {
+            $query->where('program_id', $filters['program_id']);
+        }
+
         if (filled($filters['status'] ?? null)) {
             $query->where('status', $filters['status']);
         }
