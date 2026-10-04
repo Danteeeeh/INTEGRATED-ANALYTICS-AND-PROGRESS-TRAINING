@@ -214,6 +214,17 @@
                         <span class="cc-hint">Minimum na marka para pumasa</span>
                         @error('passing_score_percent')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
+
+                    <div class="cc-field">
+                        <label>Result Visibility <span class="req">*</span></label>
+                        <select name="result_visibility" required>
+                            @foreach($resultVisibilityOptions as $value => $label)
+                                <option value="{{ $value }}" {{ old('result_visibility', 'after_grading') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <span class="cc-hint">Kapag makikita ng estudyante ang resulta</span>
+                        @error('result_visibility')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
                 </div>
             </div>
 
