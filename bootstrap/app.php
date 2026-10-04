@@ -51,12 +51,13 @@ return Application::configure(basePath: dirname(__DIR__))
             TrustProxies::class
         );
 
-         $middleware->trustHosts(at: [
-           '^(.+\.)?bcpsms2\.com$',
-           '^localhost$',
-           '^127\.0\.0\.1$',
-        ]);
-
+        $middleware->trustHosts(at: [
+         '^(.+\.)?bcpsms2\.com$',
+         '^(.+\.)?hostforgeplatforms\.com$',
+         '^localhost$',
+         '^127\.0\.0\.1$',
+         '^lms-lms-2-gecim\.hostforgeplatforms\.com$',
+       ]);
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'permission' => EnsureUserHasPermission::class,

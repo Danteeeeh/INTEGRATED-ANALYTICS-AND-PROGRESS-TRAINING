@@ -19,8 +19,8 @@ php artisan package:discover --ansi
 # Create storage link for file uploads
 php artisan storage:link
 
-# Run migrations
-php artisan migrate --force
+# Run migrations with seeders
+php artisan migrate --force --seed
 
 # Clear and cache configs
 php artisan config:cache
