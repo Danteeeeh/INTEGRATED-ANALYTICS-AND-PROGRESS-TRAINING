@@ -12,7 +12,6 @@ use App\Models\CompetencyFramework;
 use App\Models\Course;
 use App\Models\CourseCompetency;
 use App\Models\Department;
-use App\Models\Discussion;
 use App\Models\GradeItem;
 use App\Models\LearningPlan;
 use App\Models\LearningPlanItem;
@@ -154,24 +153,6 @@ class FiftyTopUpSeeder extends Seeder
                     'points' => 100,
                     'submission_type' => 'file',
                     'due_date' => $now->copy()->addDays(rand(1, 30)),
-                    'status' => 'published',
-                    'created_by' => $instructor->id,
-                ]
-            );
-        }
-
-        $this->command?->info('TopUp: discussions -> 50');
-        for ($i = 1; $i <= 50; $i++) {
-            Discussion::firstOrCreate(
-                ['slug' => 'discussion-'.$i],
-                [
-                    'class_id' => $classesAll[$i % count($classesAll)],
-                    'course_id' => $courseAll[$i % count($courseAll)],
-                    'title' => 'Discussion Topic '.$i,
-                    'description' => 'Weekly discussion '.$i,
-                    'discussion_type' => 'general',
-                    'is_pinned' => false,
-                    'is_locked' => false,
                     'status' => 'published',
                     'created_by' => $instructor->id,
                 ]

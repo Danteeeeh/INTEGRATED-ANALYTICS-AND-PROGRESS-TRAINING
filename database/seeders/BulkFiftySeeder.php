@@ -8,8 +8,6 @@ use App\Models\AttendanceRecord;
 use App\Models\CalendarEvent;
 use App\Models\ClassModel;
 use App\Models\CourseProgress;
-use App\Models\Discussion;
-use App\Models\DiscussionPost;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
@@ -30,7 +28,7 @@ use Illuminate\Support\Str;
 
 /**
  * Seeds ~50 extra students and fills every previously-empty feature area
- * (discussions, announcements, calendar, attendance, virtual classes,
+ * (announcements, calendar, attendance, virtual classes,
  * grades, quiz attempts) so the whole system has demo data for the capstone.
  *
  * Safe to re-run: keyed on stable emails/identifiers + firstOrCreate.
@@ -143,51 +141,6 @@ class BulkFiftySeeder extends Seeder
                             'left_at' => $status === 'present' ? now()->parse($date)->setTime(10, rand(0, 59)) : null,
                             'notes' => null,
                             'recorded_by' => $instructor->id,
-                        ]
-                    );
-                }
-            }
-        }
-
-        // ── Discussions + posts on the first class ────────────────────────
-        $this->command?->info('BulkFifty: discussions...');
-        $firstClass = $classes->first();
-        $course = $firstClass?->course()->first();
-        if ($firstClass && $course) {
-            $topics = [
-                'What did you find most interesting this week?',
-                'Share a resource that helped you study.',
-                'Common misconceptions in this topic',
-                'How do you plan to prepare for the exam?',
-                'Group study coordination thread',
-            ];
-            foreach ($topics as $t) {
-                $disc = Discussion::firstOrCreate(
-                    ['class_id' => $firstClass->id, 'title' => $t],
-                    [
-                        'course_id' => $course->id,
-                        'module_id' => null,
-                        'lesson_id' => null,
-                        'slug' => Str::slug($t.'-'.$firstClass->id),
-                        'description' => 'Class discussion: '.$t,
-                        'discussion_type' => ['general', 'academic', 'qa'][rand(0, 2)],
-                        'is_pinned' => false,
-                        'is_locked' => false,
-                        'status' => 'published',
-                        'created_by' => $instructor->id,
-                    ]
-                );
-
-                foreach (array_slice($students, 0, 6) as $stu) {
-                    DiscussionPost::firstOrCreate(
-                        ['discussion_id' => $disc->id, 'author_id' => $stu->id, 'body' => 'my take: '.$t],
-                        [
-                            'parent_id' => null,
-                            'is_pinned' => false,
-                            'is_approved' => true,
-                            'reported_count' => 0,
-                            'created_at' => now()->subDays(rand(1, 8)),
-                            'updated_at' => now()->subDays(rand(1, 8)),
                         ]
                     );
                 }

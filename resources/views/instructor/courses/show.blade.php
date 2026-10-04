@@ -5,13 +5,12 @@
     $activeNav = 'courses';
     $pageTitle = $course->name;
     $pageIcon = '<i class="fa-solid fa-book"></i>';
-    $tabs = ['modules', 'lessons', 'assignments', 'quizzes', 'discussions', 'announcements'];
+    $tabs = ['modules', 'lessons', 'assignments', 'quizzes', 'announcements'];
     $activeTab = request('tab', 'modules');
     $modules = $course->modules ?? collect();
     $lessons = $modules->flatMap->lessons;
     $assignments = $assignments ?? collect();
     $quizzes = $quizzes ?? collect();
-    $discussions = $course->discussions ?? collect();
     $announcements = $course->announcements ?? collect();
     $publishedModules = $modules->where('is_published', true)->count();
     $tabCounts = [
@@ -19,7 +18,6 @@
         'lessons' => $lessons->count(),
         'assignments' => $assignments->count(),
         'quizzes' => $quizzes->count(),
-        'discussions' => $discussions->count(),
         'announcements' => $announcements->count(),
     ];
     $tabIcons = [
@@ -27,7 +25,6 @@
         'lessons' => 'fa-book-open',
         'assignments' => 'fa-file-pen',
         'quizzes' => 'fa-circle-question',
-        'discussions' => 'fa-comments',
         'announcements' => 'fa-bullhorn',
     ];
 @endphp
@@ -226,8 +223,6 @@
             @include('instructor.courses._tab_assignments')
         @elseif($activeTab === 'quizzes')
             @include('instructor.courses._tab_quizzes')
-        @elseif($activeTab === 'discussions')
-            @include('instructor.courses._tab_discussions')
         @elseif($activeTab === 'announcements')
             @include('instructor.courses._tab_announcements')
         @endif

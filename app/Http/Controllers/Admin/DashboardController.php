@@ -298,7 +298,6 @@ class DashboardController extends Controller
         return [
             'daily_active_users' => $this->getDailyActiveUsers(),
             'content_consumption' => $this->getContentConsumption(),
-            'forum_participation' => $this->getForumParticipation(),
             'virtual_class_attendance' => $this->getVirtualClassAttendance(),
         ];
     }
@@ -405,15 +404,6 @@ class DashboardController extends Controller
                 $q->where('lesson_type', 'video');
             })->where('lesson_progress.status', LessonProgress::STATUS_COMPLETED)->count(),
             'average_lesson_completion' => LessonProgress::avg('progress_percent') ?? 0,
-        ];
-    }
-
-    protected function getForumParticipation(): array
-    {
-        return [
-            'total_posts' => 0,
-            'active_discussions' => 0,
-            'top_contributors' => [],
         ];
     }
 

@@ -86,11 +86,6 @@ class Course extends Model
         return $this->hasManyThrough(Exam::class, ClassModel::class, 'course_id', 'class_id');
     }
 
-    public function discussions(): HasMany
-    {
-        return $this->hasMany(Discussion::class);
-    }
-
     public function announcements(): HasMany
     {
         return $this->hasMany(Announcement::class);

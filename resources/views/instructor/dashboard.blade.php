@@ -255,31 +255,8 @@
         </section>
     </div>
 
-    {{-- ═══ DISCUSSIONS + ANNOUNCEMENTS ═══ --}}
+    {{-- ═══ ANNOUNCEMENTS ═══ --}}
     <div class="dash-grid">
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-comments"></i> Recent discussions</h4>
-                <span class="panel-count">{{ $stats['total_discussions'] ?? 0 }}</span>
-            </div>
-            <ul class="dash-list">
-                @forelse(($stats['recent_discussion_posts'] ?? []) as $post)
-                    <li class="dash-list-item">
-                        <span class="dash-list-icon i-violet"><i class="fa-solid fa-comment"></i></span>
-                        <div class="dash-list-body">
-                            <p class="dash-list-title">{{ $post->discussion?->title }}</p>
-                            <p class="dash-list-sub">{{ $post->author?->name }} · {{ Str::limit($post->body ?? '', 60) }}</p>
-                        </div>
-                        <div class="dash-list-meta">
-                            <span class="dash-list-date">{{ $post->created_at?->diffForHumans() }}</span>
-                        </div>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-comments"></i> No discussions yet</li>
-                @endforelse
-            </ul>
-        </section>
-
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-bullhorn"></i> Announcements</h4>
@@ -828,16 +805,6 @@
             const container = document.getElementById('engagementMetricsChart');
             container.innerHTML = `
                 <div class="engagement-metrics">
-                    <div class="metric-item">
-                        <span class="metric-icon"><i class="fa-solid fa-comments"></i></span>
-                        <span class="metric-label">Discussions</span>
-                        <span class="metric-value">${analytics.total_discussions}</span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-icon"><i class="fa-solid fa-comment-dots"></i></span>
-                        <span class="metric-label">Recent Posts</span>
-                        <span class="metric-value">${analytics.recent_discussion_posts}</span>
-                    </div>
                     <div class="metric-item">
                         <span class="metric-icon"><i class="fa-solid fa-bullhorn"></i></span>
                         <span class="metric-label">Announcements</span>

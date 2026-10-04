@@ -122,7 +122,6 @@ class FullAppFunctionAuditTest extends TestCase
             ['GET', '/admin/attendance', 'admin'],
             ['GET', '/admin/calendar', 'admin'],
             ['GET', '/admin/announcements', 'admin'],
-            ['GET', '/admin/discussions', 'admin'],
             ['GET', '/admin/virtual_classes', 'admin'],
             ['GET', '/admin/gradebook', 'admin'],
             ['GET', '/admin/reports', 'admin'],
@@ -136,11 +135,9 @@ class FullAppFunctionAuditTest extends TestCase
             // ---------- feature picker pages (sidebar routing fix) ----------
             ['GET', '/student/courses?feature=assignments', 'student'],
             ['GET', '/student/courses?feature=quizzes', 'student'],
-            ['GET', '/student/courses?feature=discussions', 'student'],
             ['GET', '/student/courses?feature=announcements', 'student'],
             ['GET', '/instructor/courses?feature=assignments', 'instructor'],
             ['GET', '/instructor/courses?feature=quizzes', 'instructor'],
-            ['GET', '/instructor/courses?feature=discussions', 'instructor'],
             ['GET', '/instructor/courses?feature=announcements', 'instructor'],
 
             // ---------- instructor ----------

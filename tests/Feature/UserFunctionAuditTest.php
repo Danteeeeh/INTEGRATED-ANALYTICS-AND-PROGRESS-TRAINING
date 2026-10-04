@@ -86,7 +86,6 @@ class UserFunctionAuditTest extends TestCase
             ['GET', '/admin/quizzes', 'admin'],
             ['GET', '/admin/question_banks', 'admin'],
             ['GET', '/admin/questions', 'admin'],
-            ['GET', '/admin/discussions', 'admin'],
             ['GET', '/admin/virtual_classes', 'admin'],
             ['GET', '/admin/gradebook', 'admin'],
             ['GET', '/admin/reports', 'admin'],

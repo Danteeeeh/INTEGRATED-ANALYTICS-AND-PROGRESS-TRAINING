@@ -100,8 +100,8 @@ Generate one at Google Account → Security → 2-Step Verification → App pass
 ## Not yet built (later phases, per the spec)
 
 Academic periods, courses, classes, enrollment (Phase 2); modules/lessons/materials
-(Phase 3); assignments/rubrics (Phase 4); quizzes/question bank (Phase 5); discussions/
-announcements/messaging/calendar (Phase 6); virtual classes/attendance (Phase 7);
+(Phase 3); assignments/rubrics (Phase 4); quizzes/question bank (Phase 5); announcements/
+messaging/calendar (Phase 6); virtual classes/attendance (Phase 7);
 gradebook/progress/competencies/learning plans (Phase 8); analytics/reports (Phase 9);
 full REST API surface + Postman collection (Phase 10); security hardening/deployment
 (Phase 11).

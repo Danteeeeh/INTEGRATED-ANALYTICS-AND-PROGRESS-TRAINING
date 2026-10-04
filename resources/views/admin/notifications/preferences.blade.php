@@ -66,7 +66,6 @@
                                 'notify_on_quiz' => 'Quizzes',
                                 'notify_on_grade' => 'Grades',
                                 'notify_on_announcement' => 'Announcements',
-                                'notify_on_discussion' => 'Discussions',
                                 'notify_on_message' => 'Messages',
                                 'notify_on_attendance' => 'Attendance',
                             ] as $key => $label)

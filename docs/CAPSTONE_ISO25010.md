@@ -15,7 +15,7 @@ This table maps the LMS features (existing + new AI features) to the ISO/IEC 250
 | Assignment & quiz grading with rubrics | ✓ | ✓ | ✓ |
 | Gradebook (per-item grades, bulk entry, release, export CSV) | ✓ | ✓ | ✓ |
 | Attendance & virtual classes | ✓ | ✓ | ✓ |
-| Announcements & discussions | ✓ | ✓ | ✓ |
+| Announcements | ✓ | ✓ | ✓ |
 | **AI Personalized Learning Plans (student self-generate, instructor suggest)** | ✓ | ✓ | ✓ |
 | **AI Study Assistant (deadlines / progress / priorities / recovery)** | ✓ | ✓ | ✓ |
 | **AI-assisted feedback suggestions (gradebook)** | ✓ | ✓ | ✓ |

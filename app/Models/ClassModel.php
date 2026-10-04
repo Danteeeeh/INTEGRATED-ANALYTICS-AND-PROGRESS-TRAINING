@@ -110,11 +110,6 @@ class ClassModel extends Model
         return $this->hasMany(Quiz::class, 'class_id');
     }
 
-    public function discussions(): HasMany
-    {
-        return $this->hasMany(Discussion::class, 'class_id');
-    }
-
     public function announcements(): HasMany
     {
         return $this->hasMany(Announcement::class, 'class_id');

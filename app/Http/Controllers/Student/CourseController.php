@@ -49,7 +49,6 @@ class CourseController extends Controller
         $exams = $course->exams()->whereIn('exams.class_id', $classIds);
         $examsCount = (clone $exams)->count();
 
-        $discussionsCount = $course->discussions()->count();
         $announcementsCount = $course->announcements()->count();
 
         // Progress: lessons completed across the course's modules.
@@ -117,7 +116,6 @@ class CourseController extends Controller
             'assignmentsCount',
             'quizzesCount',
             'examsCount',
-            'discussionsCount',
             'announcementsCount',
             'modulesProgress',
             'assignmentsProgress',

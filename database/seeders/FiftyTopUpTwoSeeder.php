@@ -6,8 +6,6 @@ use App\Models\Announcement;
 use App\Models\AnnouncementView;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
-use App\Models\Discussion;
-use App\Models\DiscussionPost;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Question;
@@ -136,21 +134,6 @@ class FiftyTopUpTwoSeeder extends Seeder
             }
         }
         $this->command?->info('rubrics: '.Rubric::count().', criteria: '.\App\Models\RubricCriterion::count().', levels: '.\App\Models\RubricLevel::count());
-
-        // Discussion posts: 50
-        $discIds = Discussion::pluck('id')->all();
-        $i = 0;
-        foreach ($discIds as $did) {
-            while (\App\Models\DiscussionPost::count() < 50) {
-                $sid = $students[$i % count($students)];
-                DiscussionPost::firstOrCreate(
-                    ['discussion_id' => $did, 'author_id' => $sid, 'body' => 'Post '.$i.' on discussion '.$did],
-                    ['parent_id' => null, 'is_pinned' => false, 'is_approved' => true, 'reported_count' => 0]
-                );
-                $i++;
-            }
-        }
-        $this->command?->info('discussion_posts: '.\App\Models\DiscussionPost::count());
 
         // Announcement views: 50
         $annIds = Announcement::pluck('id')->all();

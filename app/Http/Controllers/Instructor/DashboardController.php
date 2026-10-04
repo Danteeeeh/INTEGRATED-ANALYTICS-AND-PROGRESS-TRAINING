@@ -107,10 +107,6 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Discussions with optimized queries
-        $recentDiscussions = collect();
-        $recentDiscussionPosts = collect();
-
         // Announcements with optimized queries
         $recentAnnouncements = Announcement::whereIn('course_id', $courseIds)
             ->orWhereIn('class_id', $classIds)
@@ -192,11 +188,6 @@ class DashboardController extends Controller
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
             'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)->count(),
-
-            // Discussions
-            'recent_discussions' => $recentDiscussions,
-            'recent_discussion_posts' => $recentDiscussionPosts,
-            'total_discussions' => 0,
 
             // Announcements
             'recent_announcements' => $recentAnnouncements,
@@ -602,8 +593,6 @@ class DashboardController extends Controller
 
                 case 'engagement':
                     $analytics = [
-                        'total_discussions' => $stats['total_discussions'],
-                        'recent_discussion_posts' => $stats['recent_discussion_posts']->count(),
                         'total_announcements' => $stats['total_announcements'],
                         'virtual_classes_held' => $stats['total_virtual_classes'],
                         'student_participation_rate' => $this->calculateParticipationRate($stats['my_classes_list']),

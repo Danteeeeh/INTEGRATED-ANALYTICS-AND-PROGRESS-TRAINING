@@ -5,7 +5,6 @@
     $featureMeta = [
         'assignments' => ['label' => 'Assignments', 'icon' => 'fa-tasks', 'hint' => 'Manage tasks and submissions', 'route' => 'instructor.courses.assignments.index', 'color' => 'amber'],
         'quizzes' => ['label' => 'Quizzes', 'icon' => 'fa-question-circle', 'hint' => 'Manage quizzes and attempts', 'route' => 'instructor.courses.quizzes.index', 'color' => 'violet'],
-        'discussions' => ['label' => 'Discussions', 'icon' => 'fa-comments', 'hint' => 'Open course conversations', 'route' => 'instructor.courses.discussions.index', 'color' => 'cyan'],
         'announcements' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'hint' => 'Post course updates', 'route' => 'instructor.courses.announcements.index', 'color' => 'rose'],
     ];
     $activeNav = ($feature && isset($featureMeta[$feature])) ? $feature : 'courses';

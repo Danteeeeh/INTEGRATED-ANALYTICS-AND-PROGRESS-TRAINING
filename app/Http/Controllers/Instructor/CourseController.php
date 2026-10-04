@@ -34,7 +34,6 @@ class CourseController extends Controller
             'academicPeriod',
             'modules' => fn ($q) => $q->orderBy('position'),
             'modules.lessons',
-            'discussions',
             'announcements',
         ]);
 

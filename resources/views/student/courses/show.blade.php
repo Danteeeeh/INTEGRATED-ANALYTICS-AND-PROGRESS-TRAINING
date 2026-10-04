@@ -9,7 +9,6 @@
     $assignmentsCount = $assignmentsCount ?? 0;
     $quizzesCount = $quizzesCount ?? 0;
     $examsCount = $examsCount ?? 0;
-    $discussionsCount = $discussionsCount ?? 0;
     $announcementsCount = $announcementsCount ?? 0;
     $modulesProgress = max(0, min(100, (int) ($modulesProgress ?? 0)));
     $assignmentsProgress = max(0, min(100, (int) ($assignmentsProgress ?? 0)));
@@ -33,7 +32,7 @@
                 </div>
             </div>
             <h1 id="course-detail-title">{{ $courseTitle }}</h1>
-            <p>{{ $courseDescription !== '' ? $courseDescription : 'Build your progress through modules, assignments, quizzes, and course discussions.' }}</p>
+            <p>{{ $courseDescription !== '' ? $courseDescription : 'Build your progress through modules, assignments, and quizzes.' }}</p>
             <div class="course-detail-meta" aria-label="Course summary">
                 @if($course->credits)
                     <span><i class="fa-solid fa-award" aria-hidden="true"></i> {{ $course->credits }} credits</span>
@@ -130,12 +129,6 @@
             <span class="course-content-icon"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Major</span><strong>Exams</strong><small>{{ $examsCount }} exams - midterm, final, etc.</small></span>
             <span class="course-content-footer"><span>{{ $examsProgress }}% completed</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
-        </a>
-
-        <a href="{{ route('student.courses.discussions.index', $course) }}" class="course-content-card course-content-card-blue" aria-label="Open discussions, {{ $discussionsCount }} conversations" style="--card-accent:#3b82f6; --card-soft:rgba(59,130,246,.12);">
-            <span class="course-content-icon"><i class="fa-solid fa-comments" aria-hidden="true"></i></span>
-            <span class="course-content-copy"><span class="course-content-label">Community</span><strong>Discussions</strong><small>{{ $discussionsCount }} conversations to join.</small></span>
-            <span class="course-content-footer"><span>Ask and share</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
     </div>
 
