@@ -50,12 +50,13 @@
         <div class="search-container">
             <div class="search-input-wrapper">
                 <i class="fa-solid fa-search search-icon"></i>
-                <input type="text" id="globalSearch" placeholder="Search your courses, assignments, quizzes..." class="search-input">
+                <input type="text" id="globalSearch" placeholder="Search your courses, assignments, quizzes, exams..." class="search-input">
                 <select id="searchType" class="search-type">
                     <option value="all">All</option>
                     <option value="courses">Courses</option>
                     <option value="assignments">Assignments</option>
                     <option value="quizzes">Quizzes</option>
+                    <option value="exams">Exams</option>
                 </select>
             </div>
             <div id="searchResults" class="search-results hidden"></div>
@@ -112,7 +113,7 @@
         />
         <x-user-stat-card
             label="Upcoming Tasks"
-            value="{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() }}"
+            value="{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}"
             icon="fa-bell"
             valueId="stat-tasks-value"
             trend="{{ ($stats['overdue_assignments'] ?? collect())->count() > 0 ? 'Due soon' : 'On track' }}"
@@ -243,11 +244,11 @@
     @endif
 
     <div class="dash-grid">
-        {{-- ═══ UPCOMING ASSIGNMENTS & QUIZZES ═══ --}}
+        {{-- ═══ UPCOMING ASSIGNMENTS, QUIZZES & EXAMS ═══ --}}
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-bell"></i> Upcoming this week</h4>
-                <span class="panel-count">{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() }}</span>
+                <span class="panel-count">{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}</span>
             </div>
             <ul class="dash-list">
                 @forelse(($stats['upcoming_assignments'] ?? []) as $assignment)
@@ -283,7 +284,23 @@
                     </li>
                 @empty
                 @endforelse
-                @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty())
+                @forelse(($stats['upcoming_exams'] ?? []) as $exam)
+                    <li class="dash-list-item">
+                        <a class="dash-list-link" href="{{ $exam->class_id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#' }}">
+                            <span class="dash-list-icon i-rose"><i class="fa-solid fa-graduation-cap"></i></span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">{{ $exam->title }}</p>
+                                <p class="dash-list-sub">Exam · {{ $exam->class?->course?->title ?? '' }}</p>
+                            </div>
+                            <div class="dash-list-meta">
+                                <span class="dash-meta-chip m-rose">Starts {{ $exam->starts_at?->format('M j') }}</span>
+                                <span class="dash-list-date">{{ $exam->starts_at?->diffForHumans() }}</span>
+                            </div>
+                        </a>
+                    </li>
+                @empty
+                @endforelse
+                @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty() && ($stats['upcoming_exams'] ?? [])->isEmpty())
                     <li class="dash-list-empty"><i class="fa-solid fa-mug-hot"></i> All caught up — nothing due soon</li>
                 @endif
             </ul>
@@ -437,7 +454,7 @@
         </section>
     </div>
 
-    {{-- ═══ RECENT QUIZ ATTEMPTS + FEEDBACK ═══ --}}
+    {{-- ═══ RECENT QUIZ ATTEMPTS + EXAM ATTEMPTS + FEEDBACK ═══ --}}
     <div class="dash-grid">
         <section class="dash-panel">
             <div class="dash-panel-head">
@@ -469,6 +486,40 @@
                     </li>
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-clipboard-check"></i> No quiz attempts yet</li>
+                @endforelse
+            </ul>
+        </section>
+
+        <section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="fa-solid fa-graduation-cap"></i> Recent exam attempts</h4>
+                <span class="panel-count">{{ ($stats['recent_exam_attempts'] ?? collect())->count() }}</span>
+            </div>
+            <ul class="dash-list">
+                @forelse(($stats['recent_exam_attempts'] ?? []) as $attempt)
+                    <li class="dash-list-item">
+                        @php
+                            $examCourse = $attempt->exam?->class?->course;
+                            $attemptHref = $attempt->exam && $attempt->exam->class_id
+                                ? route('student.courses.exams.attempts.show', ['course' => $attempt->exam->class->course_id, 'exam' => $attempt->exam_id, 'attempt' => $attempt->id])
+                                : '#';
+                        @endphp
+                        <a class="dash-list-link" href="{{ $attemptHref }}">
+                            <span class="dash-list-icon i-rose"><i class="fa-solid fa-file-signature"></i></span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">{{ $attempt->exam?->title ?? 'Exam' }}</p>
+                                <p class="dash-list-sub">{{ $examCourse?->title ?? '' }} · Attempt {{ $attempt->attempt_number ?? 1 }}</p>
+                            </div>
+                            <div class="dash-list-meta">
+                                @if(isset($attempt->is_passed))
+                                    <span class="dash-meta-chip {{ $attempt->is_passed ? 'm-green' : 'm-rose' }}">{{ $attempt->is_passed ? 'Passed' : 'Retake' }}</span>
+                                @endif
+                                <span class="dash-list-date">{{ $attempt->created_at?->diffForHumans() }}</span>
+                            </div>
+                        </a>
+                    </li>
+                @empty
+                    <li class="dash-list-empty"><i class="fa-solid fa-file-signature"></i> No exam attempts yet</li>
                 @endforelse
             </ul>
         </section>
@@ -507,6 +558,7 @@
                 <select id="analyticsType" class="analytics-select">
                     <option value="grades" selected>Grades</option>
                     <option value="quizzes">Quiz Performance</option>
+                    <option value="exams">Exam Performance</option>
                     <option value="progress">Course Progress</option>
                 </select>
                 <button onclick="loadAnalytics()" class="analytics-btn"><i class="fa-solid fa-sync-alt"></i> Load</button>
@@ -626,10 +678,12 @@
             let inferred = 'courses';
             if (result.due_date) inferred = 'assignments';
             else if (result.availability_from) inferred = 'quizzes';
+            else if (result.starts_at) inferred = 'exams';
             const map = {
                 'courses': ['Course', 'fa-book', 'type-course'],
                 'assignments': ['Assignment', 'fa-tasks', 'type-assignment'],
                 'quizzes': ['Quiz', 'fa-question-circle', 'type-quiz'],
+                'exams': ['Exam', 'fa-graduation-cap', 'type-exam'],
             };
             const [label, icon, cls] = map[inferred];
             return `<span class="type-badge ${cls}"><i class="fa-solid ${icon}"></i> ${label}</span>`;
@@ -650,6 +704,8 @@
                     href = result.id ? `{{ url('student/courses') }}` : '#';
                 } else if (type === 'quizzes' || result.availability_from) {
                     href = result.id ? `{{ url('student/courses') }}` : '#';
+                } else if (type === 'exams' || result.starts_at) {
+                    href = result.id ? `{{ url('student/courses') }}` : '#';
                 }
                 html += `
                     <a href="${href}" class="search-result-item">
@@ -660,6 +716,7 @@
                             ${result.class_code ? `<span>${result.class_code}</span>` : ''}
                             ${result.due_date ? `<span>Due ${result.due_date}</span>` : ''}
                             ${result.availability_from ? `<span>Opens ${result.availability_from}</span>` : ''}
+                            ${result.starts_at ? `<span>Starts ${result.starts_at}</span>` : ''}
                         </div>
                     </a>
                 `;
@@ -762,6 +819,39 @@
                             data: data.scores.length ? data.scores : [0],
                             backgroundColor: 'rgba(139, 92, 246, 0.55)',
                             borderColor: '#8b5cf6',
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            maxBarThickness: 46
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}%` } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, ticks: { color: '#98a7c4', callback: (v) => v + '%' }, grid: { color: 'rgba(153,174,214,.12)' } },
+                            x: { grid: { display: false }, ticks: { color: '#c7d4ec', maxRotation: 30 } }
+                        }
+                    }
+                });
+                summary.innerHTML = `
+                    <div class="summary-item"><span class="summary-label">Attempts</span><span class="summary-value">${data.total_attempts}</span></div>
+                    <div class="summary-item"><span class="summary-label">Best Score</span><span class="summary-value">${data.best_score}%</span></div>
+                `;
+            } else if (type === 'exams') {
+                title.textContent = 'Exam Performance';
+                container.innerHTML = '<canvas id="analyticsCanvas"></canvas>';
+                chartInstances['analyticsChart'] = new Chart(document.getElementById('analyticsCanvas'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels.length ? data.labels : ['No data'],
+                        datasets: [{
+                            label: 'Score %',
+                            data: data.scores.length ? data.scores : [0],
+                            backgroundColor: 'rgba(219, 39, 119, 0.55)',
+                            borderColor: '#db2777',
                             borderWidth: 1.5,
                             borderRadius: 6,
                             maxBarThickness: 46

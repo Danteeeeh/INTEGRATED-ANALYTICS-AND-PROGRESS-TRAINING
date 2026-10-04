@@ -28,7 +28,17 @@ class ClassController extends Controller
     {
         $this->authorize('viewAny', ClassModel::class);
 
-        $classes = $this->classes->getAllClasses($request->only(['status', 'search', 'course_id', 'academic_period_id']));
+        $filters = $request->only(['status', 'search', 'course_id', 'academic_period_id']);
+        
+        // If department code is passed, convert it to department_id
+        if ($request->filled('department')) {
+            $department = \App\Models\Department::where('code', $request->department)->first();
+            if ($department) {
+                $filters['department_id'] = $department->id;
+            }
+        }
+
+        $classes = $this->classes->getAllClasses($filters);
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
 
         return view('admin.classes.index', compact('classes', 'courses'));

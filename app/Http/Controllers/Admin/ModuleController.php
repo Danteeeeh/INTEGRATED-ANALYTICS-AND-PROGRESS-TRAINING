@@ -38,6 +38,16 @@ class ModuleController extends Controller
             });
         }
 
+        // Filter by department code
+        if ($request->filled('department')) {
+            $department = \App\Models\Department::where('code', $request->department)->first();
+            if ($department) {
+                $query->whereHas('course', function ($q) use ($department) {
+                    $q->where('department_id', $department->id);
+                });
+            }
+        }
+
         $modules = $query->orderBy('course_id')->orderBy('position')->orderBy('id')->paginate(15);
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
 

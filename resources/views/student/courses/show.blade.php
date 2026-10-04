@@ -8,12 +8,14 @@
     $modulesCount = $modulesCount ?? 0;
     $assignmentsCount = $assignmentsCount ?? 0;
     $quizzesCount = $quizzesCount ?? 0;
+    $examsCount = $examsCount ?? 0;
     $discussionsCount = $discussionsCount ?? 0;
     $announcementsCount = $announcementsCount ?? 0;
     $modulesProgress = max(0, min(100, (int) ($modulesProgress ?? 0)));
     $assignmentsProgress = max(0, min(100, (int) ($assignmentsProgress ?? 0)));
     $quizzesProgress = max(0, min(100, (int) ($quizzesProgress ?? 0)));
-    $overallProgress = (int) round(($modulesProgress + $assignmentsProgress + $quizzesProgress) / 3);
+    $examsProgress = max(0, min(100, (int) ($examsProgress ?? 0)));
+    $overallProgress = (int) round(($modulesProgress + $assignmentsProgress + $quizzesProgress + $examsProgress) / 4);
     $courseTitle = $course->name ?? $course->title ?? 'Course Details';
     $courseDescription = trim((string) ($course->description ?? ''));
 @endphp
@@ -57,8 +59,8 @@
     <div class="user-stat-grid course-detail-stat-grid">
         <x-user-stat-card label="Modules" value="{{ $modulesCount }}" icon="fa-layer-group" trend="{{ $modulesProgress }}%" footer="Learning content" />
         <x-user-stat-card label="Assignments" value="{{ $assignmentsCount }}" icon="fa-file-pen" trend="{{ $assignmentsProgress }}%" footer="Submitted progress" />
-        <x-user-stat-card label="Quizzes" value="{{ $quizzesCount }}" icon="fa-circle-question" trend="{{ $quizzesProgress }}%" footer="Attempted progress" />
-        <x-user-stat-card label="Discussions" value="{{ $discussionsCount }}" icon="fa-comments" footer="Course community" />
+        <x-user-stat-card label="Quizzes" value="{{ $quizzesCount }}" icon="fa-circle-question" trend="{{ $quizzesProgress }}%" footer="Practice assessments" />
+        <x-user-stat-card label="Exams" value="{{ $examsCount }}" icon="fa-graduation-cap" trend="{{ $examsProgress }}%" footer="Major assessments" />
     </div>
 
     {{-- ═══ COURSE PROGRESS ═══ --}}
@@ -71,7 +73,7 @@
             <span class="course-progress-total">{{ $overallProgress }}% overall</span>
         </div>
         <div class="user-panel-body">
-            <div class="course-progress-grid">
+            <div class="course-progress-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
                 <div class="course-progress-item">
                     <div class="course-progress-label"><span>Modules</span><strong>{{ $modulesProgress }}%</strong></div>
                     <div class="learning-progress" role="progressbar" aria-label="Modules progress" aria-valuenow="{{ $modulesProgress }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ $modulesProgress }}%"></span></div>
@@ -85,7 +87,12 @@
                 <div class="course-progress-item course-progress-item-violet">
                     <div class="course-progress-label"><span>Quizzes</span><strong>{{ $quizzesProgress }}%</strong></div>
                     <div class="learning-progress" role="progressbar" aria-label="Quizzes progress" aria-valuenow="{{ $quizzesProgress }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ $quizzesProgress }}%"></span></div>
-                    <small>Check your understanding</small>
+                    <small>Practice assessments</small>
+                </div>
+                <div class="course-progress-item course-progress-item-rose">
+                    <div class="course-progress-label"><span>Exams</span><strong>{{ $examsProgress }}%</strong></div>
+                    <div class="learning-progress" role="progressbar" aria-label="Exams progress" aria-valuenow="{{ $examsProgress }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ $examsProgress }}%"></span></div>
+                    <small>Major assessments</small>
                 </div>
             </div>
         </div>
@@ -100,7 +107,7 @@
         <span class="course-content-heading-note">Choose what to work on next</span>
     </div>
 
-    <div class="course-content-grid">
+    <div class="course-content-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
         <a href="{{ route('student.courses.modules.index', $course) }}" class="course-content-card course-content-card-green" aria-label="Open modules, {{ $modulesProgress }} percent complete">
             <span class="course-content-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Content</span><strong>Modules</strong><small>{{ $modulesCount }} modules to work through.</small></span>
@@ -115,11 +122,17 @@
 
         <a href="{{ route('student.courses.quizzes.index', $course) }}" class="course-content-card course-content-card-violet" aria-label="Open quizzes, {{ $quizzesProgress }} percent attempted">
             <span class="course-content-icon"><i class="fa-solid fa-circle-question" aria-hidden="true"></i></span>
-            <span class="course-content-copy"><span class="course-content-label">Assessment</span><strong>Quizzes</strong><small>{{ $quizzesCount }} quizzes to test your knowledge.</small></span>
+            <span class="course-content-copy"><span class="course-content-label">Practice</span><strong>Quizzes</strong><small>{{ $quizzesCount }} quizzes to test your knowledge.</small></span>
             <span class="course-content-footer"><span>{{ $quizzesProgress }}% attempted</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
 
-        <a href="{{ route('student.courses.discussions.index', $course) }}" class="course-content-card course-content-card-rose" aria-label="Open discussions, {{ $discussionsCount }} conversations">
+        <a href="{{ route('student.courses.exams.index', $course) }}" class="course-content-card course-content-card-rose" aria-label="Open exams, {{ $examsProgress }} percent completed">
+            <span class="course-content-icon"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i></span>
+            <span class="course-content-copy"><span class="course-content-label">Major</span><strong>Exams</strong><small>{{ $examsCount }} exams - midterm, final, etc.</small></span>
+            <span class="course-content-footer"><span>{{ $examsProgress }}% completed</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
+        </a>
+
+        <a href="{{ route('student.courses.discussions.index', $course) }}" class="course-content-card course-content-card-blue" aria-label="Open discussions, {{ $discussionsCount }} conversations" style="--card-accent:#3b82f6; --card-soft:rgba(59,130,246,.12);">
             <span class="course-content-icon"><i class="fa-solid fa-comments" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Community</span><strong>Discussions</strong><small>{{ $discussionsCount }} conversations to join.</small></span>
             <span class="course-content-footer"><span>Ask and share</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>

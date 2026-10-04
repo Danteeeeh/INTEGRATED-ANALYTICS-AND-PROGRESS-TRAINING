@@ -10,6 +10,8 @@ use App\Models\ClassModel;
 use App\Models\CourseCompletion;
 use App\Models\CourseProgress;
 use App\Models\Enrollment;
+use App\Models\Exam;
+use App\Models\ExamAttempt;
 use App\Models\Feedback;
 use App\Models\Grade;
 use App\Models\Lesson;
@@ -78,6 +80,21 @@ class DashboardController extends Controller
         // Recent quiz attempts
         $recentQuizAttempts = QuizAttempt::where('student_id', $studentId)
             ->with(['quiz.class.course'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Upcoming exams
+        $upcomingExams = Exam::whereIn('class_id', $classIds)
+            ->where('status', 'published')
+            ->where('starts_at', '>', now())
+            ->orderBy('starts_at')
+            ->limit(5)
+            ->get();
+
+        // Recent exam attempts
+        $recentExamAttempts = ExamAttempt::where('student_id', $studentId)
+            ->with(['exam.class.course'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
@@ -206,6 +223,12 @@ class DashboardController extends Controller
             'upcoming_quizzes' => $upcomingQuizzes,
             'recent_quiz_attempts' => $recentQuizAttempts,
             'total_quizzes' => Quiz::whereIn('class_id', $classIds)
+                ->count(),
+
+            // Exams
+            'upcoming_exams' => $upcomingExams,
+            'recent_exam_attempts' => $recentExamAttempts,
+            'total_exams' => Exam::whereIn('class_id', $classIds)
                 ->count(),
 
             // Virtual Classes

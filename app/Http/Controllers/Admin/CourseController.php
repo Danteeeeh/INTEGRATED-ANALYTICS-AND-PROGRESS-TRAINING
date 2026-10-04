@@ -28,9 +28,20 @@ class CourseController extends Controller
     {
         $this->authorize('viewAny', Course::class);
 
-        $courses = $this->courses->getAllCourses(request()->only(['status', 'search', 'academic_period_id']));
+        $filters = request()->only(['status', 'search', 'academic_period_id', 'department_id']);
+        
+        // If department code is passed, convert it to department_id
+        if (request()->filled('department')) {
+            $department = Department::where('code', request()->department)->first();
+            if ($department) {
+                $filters['department_id'] = $department->id;
+            }
+        }
 
-        return view('admin.courses.index', compact('courses'));
+        $courses = $this->courses->getAllCourses($filters);
+        $departments = Department::orderBy('name')->get();
+
+        return view('admin.courses.index', compact('courses', 'departments'));
     }
 
     public function create(): View
@@ -225,6 +236,7 @@ class CourseController extends Controller
         $courses = Course::with(['academicPeriod', 'department', 'program', 'creator'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('academic_period_id'), fn ($q) => $q->where('academic_period_id', $request->academic_period_id))
+            ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->department_id))
             ->orderBy('code')
             ->get();
 

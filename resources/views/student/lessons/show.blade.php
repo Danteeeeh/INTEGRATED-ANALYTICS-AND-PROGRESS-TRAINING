@@ -76,9 +76,22 @@
                             <span class="rule-check" style="flex:none;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;font-size:.7rem;{{ $item['met'] ? 'background:rgba(16,185,129,.15);color:#34d399;' : 'background:rgba(148,163,184,.15);color:var(--dash-muted,#9eafca);' }}">
                                 <i class="fa-solid {{ $item['met'] ? 'fa-check' : 'fa-circle' }}"></i>
                             </span>
-                            <span style="min-width:0">
+                            <span style="min-width:0;flex:1">
                                 <strong style="display:block;font-size:.84rem;">{{ $item['label'] }}</strong>
                                 <span style="color:var(--dash-muted,#9eafca);font-size:.76rem;" class="rule-detail">{{ $item['detail'] }}</span>
+                                @if($item['key'] === 'min_minutes' && !$item['met'])
+                                    @php
+                                        $seconds = (int) ($progress->total_seconds ?? 0);
+                                        $targetSeconds = (int) ($item['met'] ? 0 : (str($item['label'])->match('/(\d+)\s*minute/)->first() ?? 4) * 60);
+                                        $progressPercent = min(100, round(($seconds / $targetSeconds) * 100, 1));
+                                    @endphp
+                                    <div style="margin-top:8px;">
+                                        <div style="background:rgba(148,163,184,.2);border-radius:4px;height:8px;overflow:hidden;position:relative;">
+                                            <div class="time-progress-bar" style="background:{{ $item['met'] ? '#10b981' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)' }};height:100%;border-radius:4px;transition:width 0.5s ease;width:{{ $progressPercent }}%;"></div>
+                                        </div>
+                                        <span style="display:block;font-size:.7rem;color:var(--dash-muted,#9eafca);margin-top:4px;">{{ $progressPercent }}% complete</span>
+                                    </div>
+                                @endif
                             </span>
                         </li>
                     @endforeach
@@ -157,12 +170,40 @@
                         check.style.color = item.met ? '#34d399' : 'var(--dash-muted,#9eafca)';
                     }
                     if (detail) detail.textContent = item.detail;
+
+                    // Update progress bar for time requirement
+                    if (key === 'min_minutes') {
+                        const match = item.detail.match(/Spent (\d+) of (\d+) minute/);
+                        if (match) {
+                            const spent = parseInt(match[1]);
+                            const target = parseInt(match[2]);
+                            const percent = Math.min(100, Math.round((spent / target) * 100));
+                            const progressBar = li.querySelector('.time-progress-bar');
+                            const percentText = li.querySelector('.time-progress-bar')?.parentElement?.querySelector('span:last-child');
+                            if (progressBar) {
+                                progressBar.style.width = percent + '%';
+                                progressBar.style.background = item.met ? '#10b981' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)';
+                            }
+                            if (percentText) {
+                                percentText.textContent = percent + '% complete';
+                            }
+                        }
+                    }
                 });
                 const hint = document.getElementById('complete-hint');
                 if (hint) hint.textContent = data.canComplete ? 'Mark it complete to update your progress.' : 'Complete the checklist above to unlock completion.';
             })
             .catch(function () { /* silent — the checklist is non-blocking */ });
     }
+
+    // Auto-refresh checklist every 30 seconds to track time spent on lesson
+    var checklistInterval = setInterval(function () {
+        if (checklistBody) {
+            refreshChecklist();
+        } else {
+            clearInterval(checklistInterval);
+        }
+    }, 30000);
 
     document.querySelectorAll('.lesson-material-link').forEach(function (link) {
         link.addEventListener('click', function () {

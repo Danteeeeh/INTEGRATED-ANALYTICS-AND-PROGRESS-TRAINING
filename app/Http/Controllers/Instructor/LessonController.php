@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\LessonMaterial;
+use App\Models\MediaFile;
 use App\Models\Module;
+use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -71,6 +73,8 @@ class LessonController extends Controller
             'cr_require_all_materials' => 'nullable|boolean',
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
+            'materials' => 'nullable|array',
+            'materials.*' => 'file|max:10240', // 10MB max per file
         ]);
 
         $validated['module_id'] = $module->id;
@@ -80,7 +84,28 @@ class LessonController extends Controller
 
         $validated['completion_rules'] = $this->normalizeCompletionRules($request);
 
-        Lesson::create($validated);
+        $lesson = Lesson::create($validated);
+
+        // Handle file uploads for lesson materials
+        if ($request->hasFile('materials')) {
+            $fileUploadService = new FileUploadService();
+            
+            foreach ($request->file('materials') as $index => $file) {
+                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                    'uploadable_type' => Lesson::class,
+                    'uploadable_id' => $lesson->id,
+                ]);
+
+                LessonMaterial::create([
+                    'lesson_id' => $lesson->id,
+                    'media_file_id' => $mediaFile->id,
+                    'title' => $file->getClientOriginalName(),
+                    'description' => null,
+                    'position' => $index + 1,
+                    'is_required' => false,
+                ]);
+            }
+        }
 
         return redirect()->route('instructor.courses.modules.lessons.index', [$course, $module])
             ->with('success', 'Lesson created successfully.');
@@ -117,6 +142,8 @@ class LessonController extends Controller
             Lesson::TYPE_EXTERNAL => 'External',
         ];
 
+        $lesson->load('materials');
+
         return view('instructor.courses.modules.lessons.edit', compact('course', 'module', 'lesson', 'lessonTypes'));
     }
 
@@ -144,6 +171,8 @@ class LessonController extends Controller
             'cr_require_all_materials' => 'nullable|boolean',
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
+            'materials' => 'nullable|array',
+            'materials.*' => 'file|max:10240', // 10MB max per file
         ]);
 
         $validated['is_required'] = $validated['is_required'] ?? false;
@@ -151,6 +180,28 @@ class LessonController extends Controller
         $validated['completion_rules'] = $this->normalizeCompletionRules($request);
 
         $lesson->update($validated);
+
+        // Handle new file uploads for lesson materials
+        if ($request->hasFile('materials')) {
+            $fileUploadService = new FileUploadService();
+            $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
+            
+            foreach ($request->file('materials') as $index => $file) {
+                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                    'uploadable_type' => Lesson::class,
+                    'uploadable_id' => $lesson->id,
+                ]);
+
+                LessonMaterial::create([
+                    'lesson_id' => $lesson->id,
+                    'media_file_id' => $mediaFile->id,
+                    'title' => $file->getClientOriginalName(),
+                    'description' => null,
+                    'position' => $maxPosition + $index + 1,
+                    'is_required' => false,
+                ]);
+            }
+        }
 
         return redirect()->route('instructor.courses.modules.lessons.index', [$course, $module])
             ->with('success', 'Lesson updated successfully.');

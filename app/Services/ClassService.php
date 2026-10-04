@@ -25,6 +25,12 @@ class ClassService
             $query->where('academic_period_id', $filters['academic_period_id']);
         }
 
+        if (filled($filters['department_id'] ?? null)) {
+            $query->whereHas('course', function ($q) use ($filters) {
+                $q->where('department_id', $filters['department_id']);
+            });
+        }
+
         if (filled($filters['status'] ?? null)) {
             $query->where('status', $filters['status']);
         }

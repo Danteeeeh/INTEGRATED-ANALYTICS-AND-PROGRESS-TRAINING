@@ -11,10 +11,14 @@ class CourseService
 {
     public function getAllCourses(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = Course::with(['academicPeriod', 'creator']);
+        $query = Course::with(['academicPeriod', 'creator', 'department', 'program']);
 
         if (filled($filters['academic_period_id'] ?? null)) {
             $query->where('academic_period_id', $filters['academic_period_id']);
+        }
+
+        if (filled($filters['department_id'] ?? null)) {
+            $query->where('department_id', $filters['department_id']);
         }
 
         if (filled($filters['status'] ?? null)) {

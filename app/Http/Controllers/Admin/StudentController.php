@@ -28,7 +28,7 @@ class StudentController extends Controller
         $this->authorize('viewAny', User::class);
 
         $students = $this->users->getStudents($request->only(['search', 'status']));
-        $students->load('enrollments', 'section.program');
+        $students->load('enrollments', 'section.program', 'department', 'program');
 
         return view('admin.students.index', compact('students'));
     }

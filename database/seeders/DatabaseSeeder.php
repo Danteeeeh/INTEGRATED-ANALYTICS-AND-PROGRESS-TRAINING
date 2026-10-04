@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             PermissionSeeder::class,
             UserSeeder::class,
+            DepartmentProgramSeeder::class, // Mock department/program/section data
             PhaseTwoSeeder::class, // Re-enabled - now uses firstOrCreate to avoid duplicates
             DemoDataSeeder::class, // Re-enabled - depends on PhaseTwoSeeder
             // BulkFiftySeeder::class, // Permanently disabled - HostForge deployment sync issues

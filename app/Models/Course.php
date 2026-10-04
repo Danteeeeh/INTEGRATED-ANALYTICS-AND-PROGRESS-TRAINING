@@ -81,6 +81,11 @@ class Course extends Model
         return $this->hasManyThrough(Quiz::class, ClassModel::class, 'course_id', 'class_id');
     }
 
+    public function exams(): HasManyThrough
+    {
+        return $this->hasManyThrough(Exam::class, ClassModel::class, 'course_id', 'class_id');
+    }
+
     public function discussions(): HasMany
     {
         return $this->hasMany(Discussion::class);

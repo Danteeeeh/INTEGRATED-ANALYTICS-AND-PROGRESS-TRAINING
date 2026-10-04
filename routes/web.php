@@ -46,7 +46,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/files/{mediaFile}/serve', [FileController::class, 'serve'])->name('files.serve')->middleware('activity');
-use App\Http\Controllers\Admin\FeedbackController;
+use App\Http\Controllers\Admin\ExamController as AdminExamController;
 use App\Http\Controllers\Instructor\AnnouncementController as InstructorAnnouncementController;
 use App\Http\Controllers\Instructor\AssignmentController as InstructorAssignmentController;
 use App\Http\Controllers\Instructor\AttendanceController as InstructorAttendanceController;
@@ -60,6 +60,7 @@ use App\Http\Controllers\Instructor\GradebookController as InstructorGradebookCo
 use App\Http\Controllers\Instructor\LessonController as InstructorLessonController;
 use App\Http\Controllers\Instructor\ModuleController as InstructorModuleController;
 use App\Http\Controllers\Instructor\QuizController as InstructorQuizController;
+use App\Http\Controllers\Instructor\ExamController as InstructorExamController;
 use App\Http\Controllers\Instructor\RubricController as InstructorRubricController;
 use App\Http\Controllers\Instructor\VirtualClassController as InstructorVirtualClassController;
 use App\Http\Controllers\Instructor\LearningPlanController as InstructorLearningPlanController;
@@ -77,6 +78,7 @@ use App\Http\Controllers\Student\LessonController as StudentLessonController;
 use App\Http\Controllers\Student\ModuleController as StudentModuleController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
+use App\Http\Controllers\Student\ExamController as StudentExamController;
 use App\Http\Controllers\Student\VirtualClassController as StudentVirtualClassController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
@@ -228,6 +230,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::post('quizzes/{quiz}/publish', [AdminQuizController::class, 'publish'])->name('quizzes.publish');
         Route::post('quizzes/{quiz}/close', [AdminQuizController::class, 'close'])->name('quizzes.close');
         Route::post('quizzes/{quiz}/import', [AdminQuizController::class, 'importQuestions'])->name('quizzes.import');
+
+        Route::resource('exams', AdminExamController::class);
+        Route::post('exams/{exam}/publish', [AdminExamController::class, 'publish'])->name('exams.publish');
+        Route::post('exams/{exam}/close', [AdminExamController::class, 'close'])->name('exams.close');
 
         Route::resource('question_banks', AdminQuestionBankController::class);
         Route::resource('questions', AdminQuestionController::class);
@@ -408,6 +414,18 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::post('/{quiz}/attempts/{attempt}/grade', [InstructorQuizController::class, 'gradeAttempt'])->name('attempts.grade');
                 });
 
+                Route::prefix('exams')->name('exams.')->group(function () {
+                    Route::get('/', [InstructorExamController::class, 'index'])->name('index');
+                    Route::get('/create', [InstructorExamController::class, 'create'])->name('create');
+                    Route::post('/', [InstructorExamController::class, 'store'])->name('store');
+                    Route::get('/{exam}', [InstructorExamController::class, 'show'])->name('show');
+                    Route::get('/{exam}/edit', [InstructorExamController::class, 'edit'])->name('edit');
+                    Route::put('/{exam}', [InstructorExamController::class, 'update'])->name('update');
+                    Route::delete('/{exam}', [InstructorExamController::class, 'destroy'])->name('destroy');
+                    Route::post('/{exam}/publish', [InstructorExamController::class, 'publish'])->name('publish');
+                    Route::post('/{exam}/close', [InstructorExamController::class, 'close'])->name('close');
+                });
+
                 Route::prefix('rubrics')->name('rubrics.')->group(function () {
                     Route::get('/', [InstructorRubricController::class, 'index'])->name('index');
                     Route::get('/create', [InstructorRubricController::class, 'create'])->name('create');
@@ -562,6 +580,15 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{quiz}/attempt', [StudentQuizController::class, 'startAttempt'])->name('attempt.start');
                     Route::post('/{quiz}/attempt', [StudentQuizController::class, 'storeAttempt'])->name('attempt.store');
                     Route::get('/{quiz}/attempts/{attempt}', [StudentQuizController::class, 'showAttempt'])->name('attempts.show');
+                });
+
+                Route::prefix('exams')->name('exams.')->group(function () {
+                    Route::get('/', [StudentExamController::class, 'index'])->name('index');
+                    Route::get('/{exam}', [StudentExamController::class, 'show'])->name('show');
+                    Route::get('/{exam}/confirm', [StudentExamController::class, 'confirmStart'])->name('confirm');
+                    Route::get('/{exam}/attempt', [StudentExamController::class, 'startAttempt'])->name('attempt.start');
+                    Route::post('/{exam}/attempt', [StudentExamController::class, 'storeAttempt'])->name('attempt.store');
+                    Route::get('/{exam}/attempts/{attempt}', [StudentExamController::class, 'showAttempt'])->name('attempts.show');
                 });
 
                 Route::prefix('discussions')->name('discussions.')->group(function () {

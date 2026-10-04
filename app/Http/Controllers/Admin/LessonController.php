@@ -42,6 +42,16 @@ class LessonController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Filter by department code
+        if ($request->filled('department')) {
+            $department = \App\Models\Department::where('code', $request->department)->first();
+            if ($department) {
+                $query->whereHas('module.course', function ($q) use ($department) {
+                    $q->where('department_id', $department->id);
+                });
+            }
+        }
+
         $lessons = $query->orderBy('module_id')->orderBy('position')->orderBy('id')->paginate(20);
 
         $modules = \App\Models\Module::with('course')->orderBy('title')->get(['id', 'title', 'course_id']);

@@ -5,6 +5,7 @@
     $activeNav = 'courses';
     $pageTitle = 'Edit Lesson';
     $pageIcon = '<i class="fa-solid fa-pen-to-square"></i>';
+    $lesson->load('materials');
 @endphp
 
 @section('page-title-bar')
@@ -27,7 +28,7 @@
         <div class="crud-header">
             <h3><i class="fa-solid fa-book-open"></i> Lesson Information</h3>
         </div>
-        <form method="POST" action="{{ route('instructor.courses.modules.lessons.update', [$course, $module, $lesson]) }}">
+        <form method="POST" action="{{ route('instructor.courses.modules.lessons.update', [$course, $module, $lesson]) }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div class="modal-section" style="padding: 24px;">
@@ -130,6 +131,61 @@
                 </div>
             </div>
 
+            <div class="modal-section" style="padding: 24px; border-top: 1px solid var(--lms-border, rgba(148,174,222,.18));">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <i class="fa-solid fa-paperclip" style="color:var(--lms-accent,#62c9f5);"></i>
+                    <label style="font-size:.95rem;font-weight:800;margin:0;">Lesson Materials (Optional)</label>
+                </div>
+                <p style="margin:0 0 14px;color:var(--dash-muted,#9eafca);font-size:.78rem;">
+                    Upload files to attach to this lesson. Students can download these materials.
+                </p>
+
+                @if($lesson->materials->count() > 0)
+                    <div style="margin-bottom: 16px; padding: 12px; background: rgba(98,201,245,.08); border-radius: 8px; border: 1px solid rgba(148,174,222,.2);">
+                        <strong style="font-size: 0.85rem; color: var(--dash-text, #eef4ff);">Current Materials:</strong>
+                        <div style="margin-top: 8px; display: grid; gap: 8px;">
+                            @foreach($lesson->materials as $material)
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,.2); border-radius: 6px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="fa-solid fa-file" style="color: var(--dash-muted, #9eafca);"></i>
+                                        <span style="font-size: 0.85rem; color: var(--dash-text, #eef4ff);">{{ $material->pivot->title ?? $material->file_name }}</span>
+                                        <span style="font-size: 0.75rem; color: var(--dash-muted, #9eafca);">({{ $material->extension ?? '—' }})</span>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <a href="{{ $material->url }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        <form method="POST" action="{{ route('instructor.courses.modules.lessons.deleteMaterial', [$course, $module, $lesson, $material->pivot->id ?? $material->id]) }}" onsubmit="return confirm('Delete this material?');" style="display: inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <div id="dropZone" style="border: 2px dashed var(--lms-border, rgba(148,174,222,.3)); border-radius: 12px; padding: 32px; text-align: center; background: rgba(98,201,245,.04); cursor: pointer; transition: all 0.3s ease;">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: var(--lms-accent, #62c9f5); margin-bottom: 12px;"></i>
+                    <p style="margin: 0; color: var(--dash-text, #eef4ff); font-size: 0.9rem; font-weight: 600;">
+                        Drag & drop files here or click to browse
+                    </p>
+                    <p style="margin: 8px 0 0; color: var(--dash-muted, #9eafca); font-size: 0.75rem;">
+                        PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, GIF, MP4, MP3, ZIP, TXT (Max 10MB per file)
+                    </p>
+                    <input type="file" name="materials[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.txt" id="fileInput" style="display: none;">
+                </div>
+
+                <div id="fileList" style="margin-top: 16px; display: none;">
+                    <strong style="font-size: 0.85rem; color: var(--dash-text, #eef4ff);">Selected Files:</strong>
+                    <ul id="selectedFiles" style="margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: var(--dash-muted, #9eafca);"></ul>
+                </div>
+            </div>
+
             <div class="modal-footer" style="justify-content:flex-end; gap:10px; padding: 18px 24px;">
                 <a href="{{ route('instructor.courses.modules.lessons.show', [$course, $module, $lesson]) }}" class="btn-modal-cancel">Cancel</a>
                 <button type="submit" class="btn-modal-save">
@@ -139,4 +195,52 @@
             </div>
         </form>
     </div>
+
+    <script>
+        // Drag and drop file upload
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const selectedFiles = document.getElementById('selectedFiles');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#62c9f5';
+            dropZone.style.background = 'rgba(98,201,245,.12)';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'rgba(148,174,222,.3)';
+            dropZone.style.background = 'rgba(98,201,245,.04)';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'rgba(148,174,222,.3)';
+            dropZone.style.background = 'rgba(98,201,245,.04)';
+            
+            const files = e.dataTransfer.files;
+            fileInput.files = files;
+            updateFileList();
+        });
+
+        fileInput.addEventListener('change', updateFileList);
+
+        function updateFileList() {
+            if (fileInput.files.length > 0) {
+                fileList.style.display = 'block';
+                selectedFiles.innerHTML = '';
+                Array.from(fileInput.files).forEach(file => {
+                    const li = document.createElement('li');
+                    li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    selectedFiles.appendChild(li);
+                });
+            } else {
+                fileList.style.display = 'none';
+            }
+        }
+    </script>
 @endsection

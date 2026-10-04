@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\AssignmentSubmission;
 use App\Models\Course;
+use App\Models\Exam;
+use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\QuizAttempt;
@@ -43,6 +45,9 @@ class CourseController extends Controller
 
         $quizzes = $course->quizzes()->whereIn('quizzes.class_id', $classIds);
         $quizzesCount = (clone $quizzes)->count();
+
+        $exams = $course->exams()->whereIn('exams.class_id', $classIds);
+        $examsCount = (clone $exams)->count();
 
         $discussionsCount = $course->discussions()->count();
         $announcementsCount = $course->announcements()->count();
@@ -86,6 +91,20 @@ class CourseController extends Controller
             : 0;
         $quizzesProgress = $quizzesCount > 0 ? (int) round($quizzesDone / $quizzesCount * 100) : 0;
 
+        // Progress: exams attempted to completion (submitted / graded).
+        $examsDone = $examsCount > 0
+            ? ExamAttempt::whereIn('exam_id', (clone $exams)->pluck('exams.id'))
+                ->where('student_id', $student->id)
+                ->whereIn('status', [
+                    ExamAttempt::STATUS_SUBMITTED,
+                    ExamAttempt::STATUS_AUTO_SUBMITTED,
+                    ExamAttempt::STATUS_GRADED,
+                ])
+                ->distinct('exam_id')
+                ->count('exam_id')
+            : 0;
+        $examsProgress = $examsCount > 0 ? (int) round($examsDone / $examsCount * 100) : 0;
+
         $recentAnnouncements = $course->announcements()
             ->latest('publish_at')
             ->latest('created_at')
@@ -97,11 +116,13 @@ class CourseController extends Controller
             'modulesCount',
             'assignmentsCount',
             'quizzesCount',
+            'examsCount',
             'discussionsCount',
             'announcementsCount',
             'modulesProgress',
             'assignmentsProgress',
             'quizzesProgress',
+            'examsProgress',
             'recentAnnouncements'
         ));
     }

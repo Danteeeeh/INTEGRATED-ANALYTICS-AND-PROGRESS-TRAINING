@@ -38,6 +38,14 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <select name="department_id" class="form-control">
+                        <option value="">All Departments</option>
+                        @foreach($departments as $department)
+                            <option value="{{ $department->id }}" {{ request('department_id') == $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
                     <button type="submit" class="btn btn-primary">
                         <i class="fa-solid fa-filter"></i>
                         Filter
@@ -82,6 +90,7 @@
                             <th><input type="checkbox" id="select-all-courses"></th>
                             <th>Code</th>
                             <th>Title</th>
+                            <th>Department</th>
                             <th>Program</th>
                             <th>Duration</th>
                             <th>Status</th>
@@ -99,6 +108,7 @@
                                     <div>{{ $course->title }}</div>
                                     <small class="text-muted">{{ Str::limit($course->description, 50) }}</small>
                                 </td>
+                                <td>{{ $course->department?->name ?? '-' }}</td>
                                 <td>{{ $course->program?->name ?? '-' }}</td>
                                 <td>{{ $course->duration_weeks ? $course->duration_weeks . ' weeks' : '-' }}</td>
                                 <td>
