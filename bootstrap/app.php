@@ -42,7 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->append(SecurityHeaders::class);
+        // Temporarily disable SecurityHeaders to isolate HTTPS issue
+        // $middleware->append(SecurityHeaders::class);
 
         // Temporarily disable custom TrustProxies to isolate HTTPS issue
         // $middleware->replace(
