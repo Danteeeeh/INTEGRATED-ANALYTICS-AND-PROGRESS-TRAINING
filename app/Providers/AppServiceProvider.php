@@ -65,7 +65,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -141,8 +143,76 @@ class AppServiceProvider extends ServiceProvider
         return empty($meta['timed_out']);
     }
 
+    private function configureProxyAndScheme(): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        $env = env('APP_ENV', 'production');
+        $forceHttps = in_array($env, ['production', 'staging'], true)
+            ? (bool) env('FORCE_HTTPS', true)
+            : (bool) env('FORCE_HTTPS', false);
+
+        $trustedProxyConfig = config('trustedproxy.proxies');
+        if (is_string($trustedProxyConfig) && $trustedProxyConfig !== '') {
+            Request::setTrustedProxies(
+                [$trustedProxyConfig],
+                Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_PREFIX
+                | Request::HEADER_FORWARDED
+            );
+        } else {
+            Request::setTrustedProxies(
+                ['*'],
+                Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_PREFIX
+                | Request::HEADER_FORWARDED
+            );
+        }
+
+        // Only force HTTPS if the request is actually forwarded as HTTPS
+        // or if FORCE_HTTPS is explicitly enabled
+        try {
+            $protoHeader = request()->header('X-Forwarded-Proto', '');
+            $isForwardedHttps = $protoHeader === 'https'
+                || request()->header('X-Forwarded-Ssl') === 'on'
+                || request()->header('Front-End-Https') === 'on';
+
+            if ($isForwardedHttps) {
+                $this->app['url']->forceScheme('https');
+                $this->app['request']->server->set('HTTPS', 'on');
+
+                $configuredUrl = (string) config('app.url', '');
+                if ($configuredUrl !== '') {
+                    $normalized = preg_replace('#^http://#i', 'https://', rtrim($configuredUrl, '/'));
+                    URL::forceRootUrl($normalized);
+                }
+            } elseif ($forceHttps) {
+                // Only force HTTPS if APP_URL is already https
+                $configuredUrl = (string) config('app.url', '');
+                if (str_starts_with($configuredUrl, 'https://')) {
+                    $this->app['url']->forceScheme('https');
+                    $this->app['request']->server->set('HTTPS', 'on');
+                    URL::forceRootUrl(rtrim($configuredUrl, '/'));
+                }
+            }
+        } catch (\Throwable $e) {
+            // If request is not available yet, skip this configuration
+            // It will be handled by middleware later
+        }
+    }
+
     public function boot(): void
     {
+        $this->configureProxyAndScheme();
+
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Course::class, CoursePolicy::class);
         Gate::policy(ClassModel::class, ClassPolicy::class);
