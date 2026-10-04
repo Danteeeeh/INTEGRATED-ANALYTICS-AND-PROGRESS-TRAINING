@@ -85,7 +85,7 @@
                                     @endphp
                                     
                                     @if($grade)
-                                        <div style="font-weight: 600; color: {{ $grade->score_percent >= 70 ? '#16a34a' : ($grade->score_percent >= 50 ? '#d97706' : '#dc2626') }};">
+                                        <div style="font-weight: 600; color: {{ ($grade->score_percent >= 70 ? '#16a34a' : ($grade->score_percent >= 50 ? '#d97706' : '#dc2626')) }};">
                                             {{ $grade->points }}/{{ $item->max_points }}
                                         </div>
                                         <div style="font-size: 0.75rem; color: #64748b;">{{ number_format($grade->score_percent, 1) }}%</div>
@@ -114,7 +114,7 @@
                             <td style="padding: 12px; text-align: center; font-weight: 600;">
                                 {{ $earnedPoints }}/{{ $totalPoints }}
                             </td>
-                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ $totalPercent >= 70 ? '#16a34a' : ($totalPercent >= 50 ? '#d97706' : '#dc2626') }};">
+                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ ($totalPercent >= 70 ? '#16a34a' : ($totalPercent >= 50 ? '#d97706' : '#dc2626')) }};">
                                 {{ number_format($totalPercent, 1) }}%
                             </td>
                             <td style="padding: 12px; text-align: center;">

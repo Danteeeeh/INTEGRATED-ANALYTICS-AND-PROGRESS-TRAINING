@@ -138,7 +138,7 @@
                             </div>
                             
                             <div style="text-align: right; min-width: 100px;">
-                                <div style="font-weight: 600; color: {{ ($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#64748b') }};">
+                                <div style="font-weight: 600; color: {{ (($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#64748b')) }};">
                                     {{ ucfirst(str_replace('_', ' ', $moduleStatus)) }}
                                 </div>
                                 @if($moduleProgress?->completed_at)
@@ -152,7 +152,7 @@
                         <!-- Progress Bar -->
                         <div style="margin-bottom: 12px;">
                             <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div style="background: {{ ($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#cbd5e1') }}; height: 100%; width: {{ $modulePercent }}%; transition: width 0.5s ease;"></div>
+                                <div style="background: {{ (($moduleStatus === 'completed') ? '#16a34a' : (($moduleStatus === 'in_progress') ? '#3b82f6' : '#cbd5e1')) }}; height: 100%; width: {{ $modulePercent }}%; transition: width 0.5s ease;"></div>
                             </div>
                         </div>
                         
@@ -237,7 +237,7 @@
                 @foreach($recentProgress as $progress)
                     <div style="position: relative; margin-bottom: 24px;">
                         <!-- Timeline Dot -->
-                        <div style="position: absolute; left: -20px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: {{ $progress->completed ? '#16a34a' : '#3b82f6' }}; border: 3px solid white; box-shadow: 0 0 0 2px {{ $progress->completed ? '#16a34a' : '#3b82f6' }};"></div>
+                        <div style="position: absolute; left: -20px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: {{ ($progress->completed ? '#16a34a' : '#3b82f6') }}; border: 3px solid white; box-shadow: 0 0 0 2px {{ ($progress->completed ? '#16a34a' : '#3b82f6') }};"></div>
                         
                         <div style="padding: 12px; background: #f8fafc; border-radius: 8px; margin-left: 8px;">
                             <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">
@@ -247,7 +247,7 @@
                                 {{ $progress->lesson->module->title }}
                             </div>
                             <div style="font-size: 0.8rem; color: #94a3b8;">
-                                {{ $progress->completed ? 'Completed' : 'In Progress' }} • {{ $progress->updated_at->diffForHumans() }}
+                                {{ ($progress->completed ? 'Completed' : 'In Progress') }} • {{ $progress->updated_at->diffForHumans() }}
                             </div>
                         </div>
                     </div>

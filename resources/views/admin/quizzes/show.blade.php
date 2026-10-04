@@ -74,6 +74,36 @@
 
     <div class="user-panel">
         <div class="user-panel-head">
+            <h3><i class="fa-solid fa-file-import"></i> Import Questions</h3>
+        </div>
+        <div class="user-panel-body">
+            <form action="{{ route('admin.quizzes.import', $quiz) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-field full">
+                        <label for="import_file">Upload File (CSV or TXT)</label>
+                        <input type="file" id="import_file" name="import_file" accept=".csv,.txt" required>
+                        <small class="form-hint">Supported formats: CSV with headers (question_text, question_type, choice_1, choice_2, choice_3, choice_4, correct_answer, points, difficulty) or plain text with numbered questions and choices marked with asterisk (*) for correct answers.</small>
+                    </div>
+                    <div class="form-field">
+                        <label for="question_bank_id">Add to Question Bank (Optional)</label>
+                        <select id="question_bank_id" name="question_bank_id">
+                            <option value="">No Question Bank</option>
+                            @foreach(\App\Models\QuestionBank::active()->get() as $bank)
+                                <option value="{{ $bank->id }}">{{ $bank->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Import Questions</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="user-panel">
+        <div class="user-panel-head">
             <h3><i class="fa-solid fa-list-ol"></i> Questions</h3>
             <span class="user-status">{{ $quiz->questions->count() }} questions</span>
         </div>

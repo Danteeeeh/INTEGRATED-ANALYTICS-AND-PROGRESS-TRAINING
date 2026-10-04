@@ -1,7 +1,7 @@
 @props(['id', 'title', 'size' => 'normal', 'closeButton' => true])
 
 <div class="modal-overlay" id="{{ $id }}-overlay">
-  <div class="modal {{ ($size === 'large' ? 'modal-lg' : ($size === 'small' ? 'modal-sm' : '')) }}">
+  <div class="modal {{ (($size === 'large' ? 'modal-lg' : ($size === 'small' ? 'modal-sm' : ''))) }}">
     <div class="modal-header">
       <span>{{ $title }}</span>
       @if($closeButton)

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Quiz;
+use App\Services\QuizImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -199,5 +200,46 @@ class QuizController extends Controller
         session()->flash('success', 'Quiz closed successfully.');
 
         return back();
+    }
+
+    public function importQuestions(Request $request, Quiz $quiz): RedirectResponse
+    {
+        $this->authorize('update', $quiz);
+
+        $validated = $request->validate([
+            'import_file' => 'required|file|mimes:csv,txt|max:10240',
+            'question_bank_id' => 'nullable|exists:question_banks,id',
+        ]);
+
+        $file = $request->file('import_file');
+        $filePath = $file->getRealPath();
+
+        try {
+            $questionBank = $request->filled('question_bank_id')
+                ? \App\Models\QuestionBank::find($request->question_bank_id)
+                : null;
+
+            $importService = new QuizImportService();
+            $result = $importService->importQuestionsFromFile(
+                $filePath,
+                $quiz,
+                $request->user()->id,
+                $questionBank
+            );
+
+            $message = "Imported {$result['created']} questions successfully.";
+            if (! empty($result['errors'])) {
+                $message .= " Some rows had errors: " . implode('; ', array_slice($result['errors'], 0, 3));
+                if (count($result['errors']) > 3) {
+                    $message .= " and " . (count($result['errors']) - 3) . " more.";
+                }
+            }
+
+            session()->flash('success', $message);
+
+            return back();
+        } catch (\Exception $e) {
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
     }
 }

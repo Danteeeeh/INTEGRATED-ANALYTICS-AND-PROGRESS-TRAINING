@@ -92,7 +92,7 @@
             value="{{ $stats['my_courses'] ?? 0 }}"
             icon="fa-book"
             valueId="stat-courses-value"
-            trend="{{ ($stats['active_enrollments'] ?? 0) > 0 ? 'Active' : 'New' }}"
+            trend="{{ (($stats['active_enrollments'] ?? 0) > 0 ? 'Active' : 'New') }}"
             footer="{{ $stats['completed_enrollments'] ?? 0 }} completed"
         />
         <x-user-stat-card
@@ -108,7 +108,7 @@
             value="{{ number_format($stats['average_grade'] ?? 0, 1) }}%"
             icon="fa-star"
             trend="GPA {{ number_format($stats['gpa'] ?? 0, 2) }}"
-            footer="{{ ($stats['highest_grade'] ?? 0) > 0 ? 'Best '.number_format($stats['highest_grade'], 1).'%' : 'No grades yet' }}"
+            footer="{{ (($stats['highest_grade'] ?? 0) > 0 ? 'Best '.number_format($stats['highest_grade'], 1).'%' : 'No grades yet') }}"
         />
         <x-user-stat-card
             label="Upcoming Tasks"

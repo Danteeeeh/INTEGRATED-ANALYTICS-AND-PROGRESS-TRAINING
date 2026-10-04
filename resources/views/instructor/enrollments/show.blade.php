@@ -325,7 +325,7 @@
                 <span class="enr-row-label">Final Grade</span>
                 <span class="enr-row-value">
                     @if($enrollment->final_grade !== null)
-                        <span class="grade-chip {{ $enrollment->final_grade >= 75 ? 'grade-high' : ($enrollment->final_grade >= 60 ? 'grade-mid' : 'grade-low') }}">{{ $enrollment->final_grade }}%</span>
+                        <span class="grade-chip {{ ($enrollment->final_grade >= 75 ? 'grade-high' : ($enrollment->final_grade >= 60 ? 'grade-mid' : 'grade-low')) }}">{{ $enrollment->final_grade }}%</span>
                     @else
                         <span class="grade-chip grade-none">Not graded</span>
                     @endif
@@ -477,7 +477,7 @@
             <div class="enr-card-head">
                 <h4><i class="fa-solid fa-star"></i> Grades ({{ $grades->count() }})</h4>
                 @if($averageGrade !== null)
-                    <span class="enr-head-badge {{ $averageGrade >= 75 ? 'bh-green' : ($averageGrade >= 60 ? 'bh-amber' : 'bh-rose') }}">
+                    <span class="enr-head-badge {{ ($averageGrade >= 75 ? 'bh-green' : ($averageGrade >= 60 ? 'bh-amber' : 'bh-rose')) }}">
                         Avg {{ number_format($averageGrade, 1) }}%
                     </span>
                 @endif
@@ -496,7 +496,7 @@
                         </div>
                         <span class="enr-row-value">
                             @if($grade->score_percent !== null)
-                                <span class="grade-chip {{ $grade->score_percent >= 75 ? 'grade-high' : ($grade->score_percent >= 60 ? 'grade-mid' : 'grade-low') }}">
+                                <span class="grade-chip {{ ($grade->score_percent >= 75 ? 'grade-high' : ($grade->score_percent >= 60 ? 'grade-mid' : 'grade-low')) }}">
                                     {{ number_format($grade->score_percent, 1) }}%
                                 </span>
                             @else
@@ -518,7 +518,7 @@
             <div class="enr-card-head">
                 <h4><i class="fa-solid fa-clipboard-check"></i> Attendance ({{ $attendanceSummary['total'] }})</h4>
                 @if($attendanceRate !== null)
-                    <span class="enr-head-badge {{ $attendanceRate >= 75 ? 'bh-green' : ($attendanceRate >= 50 ? 'bh-amber' : 'bh-rose') }}">
+                    <span class="enr-head-badge {{ ($attendanceRate >= 75 ? 'bh-green' : ($attendanceRate >= 50 ? 'bh-amber' : 'bh-rose')) }}">
                         {{ $attendanceRate }}% rate
                     </span>
                 @endif
@@ -546,7 +546,7 @@
                         <div class="enr-row">
                             <span class="enr-row-label">{{ $record->attendance_date?->format('M j, Y') ?? '—' }}{{ $record->session_title ? ' · ' . $record->session_title : '' }}</span>
                             <span class="enr-row-value">
-                                <span class="grade-chip {{ $record->status === 'present' ? 'grade-high' : ($record->status === 'late' ? 'grade-mid' : 'grade-low') }}">
+                                <span class="grade-chip {{ ($record->status === 'present' ? 'grade-high' : ($record->status === 'late' ? 'grade-mid' : 'grade-low')) }}">
                                     {{ ucfirst($record->status ?? 'unknown') }}
                                 </span>
                             </span>

@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Services\QuizImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -263,5 +264,46 @@ class QuizController extends Controller
 
         return redirect()->route('instructor.courses.quizzes.attempts.show', [$course, $quiz, $attempt])
             ->with('success', 'Attempt graded successfully.');
+    }
+
+    public function importQuestions(Request $request, Course $course, Quiz $quiz): RedirectResponse
+    {
+        $this->authorize('update', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $validated = $request->validate([
+            'import_file' => 'required|file|mimes:csv,txt|max:10240',
+            'question_bank_id' => 'nullable|exists:question_banks,id',
+        ]);
+
+        $file = $request->file('import_file');
+        $filePath = $file->getRealPath();
+
+        try {
+            $questionBank = $request->filled('question_bank_id')
+                ? \App\Models\QuestionBank::find($request->question_bank_id)
+                : null;
+
+            $importService = new QuizImportService();
+            $result = $importService->importQuestionsFromFile(
+                $filePath,
+                $quiz,
+                $request->user()->id,
+                $questionBank
+            );
+
+            $message = "Imported {$result['created']} questions successfully.";
+            if (! empty($result['errors'])) {
+                $message .= " Some rows had errors: " . implode('; ', array_slice($result['errors'], 0, 3));
+                if (count($result['errors']) > 3) {
+                    $message .= " and " . (count($result['errors']) - 3) . " more.";
+                }
+            }
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
     }
 }

@@ -236,8 +236,8 @@
                                 <td style="padding: 12px; text-align: center;">
                                     @php
                                         $cr = $course['completion_rate'];
-                                        $crBg = $cr >= 70 ? '#dcfce7' : ($cr >= 50 ? '#fef3c7' : '#fee2e2');
-                                        $crFg = $cr >= 70 ? '#16a34a' : ($cr >= 50 ? '#d97706' : '#dc2626');
+                                        $crBg = ($cr >= 70 ? '#dcfce7' : ($cr >= 50 ? '#fef3c7' : '#fee2e2'));
+                                        $crFg = ($cr >= 70 ? '#16a34a' : ($cr >= 50 ? '#d97706' : '#dc2626'));
                                     @endphp
                                     <span style="background: {{ $crBg }}; color: {{ $crFg }}; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
                                         {{ number_format($course['completion_rate'], 1) }}%

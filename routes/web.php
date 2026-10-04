@@ -227,6 +227,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::resource('quizzes', AdminQuizController::class);
         Route::post('quizzes/{quiz}/publish', [AdminQuizController::class, 'publish'])->name('quizzes.publish');
         Route::post('quizzes/{quiz}/close', [AdminQuizController::class, 'close'])->name('quizzes.close');
+        Route::post('quizzes/{quiz}/import', [AdminQuizController::class, 'importQuestions'])->name('quizzes.import');
 
         Route::resource('question_banks', AdminQuestionBankController::class);
         Route::resource('questions', AdminQuestionController::class);
@@ -396,6 +397,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::delete('/{quiz}', [InstructorQuizController::class, 'destroy'])->name('destroy');
                     Route::post('/{quiz}/publish', [InstructorQuizController::class, 'publish'])->name('publish');
                     Route::post('/{quiz}/close', [InstructorQuizController::class, 'close'])->name('close');
+                    Route::post('/{quiz}/import', [InstructorQuizController::class, 'importQuestions'])->name('import');
                     Route::get('/{quiz}/attempts', [InstructorQuizController::class, 'attempts'])->name('attempts');
                     Route::get('/{quiz}/attempts/{attempt}', [InstructorQuizController::class, 'showAttempt'])->name('attempts.show');
                     Route::post('/{quiz}/attempts/{attempt}/grade', [InstructorQuizController::class, 'gradeAttempt'])->name('attempts.grade');

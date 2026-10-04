@@ -67,7 +67,7 @@
         <div class="user-panel" id="completion-checklist-panel">
             <div class="user-panel-head">
                 <h3><i class="fa-solid fa-clipboard-check"></i> Completion Checklist</h3>
-                <span class="user-status {{ $canComplete ? 'active' : '' }}" id="checklist-status">{{ $canComplete ? 'Requirements met' : 'Requirements pending' }}</span>
+                <span class="user-status {{ $canComplete ? 'active' : '' }}" id="checklist-status">{{ ($canComplete ? 'Requirements met' : 'Requirements pending') }}</span>
             </div>
             <div class="user-panel-body" id="completion-checklist-body">
                 <ul style="list-style:none;margin:0;padding:0;display:grid;gap:10px;">
@@ -102,7 +102,7 @@
             @csrf
             <div class="learning-next-action">
                 <div>
-                    <strong>{{ $canComplete ? 'Finished this lesson?' : 'Requirements not yet met' }}</strong>
+                    <strong>{{ ($canComplete ? 'Finished this lesson?' : 'Requirements not yet met') }}</strong>
                     <span id="complete-hint">
                         @if($hasRules)
                             {{ $canComplete ? 'Mark it complete to update your progress.' : 'Complete the checklist above to unlock completion.' }}

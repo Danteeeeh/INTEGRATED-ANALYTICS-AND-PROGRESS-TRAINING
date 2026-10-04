@@ -1,0 +1,6 @@
+question_text,question_type,choice_1,choice_2,choice_3,choice_4,correct_answer,points,difficulty
+What is the capital of France?,multiple_choice,Paris,London,Berlin,Rome,a,1,easy
+Which programming language is used for web development?,multiple_choice,Python,Java,JavaScript,C,c,1,medium
+What is 2 + 2?,multiple_choice,3,4,5,6,b,1,easy
+Which of the following are front-end technologies?,multiple_answer,HTML,Python,JavaScript,SQL,a,c,2,medium
+The Earth is flat.,true_false,True,False,False,b,1,easy

@@ -9,7 +9,7 @@
     $enrolledCount = (int) ($class->enrolled_count ?? 0);
     $capacity = $class->max_students ?? $class->capacity;
     $availableSeats = $capacity ? max(0, $capacity - $enrolledCount) : null;
-    $status = $isEnrolled ? ($enrollment?->status ?? 'enrolled') : ($class->is_active ? 'available' : 'unavailable');
+    $status = ($isEnrolled ? ($enrollment?->status ?? 'enrolled') : ($class->is_active ? 'available' : 'unavailable'));
     $statusClass = match ($status) {
         'active', 'available' => 'status-good',
         'completed' => 'status-info',
