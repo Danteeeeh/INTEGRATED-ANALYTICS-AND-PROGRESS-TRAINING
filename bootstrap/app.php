@@ -42,14 +42,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Temporarily disable SecurityHeaders to isolate HTTPS issue
-        // $middleware->append(SecurityHeaders::class);
+        // Re-enable SecurityHeaders
+        $middleware->append(SecurityHeaders::class);
 
-        // Temporarily disable custom TrustProxies to isolate HTTPS issue
-        // $middleware->replace(
-        //     \Illuminate\Http\Middleware\TrustProxies::class,
-        //     TrustProxies::class
-        // );
+        // Re-enable TrustProxies with default Laravel behavior
+        $middleware->replace(
+            \Illuminate\Http\Middleware\TrustProxies::class,
+            TrustProxies::class
+        );
 
         $middleware->trustHosts(at: [
             'online-learning.bcpsms2.com',
