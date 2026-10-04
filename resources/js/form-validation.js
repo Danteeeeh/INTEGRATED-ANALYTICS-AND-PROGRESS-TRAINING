@@ -56,15 +56,24 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             let isValid = true;
             const requiredInputs = form.querySelectorAll('[required]');
-            
+
             requiredInputs.forEach(input => {
-                if (!input.value.trim()) {
+                let isEmpty = false;
+
+                // Check based on input type
+                if (input.type === 'file') {
+                    isEmpty = input.files.length === 0;
+                } else {
+                    isEmpty = !input.value.trim();
+                }
+
+                if (isEmpty) {
                     isValid = false;
                     const field = input.closest('.form-field');
                     if (field) {
                         field.classList.add('has-error');
                         input.classList.add('input-error');
-                        
+
                         let errorEl = field.querySelector('.field-error');
                         if (!errorEl) {
                             errorEl = document.createElement('span');

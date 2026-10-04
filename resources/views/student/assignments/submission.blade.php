@@ -20,8 +20,8 @@
     <div class="user-panel">
         <div class="user-panel-head"><h3><i class="fa-solid fa-comment"></i> Submitted Content</h3></div>
         <div class="user-panel-body">
-            @if($submission->content)
-                <div style="white-space:pre-line">{{ $submission->content }}</div>
+            @if($submission->submission_text)
+                <div style="white-space:pre-line">{{ $submission->submission_text }}</div>
             @else
                 <p class="user-email">No text content.</p>
             @endif

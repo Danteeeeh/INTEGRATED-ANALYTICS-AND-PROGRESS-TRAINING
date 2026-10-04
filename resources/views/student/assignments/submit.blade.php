@@ -2,6 +2,15 @@
 @section('title', 'Submit Assignment')
 @php $activeNav = 'assignments'; @endphp
 
+@push('styles')
+<style>
+    /* Temporarily disable form validation for file uploads */
+    form[data-no-validation] .field-error {
+        display: none !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="learning-shell">
     <x-user-page-header
@@ -17,7 +26,7 @@
     <div class="user-panel">
         <div class="user-panel-head"><h3><i class="fa-solid fa-upload"></i> Your Submission</h3></div>
         <div class="user-panel-body">
-            <form action="{{ route('student.courses.assignments.submit.store', [$course, $assignment]) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('student.courses.assignments.submit.store', [$course, $assignment]) }}" method="POST" enctype="multipart/form-data" data-no-loading="true">
                 @csrf
 
                 <div class="form-grid">

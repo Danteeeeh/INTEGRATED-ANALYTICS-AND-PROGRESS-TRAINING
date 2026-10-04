@@ -142,15 +142,20 @@ class AssignmentController extends Controller
 
         $attemptNumber = $latestSubmission ? $latestSubmission->attempt_number + 1 : 1;
 
-        $validated = $request->validate([
+        // Build validation rules based on submission type
+        $rules = [
             'submission_text' => $assignment->submission_type === Assignment::TYPE_TEXT ? 'required|string' : 'nullable|string',
-            'files' => $assignment->submission_type === Assignment::TYPE_FILE
-                ? 'required|file|max:10240'
-                : ($assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES
-                    ? 'required|array|min:1'
-                    : 'nullable'),
-            'files.*' => $assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES ? 'file|max:10240' : 'file|max:10240',
-        ]);
+        ];
+
+        if ($assignment->submission_type === Assignment::TYPE_FILE) {
+            $rules['files'] = 'required|array';
+            $rules['files.*'] = 'required|file|max:10240';
+        } elseif ($assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES) {
+            $rules['files'] = 'required|array|min:1';
+            $rules['files.*'] = 'required|file|max:10240';
+        }
+
+        $validated = $request->validate($rules);
 
         $submission = AssignmentSubmission::create([
             'assignment_id' => $assignment->id,
