@@ -149,11 +149,6 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        $env = env('APP_ENV', 'production');
-        $forceHttps = in_array($env, ['production', 'staging'], true)
-            ? (bool) env('FORCE_HTTPS', true)
-            : (bool) env('FORCE_HTTPS', false);
-
         $trustedProxyConfig = config('trustedproxy.proxies');
         if (is_string($trustedProxyConfig) && $trustedProxyConfig !== '') {
             Request::setTrustedProxies(
@@ -178,7 +173,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // Only force HTTPS if the request is actually forwarded as HTTPS
-        // or if FORCE_HTTPS is explicitly enabled
+        // Don't force HTTPS based on FORCE_HTTPS env var to avoid conflicts with CDN/proxy
         try {
             $protoHeader = request()->header('X-Forwarded-Proto', '');
             $isForwardedHttps = $protoHeader === 'https'
@@ -193,14 +188,6 @@ class AppServiceProvider extends ServiceProvider
                 if ($configuredUrl !== '') {
                     $normalized = preg_replace('#^http://#i', 'https://', rtrim($configuredUrl, '/'));
                     URL::forceRootUrl($normalized);
-                }
-            } elseif ($forceHttps) {
-                // Only force HTTPS if APP_URL is already https
-                $configuredUrl = (string) config('app.url', '');
-                if (str_starts_with($configuredUrl, 'https://')) {
-                    $this->app['url']->forceScheme('https');
-                    $this->app['request']->server->set('HTTPS', 'on');
-                    URL::forceRootUrl(rtrim($configuredUrl, '/'));
                 }
             }
         } catch (\Throwable $e) {
