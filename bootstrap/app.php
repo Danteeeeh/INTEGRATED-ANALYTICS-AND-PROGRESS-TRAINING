@@ -51,11 +51,10 @@ return Application::configure(basePath: dirname(__DIR__))
             TrustProxies::class
         );
 
-        $middleware->trustHosts(at: [
-            'online-learning.bcpsms2.com',
-            '*.bcpsms2.com',
-            'localhost',
-            '127.0.0.1',
+         $middleware->trustHosts(at: [
+           '^(.+\.)?bcpsms2\.com$',
+           '^localhost$',
+           '^127\.0\.0\.1$',
         ]);
 
         $middleware->alias([
