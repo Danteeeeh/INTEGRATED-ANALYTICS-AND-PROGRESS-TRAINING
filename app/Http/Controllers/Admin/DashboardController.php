@@ -11,8 +11,6 @@ use App\Models\AuditLog;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\CourseCompletion;
-use App\Models\Discussion;
-use App\Models\DiscussionPost;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\LessonProgress;
@@ -413,16 +411,9 @@ class DashboardController extends Controller
     protected function getForumParticipation(): array
     {
         return [
-            'total_posts' => DiscussionPost::count(),
-            'active_discussions' => Discussion::where('discussions.created_at', '>', now()->subDays(7))->count(),
-            'top_contributors' => DiscussionPost::select('author_id')
-                ->selectRaw('count(*) as post_count')
-                ->groupBy('author_id')
-                ->orderBy('post_count', 'desc')
-                ->limit(5)
-                ->with('author')
-                ->get()
-                ->toArray(),
+            'total_posts' => 0,
+            'active_discussions' => 0,
+            'top_contributors' => [],
         ];
     }
 

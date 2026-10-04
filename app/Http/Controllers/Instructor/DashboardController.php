@@ -9,8 +9,6 @@ use App\Models\AssignmentSubmission;
 use App\Models\AttendanceRecord;
 use App\Models\ClassModel;
 use App\Models\Course;
-use App\Models\Discussion;
-use App\Models\DiscussionPost;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
@@ -110,22 +108,8 @@ class DashboardController extends Controller
             ->get();
 
         // Discussions with optimized queries
-        $recentDiscussions = Discussion::whereIn('course_id', $courseIds)
-            ->orWhereIn('class_id', $classIds)
-            ->with(['posts' => function ($query) {
-                $query->latest()->limit(1);
-            }])
-            ->orderBy('updated_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        $recentDiscussionPosts = DiscussionPost::whereHas('discussion', function ($query) use ($courseIds, $classIds) {
-            $query->whereIn('course_id', $courseIds)
-                ->orWhereIn('class_id', $classIds);
-        })->with(['author', 'discussion'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
+        $recentDiscussions = collect();
+        $recentDiscussionPosts = collect();
 
         // Announcements with optimized queries
         $recentAnnouncements = Announcement::whereIn('course_id', $courseIds)
@@ -212,9 +196,7 @@ class DashboardController extends Controller
             // Discussions
             'recent_discussions' => $recentDiscussions,
             'recent_discussion_posts' => $recentDiscussionPosts,
-            'total_discussions' => Discussion::whereIn('course_id', $courseIds)
-                ->orWhereIn('class_id', $classIds)
-                ->count(),
+            'total_discussions' => 0,
 
             // Announcements
             'recent_announcements' => $recentAnnouncements,
