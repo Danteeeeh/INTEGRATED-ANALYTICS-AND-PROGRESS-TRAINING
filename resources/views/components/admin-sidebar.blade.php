@@ -198,12 +198,6 @@
                         <span>Announcements</span>
                     </a>
                 </li>
-                <li class="nav-item {{ $activeNav === 'discussions' ? 'active' : '' }}">
-                    <a href="{{ route('admin.discussions.index') }}" class="nav-link" @if($activeNav === 'discussions') aria-current="page" @endif>
-                        <i class="fa-solid fa-comments"></i>
-                        <span>Discussions</span>
-                    </a>
-                </li>
                 <li class="nav-item {{ $activeNav === 'calendar' ? 'active' : '' }}">
                     <a href="{{ route('admin.calendar.index') }}" class="nav-link" @if($activeNav === 'calendar') aria-current="page" @endif>
                         <i class="fa-solid fa-calendar-days"></i>

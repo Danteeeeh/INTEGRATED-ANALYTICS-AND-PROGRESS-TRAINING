@@ -11,15 +11,20 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
-    public function index(ClassModel $class): View
+    public function index(Request $request, ClassModel $class): View
     {
         $this->authorize('viewAny', AttendanceRecord::class);
 
         abort_if($class->instructor_id !== auth()->id(), 403);
 
-        $attendanceRecords = AttendanceRecord::where('class_id', $class->id)
-            ->with(['class', 'student', 'virtualClass'])
-            ->orderBy('attendance_date', 'desc')
+        $query = AttendanceRecord::where('class_id', $class->id)
+            ->with(['class', 'student', 'virtualClass']);
+
+        if ($request->filled('week_number')) {
+            $query->where('week_number', $request->week_number);
+        }
+
+        $attendanceRecords = $query->orderBy('attendance_date', 'desc')
             ->paginate(20);
 
         return view('instructor.attendance.index', compact('class', 'attendanceRecords'));
@@ -51,6 +56,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate([
             'attendance_date' => 'required|date',
+            'week_number' => 'nullable|integer|min:1',
             'session_title' => 'nullable|string|max:255',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'records' => 'required|array',
@@ -64,6 +70,7 @@ class AttendanceController extends Controller
                 'class_id' => $class->id,
                 'virtual_class_id' => $validated['virtual_class_id'] ?? null,
                 'attendance_date' => $validated['attendance_date'],
+                'week_number' => $validated['week_number'] ?? null,
                 'session_title' => $validated['session_title'] ?? null,
                 'student_id' => $record['student_id'],
                 'status' => $record['status'],
@@ -130,6 +137,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate([
             'attendance_date' => 'required|date',
+            'week_number' => 'nullable|integer|min:1',
             'session_title' => 'nullable|string|max:255',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'records' => 'required|array',
@@ -144,6 +152,9 @@ class AttendanceController extends Controller
                 AttendanceRecord::where('id', $record['id'])
                     ->where('class_id', $class->id)
                     ->update([
+                        'attendance_date' => $validated['attendance_date'],
+                        'week_number' => $validated['week_number'] ?? null,
+                        'session_title' => $validated['session_title'] ?? null,
                         'status' => $record['status'],
                         'notes' => $record['notes'] ?? null,
                     ]);
@@ -152,6 +163,7 @@ class AttendanceController extends Controller
                     'class_id' => $class->id,
                     'virtual_class_id' => $validated['virtual_class_id'] ?? null,
                     'attendance_date' => $validated['attendance_date'],
+                    'week_number' => $validated['week_number'] ?? null,
                     'session_title' => $validated['session_title'] ?? null,
                     'student_id' => $record['student_id'],
                     'status' => $record['status'],

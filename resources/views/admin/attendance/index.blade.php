@@ -30,6 +30,7 @@
                     <option value="{{ $class->id }}" @selected(request('class_id') == $class->id)>{{ $class->code }}</option>
                 @endforeach
             </select>
+            <input class="form-control" type="number" name="week_number" value="{{ request('week_number') }}" min="1" placeholder="Week" aria-label="Filter by week">
             <select class="form-control" name="status" aria-label="Filter status">
                 <option value="">All Status</option>
                 @foreach(['present' => 'Present', 'late' => 'Late', 'absent' => 'Absent', 'excused' => 'Excused'] as $value => $label)
@@ -48,6 +49,7 @@
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Week</th>
                                 <th>Student</th>
                                 <th>Class</th>
                                 <th>Session</th>
@@ -59,6 +61,7 @@
                             @foreach($attendanceRecords as $record)
                                 <tr>
                                     <td>{{ $record->attendance_date?->format('M j, Y') }}</td>
+                                    <td>{{ $record->week_number ?? '—' }}</td>
                                     <td>
                                         <div class="user-info">
                                             <div class="user-name">{{ $record->student?->name ?? '—' }}</div>
@@ -72,7 +75,7 @@
                                         @elseif($record->virtualClass)
                                             {{ $record->virtualClass->title }}
                                         @else
-                                            — 
+                                            —
                                         @endif
                                     </td>
                                     <td><x-user-status-badge status="{{ $record->status }}" /></td>

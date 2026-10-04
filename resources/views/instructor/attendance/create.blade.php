@@ -28,6 +28,12 @@
                     </div>
 
                     <div class="form-field">
+                        <label>Week Number</label>
+                        <input type="number" name="week_number" value="{{ old('week_number') }}" min="1" placeholder="e.g. 1">
+                        <span class="field-error">{{ $errors->first('week_number') }}</span>
+                    </div>
+
+                    <div class="form-field">
                         <label>Session Title</label>
                         <input type="text" name="session_title" value="{{ old('session_title') }}" placeholder="e.g. Week 3 lecture">
                         <span class="field-error">{{ $errors->first('session_title') }}</span>

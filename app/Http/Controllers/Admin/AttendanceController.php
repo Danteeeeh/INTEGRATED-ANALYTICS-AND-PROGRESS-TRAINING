@@ -46,6 +46,10 @@ class AttendanceController extends Controller
             $query->whereDate('attendance_date', $request->attendance_date);
         }
 
+        if ($request->filled('week_number')) {
+            $query->where('week_number', $request->week_number);
+        }
+
         if ($request->filled('date_from')) {
             $query->whereDate('attendance_date', '>=', $request->date_from);
         }
@@ -93,6 +97,7 @@ class AttendanceController extends Controller
             'class_id' => 'required|exists:classes,id',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'attendance_date' => 'required|date',
+            'week_number' => 'nullable|integer|min:1',
             'session_title' => 'nullable|string|max:255',
             'student_ids' => 'required|array',
             'student_ids.*' => 'exists:users,id',
@@ -110,6 +115,7 @@ class AttendanceController extends Controller
                 'class_id' => $validated['class_id'],
                 'virtual_class_id' => $validated['virtual_class_id'],
                 'attendance_date' => $validated['attendance_date'],
+                'week_number' => $validated['week_number'] ?? null,
                 'session_title' => $validated['session_title'],
                 'student_id' => $studentId,
                 'status' => $validated['statuses'][$index] ?? AttendanceRecord::STATUS_PRESENT,
@@ -153,6 +159,7 @@ class AttendanceController extends Controller
             'class_id' => 'required|exists:classes,id',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'attendance_date' => 'required|date',
+            'week_number' => 'nullable|integer|min:1',
             'session_title' => 'nullable|string|max:255',
             'student_id' => 'required|exists:users,id',
             'status' => 'required|in:present,late,absent,excused',
@@ -210,6 +217,7 @@ class AttendanceController extends Controller
             'class_id' => 'nullable|exists:classes,id',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'student_id' => 'nullable|exists:users,id',
+            'week_number' => 'nullable|integer|min:1',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
             'format' => 'required|in:csv,xlsx,pdf',
@@ -227,6 +235,10 @@ class AttendanceController extends Controller
 
         if ($request->filled('student_id')) {
             $query->where('student_id', $request->student_id);
+        }
+
+        if ($request->filled('week_number')) {
+            $query->where('week_number', $request->week_number);
         }
 
         if ($request->filled('date_from')) {

@@ -79,13 +79,6 @@
                         <span class="link-hint">Pick course</span>
                     </a>
                 </li>
-                <li class="nav-item {{ $activeNav === 'discussions' ? 'active' : '' }}">
-                    <a href="{{ route('student.courses.index', ['feature' => 'discussions']) }}" class="nav-link" @if($activeNav === 'discussions') aria-current="page" @endif>
-                        <i class="fa-solid fa-comments"></i>
-                        <span>Discussions</span>
-                        <span class="link-hint">Pick course</span>
-                    </a>
-                </li>
                 <li class="nav-item {{ $activeNav === 'announcements' ? 'active' : '' }}">
                     <a href="{{ route('student.courses.index', ['feature' => 'announcements']) }}" class="nav-link" @if($activeNav === 'announcements') aria-current="page" @endif>
                         <i class="fa-solid fa-bullhorn"></i>

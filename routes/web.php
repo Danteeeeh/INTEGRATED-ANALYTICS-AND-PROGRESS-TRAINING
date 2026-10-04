@@ -15,7 +15,6 @@ use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
-use App\Http\Controllers\Admin\DiscussionController as AdminDiscussionController;
 use App\Http\Controllers\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Admin\GradebookController as AdminGradebookController;
 use App\Http\Controllers\Admin\InstructorController;
@@ -54,7 +53,6 @@ use App\Http\Controllers\Instructor\CalendarController as InstructorCalendarCont
 use App\Http\Controllers\Instructor\ClassController as InstructorClassController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboard;
-use App\Http\Controllers\Instructor\DiscussionController as InstructorDiscussionController;
 use App\Http\Controllers\Instructor\EnrollmentController as InstructorEnrollmentController;
 use App\Http\Controllers\Instructor\GradebookController as InstructorGradebookController;
 use App\Http\Controllers\Instructor\LessonController as InstructorLessonController;
@@ -70,7 +68,6 @@ use App\Http\Controllers\Student\AssistantController as StudentAssistantControll
 use App\Http\Controllers\Student\ClassController as StudentClassController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboard;
-use App\Http\Controllers\Student\DiscussionController as StudentDiscussionController;
 use App\Http\Controllers\Student\EnrollmentController as StudentEnrollmentController;
 use App\Http\Controllers\Student\GradebookController as StudentGradebookController;
 use App\Http\Controllers\Student\LearningPlanController as StudentLearningPlanController;
@@ -237,10 +234,6 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         Route::resource('question_banks', AdminQuestionBankController::class);
         Route::resource('questions', AdminQuestionController::class);
-
-        Route::resource('discussions', AdminDiscussionController::class);
-        Route::post('discussions/{discussion}/pin', [AdminDiscussionController::class, 'pin'])->name('discussions.pin');
-        Route::post('discussions/{discussion}/lock', [AdminDiscussionController::class, 'lock'])->name('discussions.lock');
 
         Route::resource('announcements', AdminAnnouncementController::class);
         Route::post('announcements/{announcement}/pin', [AdminAnnouncementController::class, 'pin'])->name('announcements.pin');
@@ -436,15 +429,6 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::delete('/{rubric}', [InstructorRubricController::class, 'destroy'])->name('destroy');
                 });
 
-                Route::prefix('discussions')->name('discussions.')->group(function () {
-                    Route::get('/', [InstructorDiscussionController::class, 'index'])->name('index');
-                    Route::get('/create', [InstructorDiscussionController::class, 'create'])->name('create');
-                    Route::post('/', [InstructorDiscussionController::class, 'store'])->name('store');
-                    Route::get('/{discussion}', [InstructorDiscussionController::class, 'show'])->name('show');
-                    Route::post('/{discussion}/pin', [InstructorDiscussionController::class, 'pin'])->name('pin');
-                    Route::post('/{discussion}/lock', [InstructorDiscussionController::class, 'lock'])->name('lock');
-                });
-
                 Route::prefix('announcements')->name('announcements.')->group(function () {
                     Route::get('/', [InstructorAnnouncementController::class, 'index'])->name('index');
                     Route::get('/create', [InstructorAnnouncementController::class, 'create'])->name('create');
@@ -589,13 +573,6 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{exam}/attempt', [StudentExamController::class, 'startAttempt'])->name('attempt.start');
                     Route::post('/{exam}/attempt', [StudentExamController::class, 'storeAttempt'])->name('attempt.store');
                     Route::get('/{exam}/attempts/{attempt}', [StudentExamController::class, 'showAttempt'])->name('attempts.show');
-                });
-
-                Route::prefix('discussions')->name('discussions.')->group(function () {
-                    Route::get('/', [StudentDiscussionController::class, 'index'])->name('index');
-                    Route::get('/{discussion}', [StudentDiscussionController::class, 'show'])->name('show');
-                    Route::post('/{discussion}/subscribe', [StudentDiscussionController::class, 'subscribe'])->name('subscribe');
-                    Route::post('/{discussion}/posts', [StudentDiscussionController::class, 'storePost'])->name('posts.store');
                 });
 
                 Route::prefix('announcements')->name('announcements.')->group(function () {

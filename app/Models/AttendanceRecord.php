@@ -23,6 +23,7 @@ class AttendanceRecord extends Model
         'virtual_class_id',
         'attendance_date',
         'session_title',
+        'week_number',
         'student_id',
         'status',
         'joined_at',
@@ -36,6 +37,7 @@ class AttendanceRecord extends Model
     {
         return [
             'attendance_date' => 'date',
+            'week_number' => 'integer',
             'joined_at' => 'datetime',
             'left_at' => 'datetime',
             'duration_minutes' => 'integer',
