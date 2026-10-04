@@ -44,10 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
 
-        $middleware->replace(
-            \Illuminate\Http\Middleware\TrustProxies::class,
-            TrustProxies::class
-        );
+        // Temporarily disable custom TrustProxies to isolate HTTPS issue
+        // $middleware->replace(
+        //     \Illuminate\Http\Middleware\TrustProxies::class,
+        //     TrustProxies::class
+        // );
 
         $middleware->trustHosts(at: [
             'online-learning.bcpsms2.com',
