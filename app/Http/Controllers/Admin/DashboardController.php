@@ -348,10 +348,14 @@ class DashboardController extends Controller
             ->limit(5)
             ->get()
             ->map(function ($course) {
+                $completedCount = $course->enrollments()->where('enrollments.status', 'completed')->count();
+                $totalEnrollments = $course->enrollments_count;
+                $completionRate = $totalEnrollments > 0 ? ($completedCount / $totalEnrollments) * 100 : 0;
+                
                 return [
                     'title' => $course->title,
-                    'enrollments' => $course->enrollments_count,
-                    'completion_rate' => $course->enrollments()->where('enrollments.status', 'completed')->count() / max($course->enrollments_count, 1) * 100,
+                    'enrollments' => $totalEnrollments,
+                    'completion_rate' => $completionRate,
                 ];
             })
             ->toArray();
@@ -368,15 +372,19 @@ class DashboardController extends Controller
 
     protected function calculateRetentionRate(): float
     {
+        // Calculate retention rate: (active + completed) / total enrollments * 100
+        // This shows the percentage of students who are still engaged (active) or have successfully completed
         $totalEnrollments = Enrollment::count();
-        $completedEnrollments = Enrollment::where('enrollments.status', 'completed')->count();
-        $droppedEnrollments = Enrollment::where('enrollments.status', 'dropped')->count();
-
+        
         if ($totalEnrollments === 0) {
             return 0;
         }
 
-        return (($totalEnrollments - $droppedEnrollments) / $totalEnrollments) * 100;
+        $activeEnrollments = Enrollment::where('enrollments.status', 'active')->count();
+        $completedEnrollments = Enrollment::where('enrollments.status', 'completed')->count();
+        $retainedEnrollments = $activeEnrollments + $completedEnrollments;
+
+        return ($retainedEnrollments / $totalEnrollments) * 100;
     }
 
     protected function getDailyActiveUsers(): array
@@ -420,14 +428,43 @@ class DashboardController extends Controller
 
     protected function getVirtualClassAttendance(): array
     {
+        $totalClasses = VirtualClass::count();
+        
+        if ($totalClasses === 0) {
+            return [
+                'total_classes' => 0,
+                'average_attendance' => 0,
+                'attendance_rate' => 0,
+            ];
+        }
+
+        // Calculate total expected attendees and total actual attendees
+        $totalExpectedAttendees = 0;
+        $totalActualAttendees = 0;
+
+        $virtualClasses = VirtualClass::with('attendees')->get();
+        
+        foreach ($virtualClasses as $class) {
+            $totalExpectedAttendees += $class->attendees->count();
+            $totalActualAttendees += $class->attendees->where('attendance_status', 'present')->count();
+        }
+
+        $averageAttendance = $totalExpectedAttendees > 0 ? ($totalActualAttendees / $totalExpectedAttendees) * 100 : 0;
+        
+        // Calculate per-class attendance rate average
+        $attendanceRates = [];
+        foreach ($virtualClasses as $class) {
+            $classExpected = $class->attendees->count();
+            $classActual = $class->attendees->where('attendance_status', 'present')->count();
+            $attendanceRates[] = $classExpected > 0 ? ($classActual / $classExpected) * 100 : 0;
+        }
+        
+        $averageAttendanceRate = count($attendanceRates) > 0 ? array_sum($attendanceRates) / count($attendanceRates) : 0;
+
         return [
-            'total_classes' => VirtualClass::count(),
-            'average_attendance' => VirtualClassAttendee::where('attendance_status', 'present')->count() / max(VirtualClass::count(), 1),
-            'attendance_rate' => VirtualClass::withCount('attendees')
-                ->get()
-                ->avg(function ($class) {
-                    return $class->attendees_count / max(VirtualClassAttendee::where('virtual_class_id', $class->id)->count(), 1) * 100;
-                }) ?? 0,
+            'total_classes' => $totalClasses,
+            'average_attendance' => round($averageAttendance, 2),
+            'attendance_rate' => round($averageAttendanceRate, 2),
         ];
     }
 
@@ -499,54 +536,104 @@ class DashboardController extends Controller
 
     protected function calculateAssignmentCompletionRate(): float
     {
-        $totalAssignments = Assignment::where('assignments.status', 'published')->count();
-        if ($totalAssignments === 0) {
+        // Calculate actual assignment completion rate: (submitted assignments / total expected submissions) * 100
+        // Total expected submissions = sum of published assignments across all enrolled students
+        $publishedAssignments = Assignment::where('assignments.status', 'published')->get();
+        
+        if ($publishedAssignments->isEmpty()) {
             return 0;
         }
 
-        $submittedAssignments = AssignmentSubmission::whereHas('assignment', function ($query) {
-            $query->where('assignments.status', 'published');
-        })->count();
+        $totalExpectedSubmissions = 0;
+        $totalActualSubmissions = 0;
 
-        return ($submittedAssignments / $totalAssignments) * 100;
+        foreach ($publishedAssignments as $assignment) {
+            // Count enrolled students for this assignment's class/course
+            $enrolledStudents = Enrollment::where('class_id', $assignment->class_id)
+                ->where('enrollments.status', 'active')
+                ->count();
+            
+            $totalExpectedSubmissions += $enrolledStudents;
+            
+            // Count actual submissions for this assignment
+            $actualSubmissions = AssignmentSubmission::where('assignment_id', $assignment->id)
+                ->whereIn('status', ['submitted', 'graded', 'returned', 'resubmitted'])
+                ->count();
+            
+            $totalActualSubmissions += $actualSubmissions;
+        }
+
+        if ($totalExpectedSubmissions === 0) {
+            return 0;
+        }
+
+        return ($totalActualSubmissions / $totalExpectedSubmissions) * 100;
     }
 
     protected function calculateQuizCompletionRate(): float
     {
-        $totalQuizzes = Quiz::where('quizzes.status', 'published')->count();
-        if ($totalQuizzes === 0) {
+        // Calculate actual quiz completion rate: (quiz attempts / total expected attempts) * 100
+        // Total expected attempts = sum of published quizzes across all enrolled students
+        $publishedQuizzes = Quiz::where('quizzes.status', 'published')->get();
+        
+        if ($publishedQuizzes->isEmpty()) {
             return 0;
         }
 
-        $attemptedQuizzes = QuizAttempt::whereHas('quiz', function ($query) {
-            $query->where('quizzes.status', 'published');
-        })->distinct('quiz_id')->count();
+        $totalExpectedAttempts = 0;
+        $totalActualAttempts = 0;
 
-        return ($attemptedQuizzes / $totalQuizzes) * 100;
+        foreach ($publishedQuizzes as $quiz) {
+            // Count enrolled students for this quiz's class/course
+            $enrolledStudents = Enrollment::where('class_id', $quiz->class_id)
+                ->where('enrollments.status', 'active')
+                ->count();
+            
+            $totalExpectedAttempts += $enrolledStudents;
+            
+            // Count actual attempts for this quiz (distinct students)
+            $actualAttempts = QuizAttempt::where('quiz_id', $quiz->id)
+                ->whereIn('status', ['submitted', 'auto_submitted', 'graded'])
+                ->distinct('student_id')
+                ->count();
+            
+            $totalActualAttempts += $actualAttempts;
+        }
+
+        if ($totalExpectedAttempts === 0) {
+            return 0;
+        }
+
+        return ($totalActualAttempts / $totalExpectedAttempts) * 100;
     }
 
     protected function calculateCourseCompletionRate(): float
     {
-        $totalEnrollments = Enrollment::where('enrollments.status', 'active')->count();
-        if ($totalEnrollments === 0) {
+        // Calculate actual course completion rate: (completed enrollments / total active enrollments) * 100
+        $totalActiveEnrollments = Enrollment::where('enrollments.status', 'active')->count();
+        
+        if ($totalActiveEnrollments === 0) {
             return 0;
         }
 
-        $totalCompletions = CourseCompletion::count();
+        // Count enrollments that have been completed
+        $completedEnrollments = Enrollment::where('enrollments.status', 'completed')->count();
 
-        return ($totalCompletions / $totalEnrollments) * 100;
+        return ($completedEnrollments / $totalActiveEnrollments) * 100;
     }
 
     protected function calculateAttendanceRate(): float
     {
+        // Calculate attendance rate: (present + late) / total records * 100
+        // Counting both present and late as "attended"
         $totalRecords = AttendanceRecord::count();
         if ($totalRecords === 0) {
             return 0;
         }
 
-        $presentRecords = AttendanceRecord::where('attendance_records.status', 'present')->count();
+        $attendedRecords = AttendanceRecord::whereIn('attendance_records.status', ['present', 'late'])->count();
 
-        return ($presentRecords / $totalRecords) * 100;
+        return ($attendedRecords / $totalRecords) * 100;
     }
 
     protected function checkDatabaseStatus(): string
