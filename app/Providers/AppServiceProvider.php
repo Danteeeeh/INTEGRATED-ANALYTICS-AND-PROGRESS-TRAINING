@@ -143,62 +143,7 @@ class AppServiceProvider extends ServiceProvider
         return empty($meta['timed_out']);
     }
 
-    private function configureProxyAndScheme(): void
-    {
-        if (app()->runningInConsole()) {
-            return;
-        }
-
-        $trustedProxyConfig = config('trustedproxy.proxies');
-        if (is_string($trustedProxyConfig) && $trustedProxyConfig !== '') {
-            Request::setTrustedProxies(
-                [$trustedProxyConfig],
-                Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT
-                | Request::HEADER_X_FORWARDED_PROTO
-                | Request::HEADER_X_FORWARDED_PREFIX
-                | Request::HEADER_FORWARDED
-            );
-        } else {
-            Request::setTrustedProxies(
-                ['*'],
-                Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT
-                | Request::HEADER_X_FORWARDED_PROTO
-                | Request::HEADER_X_FORWARDED_PREFIX
-                | Request::HEADER_FORWARDED
-            );
-        }
-
-        // Only force HTTPS if the request is actually forwarded as HTTPS
-        // Don't force HTTPS based on FORCE_HTTPS env var to avoid conflicts with CDN/proxy
-        try {
-            $protoHeader = request()->header('X-Forwarded-Proto', '');
-            $isForwardedHttps = $protoHeader === 'https'
-                || request()->header('X-Forwarded-Ssl') === 'on'
-                || request()->header('Front-End-Https') === 'on';
-
-            if ($isForwardedHttps) {
-                $this->app['url']->forceScheme('https');
-                $this->app['request']->server->set('HTTPS', 'on');
-
-                $configuredUrl = (string) config('app.url', '');
-                if ($configuredUrl !== '') {
-                    $normalized = preg_replace('#^http://#i', 'https://', rtrim($configuredUrl, '/'));
-                    URL::forceRootUrl($normalized);
-                }
-            }
-        } catch (\Throwable $e) {
-            // If request is not available yet, skip this configuration
-            // It will be handled by middleware later
-        }
-    }
-
     public function boot(): void
-    {
-        $this->configureProxyAndScheme();
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Course::class, CoursePolicy::class);

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasPermission;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\HandleHttpsScheme;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackUserActivity;
 use App\Http\Middleware\TrustProxies;
@@ -61,6 +62,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => EnsureUserHasPermission::class,
             'activity' => TrackUserActivity::class,
         ]);
+
+        $middleware->prependToGroup('web', HandleHttpsScheme::class);
 
         $middleware->statefulApi();
     })
