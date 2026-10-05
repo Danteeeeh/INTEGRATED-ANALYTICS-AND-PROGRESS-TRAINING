@@ -89,6 +89,13 @@ class QuizController extends Controller
     {
         $studentId = auth()->id();
 
+        \Log::info('Quiz attempt start', [
+            'quiz_id' => $quiz->id,
+            'quiz_title' => $quiz->title,
+            'course_id' => $course->id,
+            'student_id' => $studentId,
+        ]);
+
         $enrollment = Enrollment::where('student_id', $studentId)
             ->whereHas('class', function ($q) use ($course) {
                 $q->where('course_id', $course->id);
@@ -97,10 +104,20 @@ class QuizController extends Controller
             ->first();
 
         if (! $enrollment) {
+            \Log::error('Quiz attempt: No enrollment found', [
+                'student_id' => $studentId,
+                'course_id' => $course->id,
+            ]);
             abort(403);
         }
 
         if (! $quiz->available()) {
+            \Log::error('Quiz attempt: Quiz not available', [
+                'quiz_id' => $quiz->id,
+                'status' => $quiz->status,
+                'availability_from' => $quiz->availability_from,
+                'availability_until' => $quiz->availability_until,
+            ]);
             return redirect()->route('student.courses.quizzes.show', [$course, $quiz])
                 ->with('error', 'This quiz is not currently available.');
         }
@@ -133,7 +150,15 @@ class QuizController extends Controller
         }
         $questions = $questions->get();
 
+        \Log::info('Quiz questions loaded', [
+            'quiz_id' => $quiz->id,
+            'questions_count' => $questions->count(),
+        ]);
+
         if ($questions->isEmpty()) {
+            \Log::error('Quiz attempt: No questions found', [
+                'quiz_id' => $quiz->id,
+            ]);
             return redirect()->route('student.courses.quizzes.show', [$course, $quiz])
                 ->with('error', 'This quiz has no active questions yet. Please contact your instructor.');
         }
