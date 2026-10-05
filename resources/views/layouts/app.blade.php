@@ -257,6 +257,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Auto-expand nested lists if they contain the active item
+    const activeNestedItem = document.querySelector('.nav-list--nested .active, .nav-list--program .active');
+    if (activeNestedItem) {
+        const nestedList = activeNestedItem.closest('.nav-list--nested, .nav-list--program');
+        const expandableLink = nestedList?.previousElementSibling;
+
+        if (expandableLink && nestedList) {
+            expandableLink.setAttribute('aria-expanded', 'true');
+            nestedList.classList.remove('hidden');
+        }
+    }
+
     // Prevent duplicate submissions and give every POST/PUT/DELETE form immediate feedback.
     document.querySelectorAll('form').forEach(function(form) {
         if (form.dataset.noLoading === 'true' || (form.method || 'get').toLowerCase() === 'get') return;

@@ -114,56 +114,8 @@ function initSidebarPlaceholders() {
 }
 
 // Nested sidebar navigation functionality
-function initNestedSidebar() {
-    const expandableLinks = document.querySelectorAll('.nav-link--expandable');
-    
-    expandableLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const subgroup = link.getAttribute('data-sidebar-subgroup');
-            const nestedList = document.getElementById(subgroup);
-            const chevron = link.querySelector('.nav-link__chevron');
-            
-            if (nestedList) {
-                const isExpanded = link.getAttribute('aria-expanded') === 'true';
-                
-                // Toggle expanded state
-                link.setAttribute('aria-expanded', !isExpanded);
-                nestedList.classList.toggle('hidden');
-                
-                // Rotate chevron
-                if (chevron) {
-                    chevron.style.transform = isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)';
-                    chevron.style.transition = 'transform 0.2s ease';
-                }
-            }
-        });
-
-        // Add keyboard support
-        link.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                link.click();
-            }
-        });
-    });
-
-    // Auto-expand nested list if it contains the active item
-    const activeNestedItem = document.querySelector('.nav-list--nested .active');
-    if (activeNestedItem) {
-        const nestedList = activeNestedItem.closest('.nav-list--nested');
-        const expandableLink = nestedList?.previousElementSibling;
-        
-        if (expandableLink && nestedList) {
-            expandableLink.setAttribute('aria-expanded', 'true');
-            nestedList.classList.remove('hidden');
-            const chevron = expandableLink.querySelector('.nav-link__chevron');
-            if (chevron) {
-                chevron.style.transform = 'rotate(0deg)';
-            }
-        }
-    }
-}
+// Note: This is now handled by the inline script in app.blade.php
+// which supports both department and program toggles
 
 // Login form functionality
 function initLoginForm() {
@@ -187,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initNotifications();
     initSidebarPlaceholders();
     initLoginForm();
-    initNestedSidebar();
+    // initNestedSidebar() - now handled by inline script in app.blade.php
 });
 
 // Dismissible alert delegation (components with data-dismiss)
