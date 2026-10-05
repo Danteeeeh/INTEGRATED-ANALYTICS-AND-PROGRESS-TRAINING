@@ -55,9 +55,9 @@ class AssignmentService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'create',
-                'resource' => 'assignment',
+                'resource_type' => \App\Models\Assignment::class,
                 'resource_id' => $assignment->id,
-                'details' => ['title' => $assignment->title],
+                'new_values' => ['title' => $assignment->title],
             ]);
 
             return $assignment;
@@ -120,9 +120,9 @@ class AssignmentService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'update',
-                'resource' => 'assignment',
+                'resource_type' => \App\Models\Assignment::class,
                 'resource_id' => $assignment->id,
-                'details' => [
+                'new_values' => [
                     'old_values' => $oldValues,
                     'new_values' => $assignment->toArray(),
                 ],
@@ -213,9 +213,9 @@ class AssignmentService
             AuditLog::create([
                 'user_id' => $studentId,
                 'action' => 'submit',
-                'resource' => 'assignment_submission',
+                'resource_type' => \App\Models\AssignmentSubmission::class,
                 'resource_id' => $submission->id,
-                'details' => [
+                'new_values' => [
                     'assignment_id' => $assignment->id,
                     'is_late' => $isLate,
                 ],
@@ -274,9 +274,9 @@ class AssignmentService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'grade',
-                'resource' => 'assignment_submission',
+                'resource_type' => \App\Models\AssignmentSubmission::class,
                 'resource_id' => $submission->id,
-                'details' => [
+                'new_values' => [
                     'previous_grade' => $oldGrade,
                     'new_grade' => $data['grade'],
                 ],
@@ -310,9 +310,9 @@ class AssignmentService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'delete',
-                'resource' => 'assignment',
+                'resource_type' => \App\Models\Assignment::class,
                 'resource_id' => $assignment->id,
-                'details' => ['title' => $assignment->title],
+                'new_values' => ['title' => $assignment->title],
             ]);
 
             return true;

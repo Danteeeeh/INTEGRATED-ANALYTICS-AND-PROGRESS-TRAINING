@@ -67,7 +67,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'create',
-                'resource_type' => 'grade',
+                'resource_type' => \App\Models\Grade::class,
                 'resource_id' => $grade->id,
                 'new_values' => [
                     'student_id' => $grade->student_id,
@@ -121,7 +121,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'update',
-                'resource_type' => 'grade',
+                'resource_type' => \App\Models\Grade::class,
                 'resource_id' => $grade->id,
                 'new_values' => [
                     'previous_score_percent' => $oldPercent,
@@ -169,7 +169,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'override',
-                'resource_type' => 'grade',
+                'resource_type' => \App\Models\Grade::class,
                 'resource_id' => $grade->id,
                 'new_values' => [
                     'previous_score_percent' => $oldPercent,
@@ -195,7 +195,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'release_grades',
-                'resource_type' => 'class',
+                'resource_type' => \App\Models\ClassModel::class,
                 'resource_id' => $class->id,
                 'new_values' => ['class_id' => $class->id],
             ]);
@@ -217,7 +217,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'release_grades',
-                'resource_type' => 'course',
+                'resource_type' => \App\Models\Course::class,
                 'resource_id' => $course->id,
                 'new_values' => ['course_id' => $course->id],
             ]);
@@ -343,7 +343,7 @@ class GradeService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'delete',
-                'resource_type' => 'grade',
+                'resource_type' => \App\Models\Grade::class,
                 'resource_id' => $grade->id,
                 'new_values' => [
                     'student_id' => $grade->student_id,

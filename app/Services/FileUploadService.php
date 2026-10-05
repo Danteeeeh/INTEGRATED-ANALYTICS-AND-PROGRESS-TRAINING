@@ -81,9 +81,9 @@ class FileUploadService
         AuditLog::create([
             'user_id' => auth()->id(),
             'action' => 'upload',
-            'resource' => 'media_file',
+            'resource_type' => MediaFile::class,
             'resource_id' => $mediaFile->id,
-            'details' => [
+            'new_values' => [
                 'file_name' => $originalName,
                 'file_size' => $size,
                 'file_type' => $mimeType,
@@ -204,9 +204,9 @@ class FileUploadService
         AuditLog::create([
             'user_id' => auth()->id(),
             'action' => 'delete',
-            'resource' => 'media_file',
+            'resource_type' => MediaFile::class,
             'resource_id' => $mediaFile->id,
-            'details' => [
+            'new_values' => [
                 'file_name' => $mediaFile->original_name,
             ],
         ]);

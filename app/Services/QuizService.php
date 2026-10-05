@@ -56,9 +56,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'create',
-                'resource' => 'quiz',
+                'resource_type' => \App\Models\Quiz::class,
                 'resource_id' => $quiz->id,
-                'details' => ['title' => $quiz->title],
+                'new_values' => ['title' => $quiz->title],
             ]);
 
             return $quiz;
@@ -116,9 +116,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'update',
-                'resource' => 'quiz',
+                'resource_type' => \App\Models\Quiz::class,
                 'resource_id' => $quiz->id,
-                'details' => [
+                'new_values' => [
                     'old_values' => $oldValues,
                     'new_values' => $quiz->toArray(),
                 ],
@@ -190,9 +190,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => $studentId,
                 'action' => 'start',
-                'resource' => 'quiz_attempt',
+                'resource_type' => \App\Models\QuizAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'quiz_id' => $quiz->id,
                     'attempt_number' => $attempt->attempt_number,
                 ],
@@ -274,9 +274,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'submit',
-                'resource' => 'quiz_attempt',
+                'resource_type' => \App\Models\QuizAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'quiz_id' => $attempt->quiz_id,
                     'score' => $attempt->score,
                 ],
@@ -413,9 +413,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'grade',
-                'resource' => 'quiz_attempt',
+                'resource_type' => \App\Models\QuizAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'previous_score' => $oldScore,
                     'new_score' => $attempt->score,
                 ],
@@ -433,9 +433,9 @@ class QuizService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'delete',
-                'resource' => 'quiz',
+                'resource_type' => \App\Models\Quiz::class,
                 'resource_id' => $quiz->id,
-                'details' => ['title' => $quiz->title],
+                'new_values' => ['title' => $quiz->title],
             ]);
 
             return true;

@@ -75,9 +75,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'create',
-                'resource' => 'exam',
+                'resource_type' => \App\Models\Exam::class,
                 'resource_id' => $exam->id,
-                'details' => ['title' => $exam->title, 'exam_type' => $exam->exam_type],
+                'new_values' => ['title' => $exam->title, 'exam_type' => $exam->exam_type],
             ]);
 
             return $exam;
@@ -151,9 +151,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'update',
-                'resource' => 'exam',
+                'resource_type' => \App\Models\Exam::class,
                 'resource_id' => $exam->id,
-                'details' => [
+                'new_values' => [
                     'old_values' => $oldValues,
                     'new_values' => $exam->toArray(),
                 ],
@@ -221,9 +221,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => $studentId,
                 'action' => 'start',
-                'resource' => 'exam_attempt',
+                'resource_type' => \App\Models\ExamAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'exam_id' => $exam->id,
                     'attempt_number' => $attempt->attempt_number,
                 ],
@@ -319,9 +319,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'submit',
-                'resource' => 'exam_attempt',
+                'resource_type' => \App\Models\ExamAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'exam_id' => $attempt->exam_id,
                     'score' => $attempt->score_percent,
                 ],
@@ -469,9 +469,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'grade',
-                'resource' => 'exam_attempt',
+                'resource_type' => \App\Models\ExamAttempt::class,
                 'resource_id' => $attempt->id,
-                'details' => [
+                'new_values' => [
                     'previous_score' => $oldScore,
                     'new_score' => $attempt->score_percent,
                 ],
@@ -489,9 +489,9 @@ class ExamService
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'delete',
-                'resource' => 'exam',
+                'resource_type' => \App\Models\Exam::class,
                 'resource_id' => $exam->id,
-                'details' => ['title' => $exam->title],
+                'new_values' => ['title' => $exam->title],
             ]);
 
             return true;
