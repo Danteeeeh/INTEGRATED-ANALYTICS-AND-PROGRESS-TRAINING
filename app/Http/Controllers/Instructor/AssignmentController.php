@@ -7,6 +7,7 @@ use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
 use App\Models\Module;
@@ -22,12 +23,22 @@ class AssignmentController extends Controller
     {
         $this->authorize('viewAny', Assignment::class);
 
-        $assignments = Assignment::whereHas('class.course', fn ($q) => $q->where('id', $course->id))
-            ->orWhere(function ($q) use ($course) {
-                $q->whereHas('module.course', fn ($q2) => $q2->where('id', $course->id));
+        $instructorId = auth()->id();
+
+        $assignments = Assignment::query()
+            ->where(function ($query) use ($course) {
+                $query->whereHas('class.course', fn ($q) => $q->where('id', $course->id))
+                    ->orWhereHas('module.course', fn ($q) => $q->where('id', $course->id))
+                    ->orWhereHas('lesson.module.course', fn ($q) => $q->where('id', $course->id));
             })
-            ->orWhere(function ($q) use ($course) {
-                $q->whereHas('lesson.module.course', fn ($q2) => $q2->where('id', $course->id));
+            ->where(function ($query) use ($instructorId, $course) {
+                // If assignment is linked to a class, check if instructor teaches that class
+                $query->whereHas('class', fn ($q) => $q->where('instructor_id', $instructorId))
+                    // If assignment is linked to module/lesson, check if instructor teaches ANY class in the course
+                    ->orWhereHas('module.course.classes', fn ($q) => $q->where('instructor_id', $instructorId))
+                    ->orWhereHas('lesson.module.course.classes', fn ($q) => $q->where('instructor_id', $instructorId))
+                    // Or if the instructor created the assignment
+                    ->orWhere('created_by', $instructorId);
             })
             ->with(['class', 'module', 'rubric', 'submissions'])
             ->orderBy('created_at', 'desc')
@@ -102,6 +113,7 @@ class AssignmentController extends Controller
     public function show(Course $course, Assignment $assignment): View
     {
         $this->authorize('view', $assignment);
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $assignment->load(['class', 'module', 'lesson', 'rubric.criteria', 'attachments', 'submissions.student']);
 
@@ -213,6 +225,7 @@ class AssignmentController extends Controller
     {
         $this->authorize('view', $assignment);
         abort_if($submission->assignment_id !== $assignment->id, 404);
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $submission->load('student', 'files', 'rubricAssessments.criterion');
 
@@ -221,13 +234,42 @@ class AssignmentController extends Controller
 
     public function gradeSubmission(Request $request, Course $course, Assignment $assignment, AssignmentSubmission $submission): RedirectResponse
     {
-        $this->authorize('update', $assignment);
+        $this->authorize('grade', $submission);
         abort_if($submission->assignment_id !== $assignment->id, 404);
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $validated = $request->validate([
             'points' => 'required|numeric|min:0|max:'.$assignment->points,
             'feedback' => 'nullable|string',
         ]);
+
+        $scorePercent = ($validated['points'] / $assignment->points) * 100;
+
+        $classId = $assignment->class_id;
+        if (! $classId) {
+            $courseId = $assignment->resolveCourseId();
+            if ($courseId) {
+                $enrollment = Enrollment::where('student_id', $submission->student_id)
+                    ->whereHas('class', function ($q) use ($courseId) {
+                        $q->where('course_id', $courseId);
+                    })
+                    ->where('status', 'active')
+                    ->first();
+                $classId = $enrollment?->class_id;
+            }
+        }
+
+        // If still no class_id, we can still grade but won't link to a specific class gradebook
+        if (! $classId) {
+            $submission->update([
+                'status' => AssignmentSubmission::STATUS_GRADED,
+                'graded_by' => auth()->id(),
+                'graded_at' => now(),
+            ]);
+
+            return redirect()->route('instructor.courses.assignments.submissions.show', [$course, $assignment, $submission])
+                ->with('success', 'Submission graded successfully (not linked to gradebook - assignment has no class).');
+        }
 
         $submission->update([
             'status' => AssignmentSubmission::STATUS_GRADED,
@@ -235,13 +277,11 @@ class AssignmentController extends Controller
             'graded_at' => now(),
         ]);
 
-        $scorePercent = ($validated['points'] / $assignment->points) * 100;
-
-        // Find or create the grade for this submission
         $grade = Grade::where('student_id', $submission->student_id)
-            ->whereHas('item', function ($query) use ($assignment) {
+            ->whereHas('item', function ($query) use ($assignment, $classId) {
                 $query->where('related_type', Assignment::class)
-                    ->where('related_id', $assignment->id);
+                    ->where('related_id', $assignment->id)
+                    ->where('class_id', $classId);
             })
             ->first();
 
@@ -254,13 +294,14 @@ class AssignmentController extends Controller
                 'graded_at' => now(),
             ]);
         } else {
-            // Create a grade item if it doesn't exist
             $gradeItem = GradeItem::firstOrCreate([
                 'related_type' => Assignment::class,
                 'related_id' => $assignment->id,
+                'class_id' => $classId,
             ], [
                 'title' => $assignment->title,
                 'max_points' => $assignment->points,
+                'item_type' => GradeItem::TYPE_ASSIGNMENT,
                 'is_released' => true,
                 'released_at' => now(),
             ]);

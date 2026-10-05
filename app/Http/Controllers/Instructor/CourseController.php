@@ -28,9 +28,11 @@ class CourseController extends Controller
     {
         $this->authorize('view', $course);
 
+        $instructorId = auth()->id();
+
         $course->load([
-            'classes.academicPeriod',
-            'classes.instructor',
+            'classes' => fn ($q) => $q->where('instructor_id', $instructorId)
+                ->with('academicPeriod', 'instructor'),
             'academicPeriod',
             'modules' => fn ($q) => $q->orderBy('position'),
             'modules.lessons',

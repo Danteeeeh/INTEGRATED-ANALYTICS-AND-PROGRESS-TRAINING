@@ -27,6 +27,9 @@ class AssistantController extends Controller
 
         $reply = $this->assistant->respond($request->user(), $validated['message']);
 
-        return response()->json(['reply' => $reply]);
+        return response()->json([
+            'reply' => $reply,
+            'csrf_token' => csrf_token(),
+        ]);
     }
 }

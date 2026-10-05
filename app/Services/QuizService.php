@@ -206,9 +206,9 @@ class QuizService
     {
         $query = QuizQuestion::where('quiz_id', $quiz->id)
             ->with('question.choices')
-            ->orderBy('order');
+            ->orderBy('position');
 
-        if ($quiz->randomize_questions) {
+        if ($quiz->shuffle_questions) {
             $query->inRandomOrder();
         }
 
@@ -360,8 +360,10 @@ class QuizService
             'related_type' => Quiz::class,
             'related_id' => $attempt->quiz_id,
         ], [
+            'class_id' => $attempt->quiz->class_id,
             'title' => $attempt->quiz->title,
             'max_points' => $totalPoints,
+            'item_type' => GradeItem::TYPE_QUIZ,
             'is_released' => true,
             'released_at' => now(),
         ]);

@@ -10,6 +10,20 @@ class AssignmentPolicy
 {
     use HandlesAuthorization;
 
+    protected function instructorManagesAssignment(User $user, Assignment $assignment): bool
+    {
+        if ($assignment->class_id) {
+            return $user->classesInstructing()->where('id', $assignment->class_id)->exists();
+        }
+
+        $courseId = $assignment->resolveCourseId();
+        if ($courseId) {
+            return $user->classesInstructing()->where('course_id', $courseId)->exists();
+        }
+
+        return (int) $assignment->created_by === (int) $user->id;
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->hasPermission('assignments.view');
@@ -26,7 +40,7 @@ class AssignmentPolicy
         }
 
         if ($user->isInstructor()) {
-            return $user->classesInstructing()->where('id', $assignment->class_id)->exists();
+            return $this->instructorManagesAssignment($user, $assignment);
         }
 
         if ($user->isStudent()) {
@@ -64,7 +78,7 @@ class AssignmentPolicy
         }
 
         if ($user->isInstructor()) {
-            return $user->classesInstructing()->where('id', $assignment->class_id)->exists();
+            return $this->instructorManagesAssignment($user, $assignment);
         }
 
         return false;
@@ -81,7 +95,7 @@ class AssignmentPolicy
         }
 
         if ($user->isInstructor()) {
-            return $user->classesInstructing()->where('id', $assignment->class_id)->exists();
+            return $this->instructorManagesAssignment($user, $assignment);
         }
 
         return false;

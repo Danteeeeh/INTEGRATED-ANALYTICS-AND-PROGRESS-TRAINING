@@ -85,6 +85,20 @@ class Assignment extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Course this assignment belongs to — via class, module, or lesson.
+     */
+    public function resolveCourseId(): ?int
+    {
+        $this->loadMissing(['class', 'module', 'lesson.module']);
+
+        $courseId = $this->class?->course_id
+            ?? $this->module?->course_id
+            ?? $this->lesson?->module?->course_id;
+
+        return $courseId !== null ? (int) $courseId : null;
+    }
+
     public function attachments(): HasMany
     {
         return $this->hasMany(AssignmentAttachment::class)->orderBy('position');

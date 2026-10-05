@@ -221,6 +221,8 @@ class QuizController extends Controller
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date|after:availability_from',
             'status' => 'required|string|in:draft,published,closed',
+            'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
+            'question_bank_id' => 'nullable|exists:question_banks,id',
             'questions' => 'nullable|array',
             'questions.*.text' => 'required_with:questions|string',
             'questions.*.points' => 'required_with:questions|integer|min:1',
@@ -250,6 +252,42 @@ class QuizController extends Controller
 
             // Add/update questions
             $this->addQuestionsToQuiz($quiz, $request->questions, $request->user()->id);
+        }
+
+        // Import questions if file is provided
+        if ($request->hasFile('import_file')) {
+            try {
+                $file = $request->file('import_file');
+                $filePath = $file->getRealPath();
+                $extension = strtolower($file->getClientOriginalExtension());
+
+                $questionBank = $request->filled('question_bank_id')
+                    ? \App\Models\QuestionBank::find($request->question_bank_id)
+                    : null;
+
+                $importService = new QuizImportService();
+                $result = $importService->importQuestionsFromFile(
+                    $filePath,
+                    $quiz,
+                    $request->user()->id,
+                    $questionBank,
+                    $extension
+                );
+
+                $message = "Quiz updated successfully. Imported {$result['created']} questions.";
+                if (! empty($result['errors'])) {
+                    $message .= " Some rows had errors: " . implode('; ', array_slice($result['errors'], 0, 3));
+                    if (count($result['errors']) > 3) {
+                        $message .= " and " . (count($result['errors']) - 3) . " more.";
+                    }
+                }
+
+                return redirect()->route('instructor.courses.quizzes.index', $course)
+                    ->with('success', $message);
+            } catch (\Exception $e) {
+                return redirect()->route('instructor.courses.quizzes.index', $course)
+                    ->with('success', 'Quiz updated successfully, but question import failed: ' . $e->getMessage());
+            }
         }
 
         $questionCount = $quiz->questions()->count();
@@ -395,13 +433,9 @@ class QuizController extends Controller
         $position = 1;
 
         foreach ($questionsData as $questionData) {
-            // Get course_id from quiz's class or module
-            $courseId = null;
-            if ($quiz->class_id) {
-                $courseId = $quiz->class?->course_id;
-            } elseif ($quiz->module_id) {
-                $courseId = $quiz->module?->course_id;
-            }
+            $courseId = $quiz->class?->course_id
+                ?? $quiz->module?->course_id
+                ?? $quiz->lesson?->module?->course_id;
 
             // Create or find a question bank for this quiz
             $questionBank = \App\Models\QuestionBank::firstOrCreate(

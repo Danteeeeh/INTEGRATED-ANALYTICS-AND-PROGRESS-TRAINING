@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Quiz extends Model
 {
@@ -65,6 +66,34 @@ class Quiz extends Model
         'availability_until' => 'datetime',
         'status' => 'string',
     ];
+
+    public function available(): bool
+    {
+        if ($this->status !== self::STATUS_PUBLISHED) {
+            return false;
+        }
+
+        if ($this->availability_from && Carbon::parse($this->availability_from)->isFuture()) {
+            return false;
+        }
+
+        if ($this->availability_until && Carbon::parse($this->availability_until)->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function resolveCourseId(): ?int
+    {
+        $this->loadMissing(['class', 'module', 'lesson.module']);
+
+        $courseId = $this->class?->course_id
+            ?? $this->module?->course_id
+            ?? $this->lesson?->module?->course_id;
+
+        return $courseId !== null ? (int) $courseId : null;
+    }
 
     public function class(): BelongsTo
     {

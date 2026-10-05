@@ -48,7 +48,9 @@
                     icon.className = isBusy ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane';
                 }
             }
-            input.disabled = isBusy;
+            if (input) {
+                input.disabled = isBusy;
+            }
         }
 
         form.addEventListener('submit', function (e) {
@@ -78,13 +80,20 @@
             })
             .then(function (data) {
                 loading.textContent = (data && data.reply) || 'Sorry, I could not answer that right now.';
+                if (data && data.csrf_token) {
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) meta.setAttribute('content', data.csrf_token);
+                }
             })
-            .catch(function () {
+            .catch(function (error) {
+                console.error('Chat error:', error);
                 loading.textContent = 'Something went wrong. Please try again.';
             })
             .finally(function () {
                 setSubmitting(false);
-                input.focus();
+                if (input) {
+                    input.focus();
+                }
             });
         });
     })();

@@ -156,8 +156,25 @@ class QuizImportService
         }
 
         return DB::transaction(function () use ($record, $questionType, $questionText, $quiz, $userId, $questionBank) {
+            if (! $questionBank) {
+                $courseId = $quiz->class?->course_id
+                    ?? $quiz->module?->course_id
+                    ?? $quiz->lesson?->module?->course_id;
+                $questionBank = \App\Models\QuestionBank::firstOrCreate(
+                    [
+                        'course_id' => $courseId,
+                        'title' => $quiz->title . ' Questions',
+                        'created_by' => $userId,
+                    ],
+                    [
+                        'description' => 'Questions for quiz: ' . $quiz->title,
+                        'status' => 'active',
+                    ]
+                );
+            }
+
             $question = Question::create([
-                'question_bank_id' => $questionBank?->id,
+                'question_bank_id' => $questionBank->id,
                 'question_type' => $questionType,
                 'question_text' => $questionText,
                 'explanation' => $record['explanation'] ?? null,
@@ -190,8 +207,25 @@ class QuizImportService
     protected function createQuestionFromPlainText(array $questionData, array $choices, Quiz $quiz, int $userId, ?QuestionBank $questionBank = null): Question
     {
         return DB::transaction(function () use ($questionData, $choices, $quiz, $userId, $questionBank) {
+            if (! $questionBank) {
+                $courseId = $quiz->class?->course_id
+                    ?? $quiz->module?->course_id
+                    ?? $quiz->lesson?->module?->course_id;
+                $questionBank = \App\Models\QuestionBank::firstOrCreate(
+                    [
+                        'course_id' => $courseId,
+                        'title' => $quiz->title . ' Questions',
+                        'created_by' => $userId,
+                    ],
+                    [
+                        'description' => 'Questions for quiz: ' . $quiz->title,
+                        'status' => 'active',
+                    ]
+                );
+            }
+
             $question = Question::create([
-                'question_bank_id' => $questionBank?->id,
+                'question_bank_id' => $questionBank->id,
                 'question_type' => $questionData['question_type'],
                 'question_text' => $questionData['question_text'],
                 'explanation' => $questionData['explanation'] ?? null,

@@ -17,8 +17,10 @@
         <x-slot name="actions">
             @if($inProgressAttempt)
                 <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-play"></i> Resume Attempt</a>
-            @elseif($quiz->available())
+            @elseif($quiz->available() && $quiz->questions->count() > 0)
                 <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Attempt</a>
+            @elseif($quiz->available() && $quiz->questions->count() === 0)
+                <span class="user-status" style="background:#fef3c7;color:#92400e;">No questions available</span>
             @endif
             <a href="{{ route('student.courses.quizzes.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>
         </x-slot>
@@ -99,7 +101,7 @@
         </div>
     </div>
 
-    @if($quiz->available() && !$inProgressAttempt)
+    @if($quiz->available() && !$inProgressAttempt && $quiz->questions->count() > 0)
         <div class="learning-next-action">
             <div>
                 <strong>Ready to take this quiz?</strong>

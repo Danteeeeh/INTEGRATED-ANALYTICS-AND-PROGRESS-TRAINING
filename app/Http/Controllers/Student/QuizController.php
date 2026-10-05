@@ -133,6 +133,11 @@ class QuizController extends Controller
         }
         $questions = $questions->get();
 
+        if ($questions->isEmpty()) {
+            return redirect()->route('student.courses.quizzes.show', [$course, $quiz])
+                ->with('error', 'This quiz has no active questions yet. Please contact your instructor.');
+        }
+
         $attempt = QuizAttempt::create([
             'quiz_id' => $quiz->id,
             'student_id' => $studentId,

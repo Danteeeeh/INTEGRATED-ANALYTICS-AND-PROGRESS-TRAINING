@@ -264,6 +264,27 @@
                 </div>
             </div>
 
+            <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-file-import"></i> Import Questions (Optional)</div>
+                <div class="cc-grid">
+                    <div class="cc-field full">
+                        <label>Upload Questions File (CSV or TXT)</label>
+                        <input type="file" name="import_file" accept=".csv,.txt" class="form-input">
+                        <span class="cc-hint">Upload a CSV or TXT file with questions. Format: numbered questions with choices marked with * for correct answers.</span>
+                    </div>
+                    <div class="cc-field">
+                        <label>Add to Question Bank (Optional)</label>
+                        <select name="question_bank_id" class="form-input">
+                            <option value="">No Question Bank</option>
+                            @foreach(\App\Models\QuestionBank::where('created_by', auth()->id())->orWhere('course_id', $course->id)->active()->get() as $bank)
+                                <option value="{{ $bank->id }}">{{ $bank->title }}</option>
+                            @endforeach
+                        </select>
+                        <span class="cc-hint">Questions will also be saved to this question bank for reuse</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="cc-footer">
                 <a href="{{ $backUrl }}" class="cc-btn cc-btn-cancel">
                     <i class="fa-solid fa-xmark"></i>

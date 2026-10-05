@@ -91,7 +91,20 @@ class AssignmentSubmissionPolicy
         }
 
         if ($user->isInstructor()) {
-            return $user->classesInstructing()->where('id', $submission->assignment->class_id)->exists();
+            $assignment = $submission->assignment;
+
+            // Check if instructor teaches the class directly linked to assignment
+            if ($assignment->class_id && $user->classesInstructing()->where('id', $assignment->class_id)->exists()) {
+                return true;
+            }
+
+            // If assignment is linked to module/lesson, check if instructor teaches any class in that course
+            $courseId = $assignment->resolveCourseId();
+            if ($courseId) {
+                return $user->classesInstructing()->where('course_id', $courseId)->exists();
+            }
+
+            return false;
         }
 
         return false;

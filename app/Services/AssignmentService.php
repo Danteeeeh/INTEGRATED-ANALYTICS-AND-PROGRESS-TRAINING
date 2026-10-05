@@ -241,8 +241,10 @@ class AssignmentService
                 'related_type' => Assignment::class,
                 'related_id' => $submission->assignment_id,
             ], [
+                'class_id' => $submission->assignment->class_id,
                 'title' => $submission->assignment->title,
                 'max_points' => $submission->assignment->points,
+                'item_type' => GradeItem::TYPE_ASSIGNMENT,
                 'is_released' => true,
                 'released_at' => now(),
             ]);

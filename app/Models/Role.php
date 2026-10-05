@@ -17,6 +17,8 @@ class Role extends Model
 
     public const STUDENT = 'student';
 
+    public const REGISTRAR = 'registrar';
+
     protected $fillable = ['name', 'slug', 'description'];
 
     public function users(): HasMany

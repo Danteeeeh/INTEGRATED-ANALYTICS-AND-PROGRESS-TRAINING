@@ -140,6 +140,11 @@ class User extends Authenticatable
         return $this->hasRole(Role::STUDENT);
     }
 
+    public function isRegistrar(): bool
+    {
+        return $this->hasRole(Role::REGISTRAR);
+    }
+
     public function hasPermission(string $permission): bool
     {
         if (! $this->role) {
