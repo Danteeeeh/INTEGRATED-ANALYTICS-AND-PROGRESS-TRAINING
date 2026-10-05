@@ -276,6 +276,11 @@ class QuizController extends Controller
         $isPassed = $scorePercent >= $quiz->passing_score_percent;
         $timeSpent = now()->diffInSeconds($attempt->started_at);
 
+        // Ensure time_spent_seconds is never negative
+        if ($timeSpent < 0) {
+            $timeSpent = 0;
+        }
+
         $attempt->update([
             'ended_at' => now(),
             'submitted_at' => now(),
@@ -326,6 +331,11 @@ class QuizController extends Controller
         $scorePercent = $totalPoints > 0 ? ($totalScore / $totalPoints) * 100 : 0;
         $isPassed = $scorePercent >= $quiz->passing_score_percent;
         $timeSpent = $quiz->time_limit_minutes * 60;
+
+        // Ensure time_spent_seconds is never negative
+        if ($timeSpent < 0) {
+            $timeSpent = 0;
+        }
 
         $attempt->update([
             'ended_at' => $attempt->started_at->addMinutes($quiz->time_limit_minutes),
