@@ -7,10 +7,12 @@ use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Quiz;
 use App\Services\QuizImportService;
+use App\Services\QuizExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class QuizController extends Controller
 {
@@ -283,5 +285,45 @@ class QuizController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Import failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Export quiz questions to plain text format with asterisks marking correct answers
+     */
+    public function exportText(Quiz $quiz): StreamedResponse
+    {
+        $this->authorize('view', $quiz);
+
+        $exportService = new QuizExportService();
+        $content = $exportService->exportToPlainText($quiz);
+
+        $fileName = Str::slug($quiz->title) . '-questions.txt';
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $fileName, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
+    /**
+     * Export quiz questions to CSV format
+     */
+    public function exportCsv(Quiz $quiz): StreamedResponse
+    {
+        $this->authorize('view', $quiz);
+
+        $exportService = new QuizExportService();
+        $content = $exportService->exportToCsv($quiz);
+
+        $fileName = Str::slug($quiz->title) . '-questions.csv';
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 }

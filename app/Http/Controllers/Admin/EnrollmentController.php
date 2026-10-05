@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
+use App\Models\EnrollmentLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class EnrollmentController extends Controller
@@ -235,5 +237,192 @@ class EnrollmentController extends Controller
         $enrollment->update(['status' => 'dropped']);
 
         return back()->with('status', 'Enrollment deactivated.');
+    }
+
+    public function bulkAutoEnroll(Request $request)
+    {
+        $validated = $request->validate([
+            'section_id' => ['nullable', 'exists:sections,id'],
+            'class_id' => ['nullable', 'exists:classes,id'],
+            'course_id' => ['nullable', 'exists:courses,id'],
+            'program_id' => ['nullable', 'exists:programs,id'],
+            'department_id' => ['nullable', 'exists:departments,id'],
+            'academic_period_id' => ['nullable', 'exists:academic_periods,id'],
+            'status' => ['nullable', 'in:pending,active'],
+            'preview' => ['nullable', 'boolean'],
+        ]);
+
+        $sectionId = $validated['section_id'] ?? null;
+        $classId = $validated['class_id'] ?? null;
+        $courseId = $validated['course_id'] ?? null;
+        $programId = $validated['program_id'] ?? null;
+        $departmentId = $validated['department_id'] ?? null;
+        $academicPeriodId = $validated['academic_period_id'] ?? null;
+        $status = $validated['status'] ?? 'active';
+        $isPreview = $validated['preview'] ?? false;
+
+        if (!$sectionId && !$classId && !$courseId && !$programId && !$departmentId && !$academicPeriodId) {
+            return back()->with('error', 'Please select at least one filter (section, class, course, program, department, or academic period).');
+        }
+
+        $students = User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))
+            ->where('status', 'active')
+            ->when($sectionId, fn ($q) => $q->where('section_id', $sectionId))
+            ->when($programId, fn ($q) => $q->where('program_id', $programId))
+            ->when($departmentId, function ($q) use ($programId) {
+                if (!$programId) {
+                    $q->whereHas('program', fn ($pq) => $pq->where('department_id', request('department_id')));
+                }
+            })
+            ->get();
+
+        $classesToEnroll = collect();
+
+        if ($classId) {
+            $classesToEnroll->push(ClassModel::find($classId));
+        } elseif ($courseId) {
+            $classesToEnroll = ClassModel::where('course_id', $courseId)
+                ->where('status', 'active')
+                ->when($academicPeriodId, fn ($q) => $q->where('academic_period_id', $academicPeriodId))
+                ->get();
+        } elseif ($sectionId) {
+            $classesToEnroll = ClassModel::where('section_id', $sectionId)
+                ->where('status', 'active')
+                ->when($academicPeriodId, fn ($q) => $q->where('academic_period_id', $academicPeriodId))
+                ->get();
+        } elseif ($programId) {
+            $classesToEnroll = ClassModel::whereHas('course', fn ($q) => $q->where('program_id', $programId))
+                ->where('status', 'active')
+                ->when($academicPeriodId, fn ($q) => $q->where('academic_period_id', $academicPeriodId))
+                ->get();
+        } elseif ($departmentId) {
+            $classesToEnroll = ClassModel::whereHas('course', fn ($q) => $q->whereHas('program', fn ($pq) => $pq->where('department_id', $departmentId)))
+                ->where('status', 'active')
+                ->when($academicPeriodId, fn ($q) => $q->where('academic_period_id', $academicPeriodId))
+                ->get();
+        } elseif ($academicPeriodId) {
+            $classesToEnroll = ClassModel::where('academic_period_id', $academicPeriodId)
+                ->where('status', 'active')
+                ->get();
+        }
+
+        if ($isPreview) {
+            $previewData = [];
+            foreach ($students as $student) {
+                foreach ($classesToEnroll as $class) {
+                    if (!$class) continue;
+
+                    $existing = Enrollment::where('student_id', $student->id)
+                        ->where('class_id', $class->id)
+                        ->where('status', '!=', 'dropped')
+                        ->first();
+
+                    $previewData[] = [
+                        'student' => $student->full_name,
+                        'student_id' => $student->id,
+                        'class' => $class->code,
+                        'class_id' => $class->id,
+                        'course' => $class->course?->title ?? 'N/A',
+                        'is_full' => $class->isFull(),
+                        'already_enrolled' => $existing !== null,
+                        'can_enroll' => !$class->isFull() && $existing === null,
+                    ];
+                }
+            }
+
+            return back()->with('preview_data', $previewData)->with('status', 'Preview generated. Review the list below before confirming.');
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $skippedFull = 0;
+        $skippedExisting = 0;
+        $filters = [
+            'section_id' => $sectionId,
+            'class_id' => $classId,
+            'course_id' => $courseId,
+            'program_id' => $programId,
+            'department_id' => $departmentId,
+            'academic_period_id' => $academicPeriodId,
+        ];
+
+        foreach ($students as $student) {
+            foreach ($classesToEnroll as $class) {
+                if (!$class) {
+                    continue;
+                }
+
+                // Check if class is full
+                if ($class->isFull()) {
+                    $skippedFull++;
+                    EnrollmentLog::create([
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'performed_by' => Auth::id(),
+                        'action' => 'auto_enroll',
+                        'details' => "Skipped: Class is full",
+                        'filters' => $filters,
+                        'status' => 'failed',
+                        'error_message' => 'Class capacity reached',
+                    ]);
+                    continue;
+                }
+
+                // Check if already enrolled
+                $existing = Enrollment::where('student_id', $student->id)
+                    ->where('class_id', $class->id)
+                    ->where('status', '!=', 'dropped')
+                    ->first();
+
+                if ($existing) {
+                    $skippedExisting++;
+                    EnrollmentLog::create([
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'enrollment_id' => $existing->id,
+                        'performed_by' => Auth::id(),
+                        'action' => 'auto_enroll',
+                        'details' => "Skipped: Already enrolled",
+                        'filters' => $filters,
+                        'status' => 'failed',
+                        'error_message' => 'Student already enrolled in this class',
+                    ]);
+                    continue;
+                }
+
+                $enrollment = Enrollment::create([
+                    'student_id' => $student->id,
+                    'class_id' => $class->id,
+                    'status' => $status,
+                    'enrolled_at' => now(),
+                ]);
+
+                EnrollmentLog::create([
+                    'enrollment_id' => $enrollment->id,
+                    'student_id' => $student->id,
+                    'class_id' => $class->id,
+                    'performed_by' => Auth::id(),
+                    'action' => 'auto_enroll',
+                    'details' => "Auto-enrolled student in class {$class->code}",
+                    'filters' => $filters,
+                    'status' => 'success',
+                ]);
+
+                $created++;
+            }
+        }
+
+        $message = "Successfully enrolled {$created} student(s).";
+        if ($skippedFull > 0) {
+            $message .= " Skipped {$skippedFull} due to full classes.";
+        }
+        if ($skippedExisting > 0) {
+            $message .= " Skipped {$skippedExisting} already enrolled.";
+        }
+        if ($skipped > 0) {
+            $message .= " Skipped {$skipped} for other reasons.";
+        }
+
+        return back()->with('status', $message);
     }
 }

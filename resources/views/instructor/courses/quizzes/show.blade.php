@@ -26,6 +26,8 @@
                     <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Publish</button>
                 </form>
             @endif
+            <a href="{{ route('instructor.courses.quizzes.export.text', [$course, $quiz]) }}" class="btn btn-secondary"><i class="fa-solid fa-file-alt"></i> Export TXT</a>
+            <a href="{{ route('instructor.courses.quizzes.export.csv', [$course, $quiz]) }}" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
             <a href="{{ route('instructor.courses.quizzes.edit', [$course, $quiz]) }}" class="btn btn-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
             <a href="{{ route('instructor.courses.quizzes.attempts', [$course, $quiz]) }}" class="btn btn-secondary"><i class="fa-solid fa-users"></i> Attempts</a>
             <a href="{{ route('instructor.courses.quizzes.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>

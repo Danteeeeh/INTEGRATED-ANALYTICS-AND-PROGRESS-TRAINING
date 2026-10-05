@@ -86,6 +86,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 
+Route::get('/refresh-csrf', fn () => response()->json(['token' => csrf_token()]))->name('refresh-csrf');
+
 Route::get('/diagnostic', [DiagnosticController::class, 'index'])->name('diagnostic');
 
 Route::get('/files/{mediaFile}', [FileController::class, 'download'])
@@ -217,6 +219,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('enrollments/{enrollment}/transfer', [AdminEnrollmentController::class, 'transferForm'])->name('enrollments.transfer-form');
         Route::post('enrollments/{enrollment}/activate', [AdminEnrollmentController::class, 'activate'])->name('enrollments.activate');
         Route::post('enrollments/{enrollment}/deactivate', [AdminEnrollmentController::class, 'deactivate'])->name('enrollments.deactivate');
+        Route::post('enrollments/bulk-auto-enroll', [AdminEnrollmentController::class, 'bulkAutoEnroll'])->name('enrollments.bulk-auto-enroll');
 
         Route::resource('assignments', AdminAssignmentController::class);
         Route::post('assignments/{assignment}/publish', [AdminAssignmentController::class, 'publish'])->name('assignments.publish');
@@ -229,6 +232,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::post('quizzes/{quiz}/publish', [AdminQuizController::class, 'publish'])->name('quizzes.publish');
         Route::post('quizzes/{quiz}/close', [AdminQuizController::class, 'close'])->name('quizzes.close');
         Route::post('quizzes/{quiz}/import', [AdminQuizController::class, 'importQuestions'])->name('quizzes.import');
+        Route::get('quizzes/{quiz}/export/text', [AdminQuizController::class, 'exportText'])->name('quizzes.export.text');
+        Route::get('quizzes/{quiz}/export/csv', [AdminQuizController::class, 'exportCsv'])->name('quizzes.export.csv');
 
         Route::resource('exams', AdminExamController::class);
         Route::post('exams/{exam}/publish', [AdminExamController::class, 'publish'])->name('exams.publish');
@@ -421,6 +426,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::post('/{quiz}/publish', [InstructorQuizController::class, 'publish'])->name('publish');
                     Route::post('/{quiz}/close', [InstructorQuizController::class, 'close'])->name('close');
                     Route::post('/{quiz}/import', [InstructorQuizController::class, 'importQuestions'])->name('import');
+                    Route::get('/{quiz}/export/text', [InstructorQuizController::class, 'exportText'])->name('export.text');
+                    Route::get('/{quiz}/export/csv', [InstructorQuizController::class, 'exportCsv'])->name('export.csv');
+                    Route::get('/{quiz}/export/answers/{student_id}', [InstructorQuizController::class, 'exportWithAnswers'])->name('export.answers');
                     Route::get('/{quiz}/attempts', [InstructorQuizController::class, 'attempts'])->name('attempts');
                     Route::get('/{quiz}/attempts/{attempt}', [InstructorQuizController::class, 'showAttempt'])->name('attempts.show');
                     Route::post('/{quiz}/attempts/{attempt}/grade', [InstructorQuizController::class, 'gradeAttempt'])->name('attempts.grade');

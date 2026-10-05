@@ -6,6 +6,8 @@ use App\Models\AcademicPeriod;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\Lesson;
+use App\Models\Module;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -187,7 +189,185 @@ class PhaseTwoSeeder extends Seeder
             ['status' => 'active']
         );
 
+        // Create modules and lessons for CS101
+        $this->createModulesAndLessonsForCS101($createdCourses['CS101'], $admin);
+
         $this->command->info('Phase 2 data seeded successfully!');
-        $this->command->info('Created: 2 academic periods, 5 courses, 4 classes, 2 enrollments');
+        $this->command->info('Created: 2 academic periods, 5 courses, 4 classes, 2 enrollments, modules and lessons for CS101');
+    }
+
+    protected function createModulesAndLessonsForCS101(Course $course, User $admin): void
+    {
+        $modules = [
+            [
+                'title' => 'Week 1: Introduction to Programming',
+                'description' => 'Overview of programming concepts and computer science fundamentals',
+                'objectives' => 'Understand what programming is and why it matters',
+                'position' => 1,
+                'lessons' => [
+                    ['title' => 'What is Programming?', 'description' => 'Introduction to programming concepts'],
+                    ['title' => 'Computer Science Basics', 'description' => 'Fundamental CS concepts'],
+                    ['title' => 'Setting Up Your Environment', 'description' => 'Development environment setup'],
+                ],
+            ],
+            [
+                'title' => 'Week 2: Variables and Data Types',
+                'description' => 'Understanding variables, data types, and memory',
+                'objectives' => 'Learn to declare and use variables with different data types',
+                'position' => 2,
+                'lessons' => [
+                    ['title' => 'Variables', 'description' => 'Declaring and using variables'],
+                    ['title' => 'Data Types', 'description' => 'Integer, float, string, boolean'],
+                    ['title' => 'Type Conversion', 'description' => 'Converting between data types'],
+                ],
+            ],
+            [
+                'title' => 'Week 3: Control Structures',
+                'description' => 'Conditional statements and loops',
+                'objectives' => 'Master if/else statements and loops',
+                'position' => 3,
+                'lessons' => [
+                    ['title' => 'If/Else Statements', 'description' => 'Conditional logic'],
+                    ['title' => 'For Loops', 'description' => 'Iterating with for loops'],
+                    ['title' => 'While Loops', 'description' => 'While loop patterns'],
+                ],
+            ],
+            [
+                'title' => 'Week 4: Functions',
+                'description' => 'Creating and using functions',
+                'objectives' => 'Understand function parameters, return values, and scope',
+                'position' => 4,
+                'lessons' => [
+                    ['title' => 'Function Basics', 'description' => 'Defining and calling functions'],
+                    ['title' => 'Parameters and Arguments', 'description' => 'Passing data to functions'],
+                    ['title' => 'Return Values', 'description' => 'Getting results from functions'],
+                ],
+            ],
+            [
+                'title' => 'Week 5: Arrays',
+                'description' => 'Working with arrays and collections',
+                'objectives' => 'Store and manipulate data in arrays',
+                'position' => 5,
+                'lessons' => [
+                    ['title' => 'Array Basics', 'description' => 'Creating and accessing arrays'],
+                    ['title' => 'Array Methods', 'description' => 'Common array operations'],
+                    ['title' => 'Multidimensional Arrays', 'description' => 'Arrays of arrays'],
+                ],
+            ],
+            [
+                'title' => 'Week 6: Strings',
+                'description' => 'String manipulation and text processing',
+                'objectives' => 'Work with strings and text data',
+                'position' => 6,
+                'lessons' => [
+                    ['title' => 'String Basics', 'description' => 'Creating and accessing strings'],
+                    ['title' => 'String Methods', 'description' => 'Common string operations'],
+                    ['title' => 'String Formatting', 'description' => 'Formatting output'],
+                ],
+            ],
+            [
+                'title' => 'Week 7: File I/O',
+                'description' => 'Reading and writing files',
+                'objectives' => 'Handle file operations in programs',
+                'position' => 7,
+                'lessons' => [
+                    ['title' => 'Reading Files', 'description' => 'Opening and reading file contents'],
+                    ['title' => 'Writing Files', 'description' => 'Creating and writing to files'],
+                    ['title' => 'File Handling Best Practices', 'description' => 'Error handling and file management'],
+                ],
+            ],
+            [
+                'title' => 'Week 8: Error Handling',
+                'description' => 'Debugging and exception handling',
+                'objectives' => 'Write robust code with proper error handling',
+                'position' => 8,
+                'lessons' => [
+                    ['title' => 'Debugging Basics', 'description' => 'Finding and fixing bugs'],
+                    ['title' => 'Try/Catch Blocks', 'description' => 'Exception handling'],
+                    ['title' => 'Common Errors', 'description' => 'Syntax, runtime, and logical errors'],
+                ],
+            ],
+            [
+                'title' => 'Week 9: Object-Oriented Programming',
+                'description' => 'Introduction to OOP concepts',
+                'objectives' => 'Understand classes, objects, and inheritance',
+                'position' => 9,
+                'lessons' => [
+                    ['title' => 'Classes and Objects', 'description' => 'OOP fundamentals'],
+                    ['title' => 'Methods and Properties', 'description' => 'Class members'],
+                    ['title' => 'Inheritance', 'description' => 'Extending classes'],
+                ],
+            ],
+            [
+                'title' => 'Week 10: Data Structures',
+                'description' => 'Advanced data structures',
+                'objectives' => 'Learn about stacks, queues, and linked lists',
+                'position' => 10,
+                'lessons' => [
+                    ['title' => 'Stacks', 'description' => 'LIFO data structure'],
+                    ['title' => 'Queues', 'description' => 'FIFO data structure'],
+                    ['title' => 'Linked Lists', 'description' => 'Dynamic data structures'],
+                ],
+            ],
+            [
+                'title' => 'Week 11: Algorithms',
+                'description' => 'Introduction to algorithms',
+                'objectives' => 'Understand basic algorithms and complexity',
+                'position' => 11,
+                'lessons' => [
+                    ['title' => 'Sorting Algorithms', 'description' => 'Bubble, selection, insertion sort'],
+                    ['title' => 'Searching Algorithms', 'description' => 'Linear and binary search'],
+                    ['title' => 'Algorithm Complexity', 'description' => 'Big O notation'],
+                ],
+            ],
+            [
+                'title' => 'Week 12: Final Project',
+                'description' => 'Capstone project and review',
+                'objectives' => 'Apply all learned concepts in a final project',
+                'position' => 12,
+                'lessons' => [
+                    ['title' => 'Project Planning', 'description' => 'Designing your project'],
+                    ['title' => 'Implementation', 'description' => 'Building the project'],
+                    ['title' => 'Review and Assessment', 'description' => 'Final review and submission'],
+                ],
+            ],
+        ];
+
+        foreach ($modules as $moduleData) {
+            $module = Module::updateOrCreate(
+                [
+                    'course_id' => $course->id,
+                    'title' => $moduleData['title'],
+                ],
+                [
+                    'description' => $moduleData['description'],
+                    'objectives' => $moduleData['objectives'],
+                    'position' => $moduleData['position'],
+                    'is_required' => true,
+                    'status' => 'published',
+                    'created_by' => $admin->id,
+                ]
+            );
+
+            foreach ($moduleData['lessons'] as $index => $lessonData) {
+                Lesson::updateOrCreate(
+                    [
+                        'module_id' => $module->id,
+                        'title' => $lessonData['title'],
+                    ],
+                    [
+                        'description' => $lessonData['description'],
+                        'content' => "Full lesson content for {$lessonData['title']}. Covers key concepts, examples, and practical exercises.",
+                        'objectives' => "Understand {$lessonData['title']} and apply it in practice.",
+                        'duration_minutes' => 30,
+                        'position' => $index + 1,
+                        'lesson_type' => 'text',
+                        'is_required' => true,
+                        'status' => 'published',
+                        'created_by' => $admin->id,
+                    ]
+                );
+            }
+        }
     }
 }

@@ -27,6 +27,8 @@
                     <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Publish</button>
                 </form>
             @endif
+            <a href="{{ route('admin.quizzes.export.text', $quiz) }}" class="btn btn-secondary"><i class="fa-solid fa-file-alt"></i> Export TXT</a>
+            <a href="{{ route('admin.quizzes.export.csv', $quiz) }}" class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
             <a href="{{ route('admin.quizzes.edit', $quiz) }}" class="btn btn-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
             <a href="{{ route('admin.quizzes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>
         </x-slot>

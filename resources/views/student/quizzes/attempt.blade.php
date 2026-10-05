@@ -247,6 +247,7 @@
     <form action="{{ route('student.courses.quizzes.attempt.store', [$course, $quiz]) }}"
           method="POST" id="quizForm">
         @csrf
+        <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
         @foreach($inProgress->answers as $index => $quizAnswer)
             <div class="question-card" id="question-{{ $index }}"
@@ -359,6 +360,25 @@
         let timeRemaining = {{ $quiz->time_limit_minutes ? $quiz->time_limit_minutes * 60 : 0 }};
         let timerInterval;
 
+        // Refresh CSRF token periodically (every 30 minutes)
+        async function refreshCsrfToken() {
+            try {
+                const response = await fetch('/refresh-csrf', {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+                    document.querySelector('input[name="_token"]').value = data.token;
+                }
+            } catch (error) {
+                console.error('Failed to refresh CSRF token:', error);
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateNavigation();
@@ -367,6 +387,9 @@
 
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
+
+            // Refresh CSRF token every 30 minutes
+            setInterval(refreshCsrfToken, 1800000);
         });
 
         function goToQuestion(index) {

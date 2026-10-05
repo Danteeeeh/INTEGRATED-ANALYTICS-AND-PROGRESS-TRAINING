@@ -9,10 +9,12 @@ use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Services\QuizImportService;
+use App\Services\QuizExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class QuizController extends Controller
 {
@@ -545,5 +547,71 @@ class QuizController extends Controller
         }
 
         return back()->with('success', 'Quiz extension revoked successfully.');
+    }
+
+    /**
+     * Export quiz questions to plain text format with asterisks marking correct answers
+     */
+    public function exportText(Course $course, Quiz $quiz): StreamedResponse
+    {
+        $this->authorize('view', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $exportService = new QuizExportService();
+        $content = $exportService->exportToPlainText($quiz);
+
+        $fileName = Str::slug($quiz->title) . '-questions.txt';
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $fileName, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
+    /**
+     * Export quiz questions to CSV format
+     */
+    public function exportCsv(Course $course, Quiz $quiz): StreamedResponse
+    {
+        $this->authorize('view', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $exportService = new QuizExportService();
+        $content = $exportService->exportToCsv($quiz);
+
+        $fileName = Str::slug($quiz->title) . '-questions.csv';
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
+    /**
+     * Export quiz with student answers
+     */
+    public function exportWithAnswers(Course $course, Quiz $quiz, int $studentId): StreamedResponse
+    {
+        $this->authorize('view', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $exportService = new QuizExportService();
+        $content = $exportService->exportWithStudentAnswers($quiz, $studentId);
+
+        $fileName = Str::slug($quiz->title) . '-student-answers.txt';
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $fileName, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 }
