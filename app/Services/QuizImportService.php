@@ -12,9 +12,9 @@ use Illuminate\Support\Str;
 
 class QuizImportService
 {
-    public function importQuestionsFromFile(string $filePath, Quiz $quiz, int $userId, ?QuestionBank $questionBank = null): array
+    public function importQuestionsFromFile(string $filePath, Quiz $quiz, int $userId, ?QuestionBank $questionBank = null, ?string $originalExtension = null): array
     {
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $extension = $originalExtension ?? strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
         return match ($extension) {
             'csv' => $this->importFromCsv($filePath, $quiz, $userId, $questionBank),

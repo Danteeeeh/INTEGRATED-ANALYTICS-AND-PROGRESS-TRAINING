@@ -120,6 +120,7 @@ class QuizController extends Controller
             try {
                 $file = $request->file('import_file');
                 $filePath = $file->getRealPath();
+                $extension = strtolower($file->getClientOriginalExtension());
 
                 $questionBank = $request->filled('question_bank_id')
                     ? \App\Models\QuestionBank::find($request->question_bank_id)
@@ -130,7 +131,8 @@ class QuizController extends Controller
                     $filePath,
                     $quiz,
                     $request->user()->id,
-                    $questionBank
+                    $questionBank,
+                    $extension
                 );
 
                 $message = "Quiz created successfully. Imported {$result['created']} questions.";
@@ -355,6 +357,7 @@ class QuizController extends Controller
 
         $file = $request->file('import_file');
         $filePath = $file->getRealPath();
+        $extension = strtolower($file->getClientOriginalExtension());
 
         try {
             $questionBank = $request->filled('question_bank_id')
@@ -366,7 +369,8 @@ class QuizController extends Controller
                 $filePath,
                 $quiz,
                 $request->user()->id,
-                $questionBank
+                $questionBank,
+                $extension
             );
 
             $message = "Imported {$result['created']} questions successfully.";
