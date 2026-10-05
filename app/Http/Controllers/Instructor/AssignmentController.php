@@ -7,6 +7,8 @@ use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\Grade;
+use App\Models\GradeItem;
 use App\Models\Module;
 use App\Models\Rubric;
 use Illuminate\Http\RedirectResponse;
@@ -235,18 +237,44 @@ class AssignmentController extends Controller
 
         $scorePercent = ($validated['points'] / $assignment->points) * 100;
 
-        $submission->grade()->updateOrCreate(
-            ['gradable_type' => AssignmentSubmission::class],
-            [
-                'grade_item_id' => null,
+        // Find or create the grade for this submission
+        $grade = Grade::where('student_id', $submission->student_id)
+            ->whereHas('item', function ($query) use ($assignment) {
+                $query->where('related_type', Assignment::class)
+                    ->where('related_id', $assignment->id);
+            })
+            ->first();
+
+        if ($grade) {
+            $grade->update([
+                'points' => $validated['points'],
+                'score_percent' => $scorePercent,
+                'feedback' => $validated['feedback'] ?? null,
+                'graded_by' => auth()->id(),
+                'graded_at' => now(),
+            ]);
+        } else {
+            // Create a grade item if it doesn't exist
+            $gradeItem = GradeItem::firstOrCreate([
+                'related_type' => Assignment::class,
+                'related_id' => $assignment->id,
+            ], [
+                'title' => $assignment->title,
+                'max_points' => $assignment->points,
+                'is_released' => true,
+                'released_at' => now(),
+            ]);
+
+            Grade::create([
+                'grade_item_id' => $gradeItem->id,
                 'student_id' => $submission->student_id,
                 'points' => $validated['points'],
                 'score_percent' => $scorePercent,
                 'feedback' => $validated['feedback'] ?? null,
                 'graded_by' => auth()->id(),
                 'graded_at' => now(),
-            ]
-        );
+            ]);
+        }
 
         return redirect()->route('instructor.courses.assignments.submissions.show', [$course, $assignment, $submission])
             ->with('success', 'Submission graded successfully.');
