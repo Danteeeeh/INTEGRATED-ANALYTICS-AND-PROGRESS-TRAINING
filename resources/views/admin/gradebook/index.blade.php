@@ -7,11 +7,26 @@
         <h3><i class="fa-solid fa-graduation-cap"></i> Gradebook</h3>
         <span class="dash-section-kicker">Open a class to view and release grades</span>
     </div>
-    <a class="btn btn-secondary" href="{{ route('admin.gradebook.grades.history') }}"><i class="fa-solid fa-clock-rotate-left"></i> Grade history</a>
+    <div>
+        <a class="btn btn-secondary" href="{{ route('admin.gradebook.programs') }}"><i class="fa-solid fa-layer-group"></i> View by Program</a>
+        <a class="btn btn-secondary" href="{{ route('admin.gradebook.grades.history') }}"><i class="fa-solid fa-clock-rotate-left"></i> Grade history</a>
+    </div>
 </div>
 <section class="dash-panel">
     <form class="table-toolbar" method="GET" action="{{ route('admin.gradebook.index') }}">
         <input name="search" value="{{ request('search') }}" placeholder="Search class or course..." aria-label="Search gradebook">
+        <select name="program_id" aria-label="Filter program" onchange="this.form.submit()">
+            <option value="">All programs</option>
+            @foreach($programs as $program)
+                <option value="{{ $program->id }}" @selected((string) request('program_id') === (string) $program->id)>{{ $program->code }} — {{ $program->name }}</option>
+            @endforeach
+        </select>
+        <select name="section_id" aria-label="Filter section" onchange="this.form.submit()">
+            <option value="">All sections</option>
+            @foreach($sections as $section)
+                <option value="{{ $section->id }}" @selected((string) request('section_id') === (string) $section->id)>{{ $section->code }} — {{ $section->name }}</option>
+            @endforeach
+        </select>
         <select name="course_id" aria-label="Filter course">
             <option value="">All courses</option>
             @foreach($courses as $course)
@@ -26,6 +41,7 @@
             <tr>
                 <th>Class</th>
                 <th>Course</th>
+                <th>Section</th>
                 <th>Instructor</th>
                 <th>Students</th>
                 <th>Actions</th>
@@ -36,6 +52,7 @@
                 <tr>
                     <td>{{ $class->code }}</td>
                     <td>{{ $class->course?->title ?? '—' }}</td>
+                    <td>{{ $class->section?->code ?? '—' }}</td>
                     <td>{{ $class->instructor?->name ?? $class->instructor?->full_name ?? '—' }}</td>
                     <td>{{ $class->enrollments->where('status', 'active')->count() }}</td>
                     <td class="action-buttons">
@@ -43,7 +60,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="search-no-results">No classes found.</td></tr>
+                <tr><td colspan="6" class="search-no-results">No classes found.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -265,6 +265,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         Route::prefix('gradebook')->name('gradebook.')->group(function () {
             Route::get('/', [AdminGradebookController::class, 'index'])->name('index');
+            Route::get('/programs', [AdminGradebookController::class, 'programView'])->name('programs');
+            Route::get('/sections/{section}', [AdminGradebookController::class, 'sectionView'])->name('sections');
             Route::get('/classes/{class}', [AdminGradebookController::class, 'classView'])->name('class');
             Route::post('/grades/release', [AdminGradebookController::class, 'releaseGrades'])->name('grades.release');
             Route::get('/grades/history', [AdminGradebookController::class, 'gradeHistory'])->name('grades.history');

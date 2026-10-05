@@ -10,6 +10,10 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeHistory;
 use App\Models\GradeItem;
+use App\Models\Program;
+use App\Models\Role;
+use App\Models\Section;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,7 +24,17 @@ class GradebookController extends Controller
     {
         $this->authorize('viewAny', Grade::class);
 
-        $query = ClassModel::with(['course', 'instructor', 'enrollments.student', 'gradeItems']);
+        $query = ClassModel::with(['course', 'instructor', 'enrollments.student', 'gradeItems', 'section.program']);
+
+        if ($request->filled('program_id')) {
+            $query->whereHas('section', function ($q) use ($request) {
+                $q->where('program_id', $request->program_id);
+            });
+        }
+
+        if ($request->filled('section_id')) {
+            $query->where('section_id', $request->section_id);
+        }
 
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->course_id);
@@ -47,8 +61,12 @@ class GradebookController extends Controller
 
         $classes = $query->orderBy('code')->paginate(15);
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
+        $programs = \App\Models\Program::orderBy('code')->get(['id', 'code', 'name']);
+        $sections = $request->filled('program_id')
+            ? \App\Models\Section::where('program_id', $request->program_id)->orderBy('code')->get(['id', 'code', 'name'])
+            : collect();
 
-        return view('admin.gradebook.index', compact('classes', 'courses'));
+        return view('admin.gradebook.index', compact('classes', 'courses', 'programs', 'sections'));
     }
 
     public function classView(Request $request, ClassModel $class): View
@@ -81,6 +99,90 @@ class GradebookController extends Controller
             'grades',
             'releaseStatus'
         ));
+    }
+
+    public function programView(Request $request): View
+    {
+        $this->authorize('viewAny', Grade::class);
+
+        $query = Program::with(['sections.classes.course', 'sections.classes.instructor', 'sections.classes.enrollments.student']);
+
+        if ($request->filled('academic_period_id')) {
+            $query->whereHas('sections', function ($q) use ($request) {
+                $q->where('academic_period_id', $request->academic_period_id);
+            });
+        }
+
+        $programs = $query->orderBy('code')->get();
+
+        $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
+
+        return view('admin.gradebook.program-view', compact('programs', 'academicPeriods'));
+    }
+
+    public function sectionView(Request $request, Section $section): View
+    {
+        $this->authorize('view', Grade::class);
+
+        $section->load([
+            'program',
+            'classes.course',
+            'classes.instructor',
+            'classes.enrollments.student',
+            'classes.gradeItems',
+        ]);
+
+        // Get all students in this section
+        $students = User::where('section_id', $section->id)
+            ->whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))
+            ->with(['enrollments.class', 'enrollments.class.gradeItems' => function ($q) {
+                $q->orderBy('position');
+            }])
+            ->get();
+
+        // Organize grades by type (quiz, assignment, exam)
+        $organizedGrades = [];
+        foreach ($students as $student) {
+            $organizedGrades[$student->id] = [
+                'student' => $student,
+                'quizzes' => [],
+                'assignments' => [],
+                'exams' => [],
+                'other' => [],
+            ];
+
+            foreach ($student->enrollments as $enrollment) {
+                $class = $enrollment->class;
+                foreach ($class->gradeItems as $gradeItem) {
+                    $grade = Grade::where('grade_item_id', $gradeItem->id)
+                        ->where('student_id', $student->id)
+                        ->first();
+
+                    $gradeData = [
+                        'grade_item' => $gradeItem,
+                        'grade' => $grade,
+                        'class' => $class,
+                    ];
+
+                    switch ($gradeItem->item_type) {
+                        case GradeItem::TYPE_QUIZ:
+                            $organizedGrades[$student->id]['quizzes'][] = $gradeData;
+                            break;
+                        case GradeItem::TYPE_ASSIGNMENT:
+                            $organizedGrades[$student->id]['assignments'][] = $gradeData;
+                            break;
+                        case GradeItem::TYPE_EXAM:
+                            $organizedGrades[$student->id]['exams'][] = $gradeData;
+                            break;
+                        default:
+                            $organizedGrades[$student->id]['other'][] = $gradeData;
+                            break;
+                    }
+                }
+            }
+        }
+
+        return view('admin.gradebook.section-view', compact('section', 'organizedGrades'));
     }
 
     public function releaseGrades(Request $request, ClassModel $class): RedirectResponse
