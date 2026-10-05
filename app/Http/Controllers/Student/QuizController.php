@@ -9,6 +9,7 @@ use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
+use App\Models\SectionModuleAssignment;
 use App\Models\StudentModuleAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,9 +32,10 @@ class QuizController extends Controller
             abort(403);
         }
 
-        // Get module IDs assigned to this student
-        $assignedModuleIds = StudentModuleAssignment::byStudent($studentId)
-            ->byClass($enrollment->class_id)
+        // Get module IDs assigned to this student's section
+        $assignedModuleIds = SectionModuleAssignment::active()
+            ->byCourse($course->id)
+            ->bySection($enrollment->class->section_id)
             ->pluck('module_id');
 
         $quizzes = Quiz::published()

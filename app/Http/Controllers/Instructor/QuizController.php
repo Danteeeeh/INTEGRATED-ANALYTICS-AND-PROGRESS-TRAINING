@@ -83,6 +83,10 @@ class QuizController extends Controller
             'show_correct_answers' => 'boolean',
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date|after:availability_from',
+            'allowed_start_time' => 'nullable|date_format:H:i',
+            'allowed_end_time' => 'nullable|date_format:H:i|after:allowed_start_time',
+            'video_url' => 'nullable|url|max:500',
+            'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|string|in:draft,published,closed',
             'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
             'question_bank_id' => 'nullable|exists:question_banks,id',
@@ -220,6 +224,10 @@ class QuizController extends Controller
             'show_correct_answers' => 'boolean',
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date|after:availability_from',
+            'allowed_start_time' => 'nullable|date_format:H:i',
+            'allowed_end_time' => 'nullable|date_format:H:i|after:allowed_start_time',
+            'video_url' => 'nullable|url|max:500',
+            'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|string|in:draft,published,closed',
             'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
             'question_bank_id' => 'nullable|exists:question_banks,id',
@@ -537,55 +545,5 @@ class QuizController extends Controller
         }
 
         return back()->with('success', 'Quiz extension revoked successfully.');
-    }
-    {
-        $position = 1;
-
-        foreach ($questionsData as $questionData) {
-            $courseId = $quiz->class?->course_id
-                ?? $quiz->module?->course_id
-                ?? $quiz->lesson?->module?->course_id;
-
-            // Create or find a question bank for this quiz
-            $questionBank = \App\Models\QuestionBank::firstOrCreate(
-                [
-                    'course_id' => $courseId,
-                    'title' => $quiz->title . ' Questions',
-                    'created_by' => $userId,
-                ],
-                [
-                    'description' => 'Questions for quiz: ' . $quiz->title,
-                    'status' => 'active',
-                ]
-            );
-
-            // Create the question
-            $question = \App\Models\Question::create([
-                'question_bank_id' => $questionBank->id,
-                'question_type' => 'multiple_choice',
-                'question_text' => $questionData['text'],
-                'default_points' => $questionData['points'] ?? 1,
-                'difficulty' => 'medium',
-                'created_by' => $userId,
-                'status' => 'active',
-            ]);
-
-            // Create choices
-            $correctChoiceIndex = $questionData['correct_choice'];
-            foreach ($questionData['choices'] as $index => $choiceText) {
-                \App\Models\QuestionChoice::create([
-                    'question_id' => $question->id,
-                    'choice_text' => $choiceText,
-                    'is_correct' => ($index + 1) == $correctChoiceIndex,
-                    'position' => $index + 1,
-                ]);
-            }
-
-            // Attach question to quiz
-            $quiz->questions()->attach($question->id, [
-                'position' => $position++,
-                'points' => $questionData['points'] ?? 1,
-            ]);
-        }
     }
 }

@@ -52,6 +52,8 @@ class ModuleController extends Controller
             'is_required' => 'boolean',
             'prerequisites' => 'nullable|string',
             'completion_requirements' => 'nullable|string',
+            'external_video_url' => 'nullable|url|max:500',
+            'video_thumbnail_url' => 'nullable|url|max:500',
             'status' => 'required|string|in:draft,published,archived',
         ]);
 
@@ -122,6 +124,8 @@ class ModuleController extends Controller
             'is_required' => 'boolean',
             'prerequisites' => 'nullable|string',
             'completion_requirements' => 'nullable|string',
+            'external_video_url' => 'nullable|url|max:500',
+            'video_thumbnail_url' => 'nullable|url|max:500',
             'status' => 'required|string|in:draft,published,archived',
         ]);
 

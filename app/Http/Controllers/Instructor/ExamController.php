@@ -105,6 +105,10 @@ class ExamController extends Controller
             'results_release_date' => 'nullable|date',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after:starts_at',
+            'allowed_start_time' => 'nullable|date_format:H:i',
+            'allowed_end_time' => 'nullable|date_format:H:i|after:allowed_start_time',
+            'video_url' => 'nullable|url|max:500',
+            'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|in:draft,published,closed',
             // Proctoring
             'requires_proctoring' => 'boolean',
@@ -198,6 +202,10 @@ class ExamController extends Controller
             'results_release_date' => 'nullable|date',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after:starts_at',
+            'allowed_start_time' => 'nullable|date_format:H:i',
+            'allowed_end_time' => 'nullable|date_format:H:i|after:allowed_start_time',
+            'video_url' => 'nullable|url|max:500',
+            'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|in:draft,published,closed',
             // Proctoring
             'requires_proctoring' => 'boolean',

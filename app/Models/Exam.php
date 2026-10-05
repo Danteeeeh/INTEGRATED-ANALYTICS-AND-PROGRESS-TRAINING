@@ -47,6 +47,10 @@ class Exam extends Model
         'results_release_date',
         'starts_at',
         'ends_at',
+        'allowed_start_time',
+        'allowed_end_time',
+        'video_url',
+        'video_duration_minutes',
         'require_confirmation',
         'status',
         'slug',
@@ -77,6 +81,9 @@ class Exam extends Model
         'show_score' => 'boolean',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'allowed_start_time' => 'datetime',
+        'allowed_end_time' => 'datetime',
+        'video_duration_minutes' => 'integer',
         'results_release_date' => 'datetime',
         'require_confirmation' => 'boolean',
         'settings' => 'array',
@@ -139,6 +146,12 @@ class Exam extends Model
     public function extensions(): HasMany
     {
         return $this->hasMany(ExamExtension::class);
+    }
+
+    public function learningMaterials(): HasMany
+    {
+        return $this->hasMany(LearningMaterial::class, 'related_id')
+            ->where('related_type', Exam::class);
     }
 
     public function scopePublished($query)
@@ -209,6 +222,19 @@ class Exam extends Model
 
         if ($this->ends_at && $now->gt($this->ends_at)) {
             return false;
+        }
+
+        // Check time-of-day restrictions
+        if ($this->allowed_start_time || $this->allowed_end_time) {
+            $currentTime = $now->format('H:i:s');
+
+            if ($this->allowed_start_time && $currentTime < $this->allowed_start_time) {
+                return false;
+            }
+
+            if ($this->allowed_end_time && $currentTime > $this->allowed_end_time) {
+                return false;
+            }
         }
 
         return true;

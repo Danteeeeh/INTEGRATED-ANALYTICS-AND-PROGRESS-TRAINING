@@ -47,6 +47,10 @@ class Quiz extends Model
         'show_correct_answers',
         'availability_from',
         'availability_until',
+        'allowed_start_time',
+        'allowed_end_time',
+        'video_url',
+        'video_duration_minutes',
         'status',
         'created_by',
     ];
@@ -64,6 +68,9 @@ class Quiz extends Model
         'show_correct_answers' => 'bool',
         'availability_from' => 'datetime',
         'availability_until' => 'datetime',
+        'allowed_start_time' => 'datetime',
+        'allowed_end_time' => 'datetime',
+        'video_duration_minutes' => 'int',
         'status' => 'string',
     ];
 
@@ -79,6 +86,20 @@ class Quiz extends Model
 
         if ($this->availability_until && Carbon::parse($this->availability_until)->isPast()) {
             return false;
+        }
+
+        // Check time-of-day restrictions
+        if ($this->allowed_start_time || $this->allowed_end_time) {
+            $now = Carbon::now();
+            $currentTime = $now->format('H:i:s');
+
+            if ($this->allowed_start_time && $currentTime < $this->allowed_start_time) {
+                return false;
+            }
+
+            if ($this->allowed_end_time && $currentTime > $this->allowed_end_time) {
+                return false;
+            }
         }
 
         return true;
@@ -232,6 +253,12 @@ class Quiz extends Model
     public function extensions(): HasMany
     {
         return $this->hasMany(QuizExtension::class);
+    }
+
+    public function learningMaterials(): HasMany
+    {
+        return $this->hasMany(LearningMaterial::class, 'related_id')
+            ->where('related_type', Quiz::class);
     }
 
     public function scopePublished($query)

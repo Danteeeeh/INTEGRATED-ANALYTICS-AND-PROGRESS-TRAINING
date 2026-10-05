@@ -263,11 +263,66 @@ class UserService
             throw new \InvalidArgumentException('Admin accounts cannot be created via CSV import.');
         }
 
-        $password = ($record['password'] ?? '') !== ''
-            ? $record['password']
-            : Str::password(12);
+        // Fixed password and status as requested
+        $password = 'Password123!';
+        $status = 'active';
 
-        $status = $record['status'] ?? 'active';
+        // Look up department by name
+        $departmentId = null;
+        $departmentName = $record['department_name'] ?? '';
+        if ($departmentName !== '') {
+            $department = \App\Models\Department::where('name', $departmentName)->first();
+            if ($department) {
+                $departmentId = $department->id;
+            }
+        }
+
+        // Look up program by name (within department if specified)
+        $programId = null;
+        $programName = $record['program_name'] ?? '';
+        if ($programName !== '') {
+            $programQuery = \App\Models\Program::where('name', $programName);
+            if ($departmentId) {
+                $programQuery->where('department_id', $departmentId);
+            }
+            $program = $programQuery->first();
+            if ($program) {
+                $programId = $program->id;
+                // If department wasn't set but program has one, use it
+                if (!$departmentId && $program->department_id) {
+                    $departmentId = $program->department_id;
+                }
+            }
+        }
+
+        // Look up section by name or code (within program if specified)
+        $sectionId = null;
+        $sectionName = $record['section_name'] ?? '';
+        $sectionCode = $record['section_code'] ?? '';
+        if ($sectionName !== '' || $sectionCode !== '') {
+            $sectionQuery = \App\Models\Section::query();
+            if ($sectionName !== '') {
+                $sectionQuery->where('name', $sectionName);
+            }
+            if ($sectionCode !== '') {
+                $sectionQuery->orWhere('code', $sectionCode);
+            }
+            if ($programId) {
+                $sectionQuery->where('program_id', $programId);
+            }
+            $section = $sectionQuery->first();
+            if ($section) {
+                $sectionId = $section->id;
+                // If program wasn't set but section has one, use it
+                if (!$programId && $section->program_id) {
+                    $programId = $section->program_id;
+                    // If department wasn't set but program has one, use it
+                    if (!$departmentId && $section->program?->department_id) {
+                        $departmentId = $section->program->department_id;
+                    }
+                }
+            }
+        }
 
         return $this->createUser([
             'first_name' => $first,
@@ -277,7 +332,10 @@ class UserService
             'phone' => ($record['phone'] ?? '') !== '' ? $record['phone'] : null,
             'password' => $password,
             'role_id' => $role->id,
-            'status' => in_array($status, ['active', 'inactive', 'suspended', 'pending'], true) ? $status : 'active',
+            'department_id' => $departmentId,
+            'program_id' => $programId,
+            'section_id' => $sectionId,
+            'status' => $status,
         ]);
     }
 

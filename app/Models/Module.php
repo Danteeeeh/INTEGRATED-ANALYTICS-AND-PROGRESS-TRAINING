@@ -27,6 +27,8 @@ class Module extends Model
         'is_required',
         'prerequisites',
         'completion_requirements',
+        'external_video_url',
+        'video_thumbnail_url',
         'status',
         'created_by',
     ];
@@ -87,5 +89,67 @@ class Module extends Model
     public function scopeOfCourse($query, $courseId)
     {
         return $query->where('course_id', $courseId);
+    }
+
+    /**
+     * Get YouTube video ID from URL
+     */
+    public function getYouTubeVideoId(): ?string
+    {
+        if (!$this->external_video_url) {
+            return null;
+        }
+
+        $url = $this->external_video_url;
+        $pattern = '/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i';
+        
+        if (preg_match($pattern, $url, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get YouTube thumbnail URL
+     */
+    public function getYouTubeThumbnailUrl(): ?string
+    {
+        if ($this->video_thumbnail_url) {
+            return $this->video_thumbnail_url;
+        }
+
+        $videoId = $this->getYouTubeVideoId();
+        if ($videoId) {
+            return "https://img.youtube.com/vi/{$videoId}/maxresdefault.jpg";
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if the video is from YouTube
+     */
+    public function isYouTubeVideo(): bool
+    {
+        return $this->getYouTubeVideoId() !== null;
+    }
+
+    /**
+     * Get embedded video URL
+     */
+    public function getEmbeddedVideoUrl(): ?string
+    {
+        if (!$this->external_video_url) {
+            return null;
+        }
+
+        if ($this->isYouTubeVideo()) {
+            $videoId = $this->getYouTubeVideoId();
+            return "https://www.youtube.com/embed/{$videoId}";
+        }
+
+        // For other video platforms, return the original URL
+        return $this->external_video_url;
     }
 }

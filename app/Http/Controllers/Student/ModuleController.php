@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Module;
+use App\Models\SectionModuleAssignment;
 use App\Models\StudentModuleAssignment;
 use Illuminate\View\View;
 
@@ -26,9 +27,10 @@ class ModuleController extends Controller
             abort(403);
         }
 
-        // Get only modules assigned to this student
-        $assignedModuleIds = StudentModuleAssignment::byStudent($studentId)
-            ->byClass($enrollment->class_id)
+        // Get modules assigned to this student's section
+        $assignedModuleIds = SectionModuleAssignment::active()
+            ->byCourse($course->id)
+            ->bySection($enrollment->class->section_id)
             ->pluck('module_id');
 
         $modules = Module::published()
@@ -61,14 +63,31 @@ class ModuleController extends Controller
             abort(403);
         }
 
-        // Check if module is assigned to this student
+        // Check if module is assigned to this student's section
+        $sectionAssignment = SectionModuleAssignment::active()
+            ->byCourse($course->id)
+            ->bySection($enrollment->class->section_id)
+            ->where('module_id', $module->id)
+            ->first();
+
+        if (! $sectionAssignment) {
+            abort(403, 'This module is not assigned to your section.');
+        }
+
+        // Create or get student-specific assignment for progress tracking
         $assignment = StudentModuleAssignment::byStudent($studentId)
             ->byClass($enrollment->class_id)
             ->where('module_id', $module->id)
             ->first();
 
         if (! $assignment) {
-            abort(403, 'This module is not assigned to you.');
+            $assignment = StudentModuleAssignment::create([
+                'student_id' => $studentId,
+                'module_id' => $module->id,
+                'class_id' => $enrollment->class_id,
+                'status' => 'assigned',
+                'assigned_at' => now(),
+            ]);
         }
 
         // Mark as in progress if not already

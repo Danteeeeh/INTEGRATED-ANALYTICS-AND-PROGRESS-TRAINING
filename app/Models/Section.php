@@ -38,6 +38,11 @@ class Section extends Model
         return $this->hasMany(User::class);
     }
 
+    public function moduleAssignments(): HasMany
+    {
+        return $this->hasMany(SectionModuleAssignment::class);
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return $this->code.($this->program ? ' · '.$this->program->code : '');

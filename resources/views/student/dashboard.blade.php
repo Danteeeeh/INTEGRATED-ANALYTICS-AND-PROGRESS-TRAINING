@@ -37,6 +37,18 @@
                 <span>·</span>
                 <span>{{ $stats['current_period']->name ?? '' }}</span>
             @endif
+            @if(auth()->user()->section)
+                <span>·</span>
+                <span>{{ auth()->user()->section->name }}@if(auth()->user()->section->code) ({{ auth()->user()->section->code }})@endif</span>
+            @endif
+            @if(auth()->user()->program)
+                <span>·</span>
+                <span>{{ auth()->user()->program->name }}</span>
+            @endif
+            @if(auth()->user()->department)
+                <span>·</span>
+                <span>{{ auth()->user()->department->name }}</span>
+            @endif
         </x-slot>
         <x-slot name="actions">
             <a href="{{ route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> Browse courses</a>

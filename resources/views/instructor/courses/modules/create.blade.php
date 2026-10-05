@@ -219,6 +219,24 @@
                 </div>
             </div>
 
+            <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-video"></i> External Video (Optional)</div>
+                <div class="cc-grid">
+                    <div class="cc-field full">
+                        <label>Video URL</label>
+                        <input type="url" name="external_video_url" placeholder="https://www.youtube.com/watch?v=..." value="{{ old('external_video_url') }}">
+                        <span class="cc-hint">YouTube, Vimeo, or other video platform URLs are supported</span>
+                        @error('external_video_url')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+                    <div class="cc-field full">
+                        <label>Custom Thumbnail URL (Optional)</label>
+                        <input type="url" name="video_thumbnail_url" placeholder="https://example.com/thumbnail.jpg" value="{{ old('video_thumbnail_url') }}">
+                        <span class="cc-hint">Leave blank to auto-generate thumbnail from YouTube. For other platforms, provide a custom thumbnail image URL.</span>
+                        @error('video_thumbnail_url')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+                </div>
+            </div>
+
             <div class="cc-footer">
                 <a href="{{ $backUrl }}" class="cc-btn cc-btn-cancel">
                     <i class="fa-solid fa-xmark"></i>

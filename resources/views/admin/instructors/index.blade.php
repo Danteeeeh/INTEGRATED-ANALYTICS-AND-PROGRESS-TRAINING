@@ -12,6 +12,7 @@
     >
         <x-slot name="actions">
             <a href="{{ route('admin.instructors.create') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Instructor</a>
+            <button type="button" onclick="document.getElementById('importInstructorModal').classList.add('active')" class="btn btn-secondary"><i class="fa-solid fa-upload"></i> Import</button>
             <a href="{{ route('admin.instructors.export', request()->query()) }}" class="btn btn-secondary"><i class="fa-solid fa-download"></i> Export</a>
         </x-slot>
     </x-user-page-header>
@@ -93,6 +94,35 @@
                 <div class="pagination">{{ $instructors->appends(request()->query())->links() }}</div>
             @endif
         </div>
+    </div>
+</div>
+
+<!-- Import Instructor Modal -->
+<div class="modal" id="importInstructorModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-file-import"></i> Import Instructors</h3>
+            <button type="button" class="modal-close" onclick="document.getElementById('importInstructorModal').classList.remove('active')">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ route('admin.instructors.import') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>CSV File</label>
+                    <input type="file" name="file" accept=".csv,.txt" required class="form-control">
+                    <small class="form-text">Upload a CSV or TXT file. Expected columns:<br>first_name, last_name, email, identifier, phone, department_name, program_name, section_name, section_code</small>
+                    <small class="form-text" style="margin-top:6px;display:block">Sample CSV:<br><code>Jane,Smith,jane.smith@example.com,INS001,555-5678,Engineering,Computer Science,Section A,CS-A</code></small>
+                    <small class="form-text" style="margin-top:6px;display:block">Sample TXT (one per line):<br><code>Jane,Smith,jane.smith@example.com,INS001,555-5678,Engineering,Computer Science,Section A,CS-A</code></small>
+                    <small class="form-text" style="margin-top:6px;display:block;color:#667eea">Note: Password will be automatically set to <strong>Password123!</strong> and status to <strong>active</strong></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('importInstructorModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Import</button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection

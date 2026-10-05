@@ -16,6 +16,8 @@ use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\Exam;
+use App\Models\ExamAttempt;
 use App\Models\User;
 use App\Models\VirtualClass;
 use Illuminate\Http\RedirectResponse;
@@ -100,6 +102,23 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // Exam metrics with optimized queries
+        $upcomingExams = Exam::whereHas('class', function ($query) use ($classIds) {
+            $query->whereIn('id', $classIds);
+        })->where('status', 'published')
+            ->where('starts_at', '>', now())
+            ->orderBy('starts_at')
+            ->limit(5)
+            ->get();
+
+        $recentExamAttempts = ExamAttempt::whereHas('exam', function ($query) use ($classIds, $courseIds) {
+            $query->whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds);
+        })->with(['student', 'exam'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
         // Virtual classes with optimized queries
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
             ->where('start_time', '>', now())
@@ -110,19 +129,30 @@ class DashboardController extends Controller
         // Combine upcoming activities
         $upcomingActivities = collect();
         foreach ($upcomingAssignments as $assignment) {
+            $courseId = $assignment->resolveCourseId();
             $upcomingActivities->push([
                 'title' => $assignment->title,
                 'type' => 'Assignment',
                 'date' => $assignment->due_date->format('M d, Y g:i A'),
-                'url' => route('instructor.assignments.show', $assignment),
+                'url' => $courseId ? route('instructor.courses.assignments.show', [$courseId, $assignment]) : '#',
             ]);
         }
         foreach ($upcomingQuizzes as $quiz) {
+            $courseId = $quiz->resolveCourseId();
             $upcomingActivities->push([
                 'title' => $quiz->title,
                 'type' => 'Quiz',
                 'date' => $quiz->availability_from->format('M d, Y g:i A'),
-                'url' => route('instructor.quizzes.show', $quiz),
+                'url' => $courseId ? route('instructor.courses.quizzes.show', [$courseId, $quiz]) : '#',
+            ]);
+        }
+        foreach ($upcomingExams as $exam) {
+            $courseId = $exam->course_id;
+            $upcomingActivities->push([
+                'title' => $exam->title,
+                'type' => 'Exam',
+                'date' => $exam->starts_at->format('M d, Y g:i A'),
+                'url' => $courseId ? route('instructor.courses.exams.show', [$courseId, $exam]) : '#',
             ]);
         }
         foreach ($upcomingVirtualClasses as $virtualClass) {
@@ -210,6 +240,13 @@ class DashboardController extends Controller
             'upcoming_quizzes' => $upcomingQuizzes,
             'recent_quiz_attempts' => $recentQuizAttempts,
             'total_quizzes' => Quiz::whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds)
+                ->count(),
+
+            // Exam Metrics
+            'upcoming_exams' => $upcomingExams,
+            'recent_exam_attempts' => $recentExamAttempts,
+            'total_exams' => Exam::whereIn('class_id', $classIds)
                 ->orWhereIn('course_id', $courseIds)
                 ->count(),
 
@@ -579,7 +616,7 @@ class DashboardController extends Controller
         try {
             $validated = $request->validate([
                 'period' => 'required|in:week,month,semester,year',
-                'type' => 'required|in:enrollment,performance,attendance,engagement',
+                'type' => 'required|in:enrollment,performance,attendance,engagement,quizzes,exams,assignments',
             ]);
 
             $instructorId = auth()->id();
@@ -627,6 +664,36 @@ class DashboardController extends Controller
                         'total_announcements' => $stats['total_announcements'],
                         'virtual_classes_held' => $stats['total_virtual_classes'],
                         'student_participation_rate' => $this->calculateParticipationRate($stats['my_classes_list']),
+                    ];
+                    break;
+
+                case 'quizzes':
+                    $analytics = [
+                        'total_quizzes' => $stats['total_quizzes'],
+                        'upcoming_quizzes' => $stats['upcoming_quizzes']->count(),
+                        'recent_attempts' => $stats['recent_quiz_attempts']->count(),
+                        'average_quiz_score' => $this->calculateAverageQuizScore($stats['my_classes_list']),
+                        'quiz_completion_rate' => $this->calculateQuizCompletionRate($stats['my_classes_list']),
+                    ];
+                    break;
+
+                case 'exams':
+                    $analytics = [
+                        'total_exams' => $stats['total_exams'],
+                        'upcoming_exams' => $stats['upcoming_exams']->count(),
+                        'recent_attempts' => $stats['recent_exam_attempts']->count(),
+                        'average_exam_score' => $this->calculateAverageExamScore($stats['my_classes_list']),
+                        'exam_completion_rate' => $this->calculateExamCompletionRate($stats['my_classes_list']),
+                    ];
+                    break;
+
+                case 'assignments':
+                    $analytics = [
+                        'total_assignments' => $stats['total_assignments'],
+                        'pending_submissions' => $stats['pending_submissions'],
+                        'upcoming_assignments' => $stats['upcoming_assignments']->count(),
+                        'average_assignment_score' => $this->calculateAverageAssignmentScore($stats['my_classes_list']),
+                        'assignment_submission_rate' => $this->calculateAssignmentSubmissionRate($stats['my_classes_list']),
                     ];
                     break;
             }
@@ -731,5 +798,100 @@ class DashboardController extends Controller
         }
 
         return $totalStudents > 0 ? ($activeParticipants / $totalStudents) * 100 : 0;
+    }
+
+    /**
+     * Calculate average quiz score
+     */
+    private function calculateAverageQuizScore($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $attempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->where('status', 'graded')->get();
+
+        return $attempts->isNotEmpty() ? $attempts->avg('score_percent') : 0;
+    }
+
+    /**
+     * Calculate quiz completion rate
+     */
+    private function calculateQuizCompletionRate($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $totalQuizzes = Quiz::whereIn('class_id', $classIds)->count();
+        $totalAttempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->count();
+
+        return $totalQuizzes > 0 ? ($totalAttempts / $totalQuizzes) : 0;
+    }
+
+    /**
+     * Calculate average exam score
+     */
+    private function calculateAverageExamScore($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $attempts = ExamAttempt::whereHas('exam', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->where('status', 'graded')->get();
+
+        return $attempts->isNotEmpty() ? $attempts->avg('score_percent') : 0;
+    }
+
+    /**
+     * Calculate exam completion rate
+     */
+    private function calculateExamCompletionRate($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $totalExams = Exam::whereIn('class_id', $classIds)->count();
+        $totalAttempts = ExamAttempt::whereHas('exam', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->count();
+
+        return $totalExams > 0 ? ($totalAttempts / $totalExams) : 0;
+    }
+
+    /**
+     * Calculate average assignment score
+     */
+    private function calculateAverageAssignmentScore($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $submissions = AssignmentSubmission::whereHas('assignment', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->where('status', 'graded')->get();
+
+        if ($submissions->isEmpty()) {
+            return 0;
+        }
+
+        $totalScore = 0;
+        $count = 0;
+        foreach ($submissions as $submission) {
+            $grade = $submission->grade;
+            if ($grade && $grade->score_percent !== null) {
+                $totalScore += $grade->score_percent;
+                $count++;
+            }
+        }
+
+        return $count > 0 ? $totalScore / $count : 0;
+    }
+
+    /**
+     * Calculate assignment submission rate
+     */
+    private function calculateAssignmentSubmissionRate($classes): float
+    {
+        $classIds = $classes->pluck('id');
+        $totalAssignments = Assignment::whereIn('class_id', $classIds)->count();
+        $totalSubmissions = AssignmentSubmission::whereHas('assignment', function ($query) use ($classIds) {
+            $query->whereIn('class_id', $classIds);
+        })->count();
+
+        return $totalAssignments > 0 ? ($totalSubmissions / $totalAssignments) : 0;
     }
 }

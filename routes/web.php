@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CalendarController as AdminCalendarController;
 use App\Http\Controllers\Admin\ClassController as AdminClassController;
 use App\Http\Controllers\Admin\CompetencyController as AdminCompetencyController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\FeedbackController as AdminFeedbackController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
@@ -62,6 +63,9 @@ use App\Http\Controllers\Instructor\ExamController as InstructorExamController;
 use App\Http\Controllers\Instructor\RubricController as InstructorRubricController;
 use App\Http\Controllers\Instructor\VirtualClassController as InstructorVirtualClassController;
 use App\Http\Controllers\Instructor\LearningPlanController as InstructorLearningPlanController;
+use App\Http\Controllers\Instructor\QuestionBankController as InstructorQuestionBankController;
+use App\Http\Controllers\Instructor\StudentModuleAssignmentController;
+use App\Http\Controllers\Instructor\SectionModuleAssignmentController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\AssistantController as StudentAssistantController;
@@ -321,9 +325,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         // Feedback routes
         Route::prefix('feedback')->name('feedback.')->group(function () {
-            Route::post('/', [FeedbackController::class, 'store'])->name('store');
-            Route::delete('/{feedback}', [FeedbackController::class, 'destroy'])->name('destroy');
-            Route::post('/{feedback}/mark-read', [FeedbackController::class, 'markRead'])->name('mark-read');
+            Route::post('/', [AdminFeedbackController::class, 'store'])->name('store');
+            Route::delete('/{feedback}', [AdminFeedbackController::class, 'destroy'])->name('destroy');
+            Route::post('/{feedback}/mark-read', [AdminFeedbackController::class, 'markRead'])->name('mark-read');
         });
 
         Route::prefix('audit-logs')->name('audit_logs.')->group(function () {
@@ -510,10 +514,27 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::post('/', [StudentModuleAssignmentController::class, 'store'])->name('store');
                 Route::delete('/{assignment}', [StudentModuleAssignmentController::class, 'destroy'])->name('destroy');
             });
+
+            Route::prefix('{class}/section_module_assignments')->name('section_module_assignments.')->group(function () {
+                Route::get('/', [SectionModuleAssignmentController::class, 'index'])->name('index');
+                Route::get('/create', [SectionModuleAssignmentController::class, 'create'])->name('create');
+                Route::post('/', [SectionModuleAssignmentController::class, 'store'])->name('store');
+                Route::delete('/{assignment}', [SectionModuleAssignmentController::class, 'destroy'])->name('destroy');
+            });
         });
 
         Route::prefix('learning-plans')->name('learning-plans.')->group(function () {
             Route::patch('/{learningPlan}', [InstructorLearningPlanController::class, 'update'])->name('update');
+        });
+
+        Route::prefix('question-banks')->name('question_banks.')->group(function () {
+            Route::get('/', [InstructorQuestionBankController::class, 'index'])->name('index');
+            Route::get('/create', [InstructorQuestionBankController::class, 'create'])->name('create');
+            Route::post('/', [InstructorQuestionBankController::class, 'store'])->name('store');
+            Route::get('/{questionBank}', [InstructorQuestionBankController::class, 'show'])->name('show');
+            Route::get('/{questionBank}/edit', [InstructorQuestionBankController::class, 'edit'])->name('edit');
+            Route::put('/{questionBank}', [InstructorQuestionBankController::class, 'update'])->name('update');
+            Route::delete('/{questionBank}', [InstructorQuestionBankController::class, 'destroy'])->name('destroy');
         });
 
         Route::prefix('submissions')->name('submissions.')->group(function () {

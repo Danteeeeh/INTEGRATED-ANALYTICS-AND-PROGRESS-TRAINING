@@ -69,6 +69,45 @@
                 </div>
             </section>
 
+            @if($module->external_video_url)
+            <section class="user-panel module-video-panel" aria-labelledby="module-video-title">
+                <div class="user-panel-head">
+                    <div>
+                        <span class="user-kicker"><i class="fa-solid fa-video" aria-hidden="true"></i> External Video</span>
+                        <h3 id="module-video-title">Video Resource</h3>
+                    </div>
+                </div>
+                <div class="user-panel-body">
+                    <div class="module-video-container">
+                        @if($module->getYouTubeThumbnailUrl())
+                            <div class="module-video-thumbnail">
+                                <img src="{{ $module->getYouTubeThumbnailUrl() }}" alt="Video thumbnail" loading="lazy">
+                                @if($module->isYouTubeVideo())
+                                    <a href="{{ $module->external_video_url }}" target="_blank" class="module-video-play-btn">
+                                        <i class="fa-solid fa-play"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
+                        <div class="module-video-info">
+                            <p style="margin: 0 0 8px; font-size: 0.85rem; color: #64748b;">
+                                <i class="fa-solid fa-link" style="margin-right: 6px;"></i>
+                                <a href="{{ $module->external_video_url }}" target="_blank" style="color: #2563eb; text-decoration: none;">
+                                    {{ Str::limit($module->external_video_url, 60) }}
+                                </a>
+                            </p>
+                            @if($module->isYouTubeVideo())
+                                <p style="margin: 0; font-size: 0.75rem; color: #94a3b8;">
+                                    <i class="fa-brands fa-youtube" style="margin-right: 6px;"></i>
+                                    YouTube Video
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </section>
+            @endif
+
             <section class="user-panel module-attachments-panel" aria-labelledby="module-attachments-title">
                 <div class="user-panel-head">
                     <div>
@@ -188,6 +227,7 @@
 @push('styles')
 <style>
 .module-attachment-list{display:grid;gap:10px}.module-attachment-card{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px 16px;border:1px solid rgba(124,58,237,.18);border-radius:10px;background:var(--module-accent-soft);transition:all .2s ease}.module-attachment-card:hover{border-color:var(--module-accent);box-shadow:0 4px 12px rgba(124,58,237,.12)}.module-attachment-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;color:#fff;font-size:.9rem;background:#64748b}.module-attachment-body{display:grid;gap:4px}.module-attachment-body strong{color:#1e293b;font-size:.9rem}.module-attachment-meta{display:flex;gap:12px;color:#64748b;font-size:.75rem}.module-attachment-meta i{margin-right:4px}
+.module-video-container{display:grid;gap:16px}.module-video-thumbnail{position:relative;overflow:hidden;border-radius:12px;background:#1e293b;aspect-ratio:16/9}.module-video-thumbnail img{width:100%;height:100%;object-fit:cover}.module-video-play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:rgba(239,68,68,.9);color:#fff;font-size:1.5rem;transition:all .3s ease;text-decoration:none}.module-video-play-btn:hover{background:rgba(239,68,68,1);transform:translate(-50%,-50%) scale(1.1)}.module-video-info{padding:12px;background:rgba(139,92,246,.08);border-radius:8px;border:1px solid rgba(139,92,246,.18)}
 </style>
 <style>
 .module-detail-page{--module-accent:#c4b5fd;--module-accent-strong:#7c3aed;--module-accent-soft:rgba(139,92,246,.14);gap:16px}.module-detail-page .user-hero{display:flex;align-items:flex-end;justify-content:space-between;box-sizing:border-box}.module-detail-page *{box-sizing:border-box}.module-detail-layout{display:grid;grid-template-columns:minmax(230px,.38fr) minmax(0,1fr);gap:16px;align-items:start}.module-detail-summary{position:sticky;top:18px;display:grid;gap:15px;padding:20px;border:1px solid rgba(196,181,253,.26);border-radius:16px;background:linear-gradient(160deg,rgba(124,58,237,.2),rgba(15,31,75,.85));box-shadow:0 16px 36px rgba(3,8,20,.18)}.module-summary-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.module-summary-icon{display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(196,181,253,.32);border-radius:13px;color:var(--module-accent);background:rgba(139,92,246,.16)}.module-summary-kicker{color:var(--module-accent);font-size:.62rem;font-weight:850;letter-spacing:.12em;text-transform:uppercase}.module-detail-summary h2{margin:3px 0 0;color:#fff;font-size:1.18rem;line-height:1.2}.module-detail-summary>p{margin:8px 0 0;color:rgba(238,244,255,.72);font-size:.72rem;line-height:1.5}.module-summary-list{display:grid;gap:12px;margin:0;padding:16px 0;border-top:1px solid rgba(219,234,254,.14);border-bottom:1px solid rgba(219,234,254,.14)}.module-summary-list div{display:grid;gap:4px}.module-summary-list dt{color:rgba(238,244,255,.55);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em}.module-summary-list dt i{width:16px;color:var(--module-accent)}.module-summary-list dd{margin:0;color:#fff;font-size:.74rem;line-height:1.35}.module-overview-body{display:grid;gap:18px}.module-overview-block{display:grid;gap:7px}.module-overview-label{color:var(--module-accent-strong);font-size:.64rem;font-weight:850;letter-spacing:.09em;text-transform:uppercase}.module-overview-label i{margin-right:6px}.module-overview-block p{margin:0;color:var(--dash-muted);font-size:.78rem;line-height:1.65}.module-lesson-list{display:grid;gap:9px}.module-lesson-card{display:flex;align-items:center;gap:13px;min-width:0;padding:13px 14px;border:1px solid var(--dash-line);border-radius:12px;background:var(--dash-surface-raised);transition:border-color .16s,box-shadow .16s}.module-lesson-card:hover{border-color:rgba(196,181,253,.45);box-shadow:0 8px 20px rgba(3,8,20,.12)}.module-lesson-icon{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:11px}.lesson-type-video{color:#93c5fd;background:rgba(59,130,246,.16)}.lesson-type-quiz{color:#c4b5fd;background:rgba(139,92,246,.16)}.lesson-type-file{color:#6ee7b7;background:rgba(16,185,129,.14)}.lesson-type-text{color:#fcd34d;background:rgba(251,191,36,.14)}.module-lesson-body{display:grid;gap:5px;min-width:0;flex:1}.module-lesson-body>strong{overflow:hidden;color:var(--dash-text);font-size:.8rem;text-overflow:ellipsis;white-space:nowrap}.module-lesson-meta{display:flex;align-items:center;flex-wrap:wrap;gap:12px;color:var(--dash-muted);font-size:.66rem}.module-lesson-meta>span{display:inline-flex;align-items:center;gap:5px}.module-lesson-meta .user-status{font-size:.6rem;padding:3px 8px}body.light-mode .module-detail-summary{background:linear-gradient(160deg,rgba(124,58,237,.94),rgba(20,16,45,.98))}.light-mode .module-detail-summary h2{color:#fff}@media(max-width:860px){.module-detail-page .user-hero{align-items:flex-start;flex-direction:column;padding:20px}.module-detail-layout{grid-template-columns:1fr}.module-detail-summary{position:static}}@media(max-width:620px){.module-lesson-card{align-items:flex-start;flex-wrap:wrap}.module-lesson-body{flex-basis:calc(100% - 52px)}.module-lesson-card .user-actions{margin-left:auto}.module-detail-summary{padding:17px}}@media(prefers-reduced-motion:reduce){.module-lesson-card{transition:none}}

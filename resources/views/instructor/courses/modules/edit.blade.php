@@ -72,6 +72,20 @@
                 </div>
 
                 <div class="form-field full">
+                    <label>External Video URL (Optional)</label>
+                    <input type="url" name="external_video_url" placeholder="https://www.youtube.com/watch?v=..." value="{{ old('external_video_url', $module->external_video_url) }}">
+                    <span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: block;">YouTube, Vimeo, or other video platform URLs are supported</span>
+                    @error('external_video_url')<span style="color: #ef4444; font-size: 0.8rem; display: block; margin-top: 4px;">{{ $message }}</span>@enderror
+                </div>
+
+                <div class="form-field full">
+                    <label>Custom Thumbnail URL (Optional)</label>
+                    <input type="url" name="video_thumbnail_url" placeholder="https://example.com/thumbnail.jpg" value="{{ old('video_thumbnail_url', $module->video_thumbnail_url) }}">
+                    <span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: block;">Leave blank to auto-generate thumbnail from YouTube. For other platforms, provide a custom thumbnail image URL.</span>
+                    @error('video_thumbnail_url')<span style="color: #ef4444; font-size: 0.8rem; display: block; margin-top: 4px;">{{ $message }}</span>@enderror
+                </div>
+
+                <div class="form-field full">
                     <label>Upload Additional Files (Optional)</label>
                     <input type="file" name="attachments[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.txt">
                     <span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: block;">Accepted formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, GIF, MP4, MP3, ZIP, TXT (Max 10MB per file)</span>
