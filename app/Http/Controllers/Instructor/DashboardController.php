@@ -107,6 +107,34 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // Combine upcoming activities
+        $upcomingActivities = collect();
+        foreach ($upcomingAssignments as $assignment) {
+            $upcomingActivities->push([
+                'title' => $assignment->title,
+                'type' => 'Assignment',
+                'date' => $assignment->due_date->format('M d, Y g:i A'),
+                'url' => route('instructor.assignments.show', $assignment),
+            ]);
+        }
+        foreach ($upcomingQuizzes as $quiz) {
+            $upcomingActivities->push([
+                'title' => $quiz->title,
+                'type' => 'Quiz',
+                'date' => $quiz->availability_from->format('M d, Y g:i A'),
+                'url' => route('instructor.quizzes.show', $quiz),
+            ]);
+        }
+        foreach ($upcomingVirtualClasses as $virtualClass) {
+            $upcomingActivities->push([
+                'title' => $virtualClass->title,
+                'type' => 'Virtual Class',
+                'date' => $virtualClass->meeting_date->format('M d, Y').' '.$virtualClass->start_time,
+                'url' => route('instructor.classes.virtual_classes.show', [$virtualClass->class, $virtualClass]),
+            ]);
+        }
+        $upcomingActivities = $upcomingActivities->sortBy('date')->take(5);
+
         // Announcements with optimized queries
         $recentAnnouncements = Announcement::whereIn('course_id', $courseIds)
             ->orWhereIn('class_id', $classIds)
@@ -197,6 +225,9 @@ class DashboardController extends Controller
 
             // Recent Activity
             'recent_enrollments' => $recentEnrollments,
+
+            // Upcoming Activities (combined)
+            'upcoming_activities' => $upcomingActivities,
 
             'my_classes_list' => $myClasses,
             'my_courses_list' => $myCourses,

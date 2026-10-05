@@ -188,48 +188,31 @@
         </section>
     </div>
 
-    {{-- ═══ UPCOMING + RECENT ACTIVITY ═══ --}}
-    <div class="dash-grid">
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-bell"></i> Upcoming</h4>
-                <span class="panel-count" id="upcoming-count">{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() }}</span>
-            </div>
-            <ul class="dash-list">
-                @forelse(($stats['upcoming_assignments'] ?? []) as $assignment)
-                    <li class="dash-list-item">
-                        <span class="dash-list-icon"><i class="fa-solid fa-tasks"></i></span>
-                        <div class="dash-list-body">
-                            <p class="dash-list-title">{{ $assignment->title }}</p>
-                            <p class="dash-list-sub">Assignment · {{ $assignment->class?->code ?? '' }}</p>
+    {{-- ═══ UPCOMING ACTIVITIES ═══ --}}
+    <section class="dash-panel">
+        <div class="dash-panel-head">
+            <h4><i class="fa-solid fa-calendar-days"></i> Upcoming activities</h4>
+            <span class="panel-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+        </div>
+        <div style="padding:14px">
+            @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
+                <div class="activity-list">
+                    @foreach($stats['upcoming_activities'] as $activity)
+                        <div class="activity-item">
+                            <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : 'fa-video') }}" aria-hidden="true"></i>
+                            <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
+                            @if(!empty($activity['url']))<a href="{{ $activity['url'] }}">Open <i class="fa-solid fa-arrow-right"></i></a>@endif
                         </div>
-                        <div class="dash-list-meta">
-                            <span class="dash-meta-chip m-amber">Due {{ $assignment->due_date?->format('M j') }}</span>
-                            <span class="dash-list-date">{{ $assignment->due_date?->diffForHumans() }}</span>
-                        </div>
-                    </li>
-                @empty
-                @endforelse
-                @forelse(($stats['upcoming_quizzes'] ?? []) as $quiz)
-                    <li class="dash-list-item">
-                        <span class="dash-list-icon i-violet"><i class="fa-solid fa-question-circle"></i></span>
-                        <div class="dash-list-body">
-                            <p class="dash-list-title">{{ $quiz->title }}</p>
-                            <p class="dash-list-sub">Quiz · {{ $quiz->class?->code ?? '' }}</p>
-                        </div>
-                        <div class="dash-list-meta">
-                            <span class="dash-meta-chip m-blue">Opens {{ $quiz->availability_from?->format('M j') }}</span>
-                            <span class="dash-list-date">{{ $quiz->availability_from?->diffForHumans() }}</span>
-                        </div>
-                    </li>
-                @empty
-                @endforelse
-                @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty())
-                    <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> Nothing scheduled</li>
-                @endif
-            </ul>
-        </section>
+                    @endforeach
+                </div>
+            @else
+                <div class="empty-state"><i class="fa-solid fa-calendar-check"></i>No upcoming activities</div>
+            @endif
+        </div>
+    </section>
 
+    {{-- ═══ RECENT ACTIVITY ═══ --}}
+    <div class="dash-grid">
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-user-plus"></i> Recent enrollments</h4>

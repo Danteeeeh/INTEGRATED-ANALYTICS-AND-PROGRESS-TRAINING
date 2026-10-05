@@ -13,6 +13,7 @@ class RoleSeeder extends Seeder
             ['name' => 'Admin', 'slug' => Role::ADMIN, 'description' => 'Institutional administrator'],
             ['name' => 'Instructor', 'slug' => Role::INSTRUCTOR, 'description' => 'Manages assigned academic content'],
             ['name' => 'Student', 'slug' => Role::STUDENT, 'description' => 'Enrolled learner'],
+            ['name' => 'Registrar', 'slug' => Role::REGISTRAR, 'description' => 'Manages student records and enrollments'],
         ];
 
         foreach ($roles as $role) {

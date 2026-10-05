@@ -101,6 +101,9 @@ class DashboardController extends Controller
             'recent_assignments' => Assignment::orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_quizzes' => Quiz::orderBy('created_at', 'desc')->limit(5)->get(),
 
+            // Upcoming Activities (system-wide)
+            'upcoming_activities' => $this->getUpcomingActivities(),
+
             // Course Statistics
             'courses_with_completion' => Course::withCount('enrollments')->get(),
             'courses_by_status' => [
@@ -515,12 +518,66 @@ class DashboardController extends Controller
             ->toArray();
     }
 
+    protected function getUpcomingActivities(): array
+    {
+        $upcomingActivities = collect();
+
+        // Get upcoming assignments system-wide
+        $upcomingAssignments = Assignment::where('status', 'published')
+            ->where('due_date', '>', now())
+            ->orderBy('due_date')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingAssignments as $assignment) {
+            $upcomingActivities->push([
+                'title' => $assignment->title,
+                'type' => 'Assignment',
+                'date' => $assignment->due_date->format('M d, Y g:i A'),
+                'url' => route('admin.assignments.show', $assignment),
+            ]);
+        }
+
+        // Get upcoming quizzes system-wide
+        $upcomingQuizzes = Quiz::where('status', 'published')
+            ->where('availability_from', '>', now())
+            ->orderBy('availability_from')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingQuizzes as $quiz) {
+            $upcomingActivities->push([
+                'title' => $quiz->title,
+                'type' => 'Quiz',
+                'date' => $quiz->availability_from->format('M d, Y g:i A'),
+                'url' => route('admin.quizzes.show', $quiz),
+            ]);
+        }
+
+        // Get upcoming virtual classes system-wide
+        $upcomingVirtualClasses = VirtualClass::where('meeting_date', '>=', now()->startOfDay())
+            ->orderBy('meeting_date')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingVirtualClasses as $virtualClass) {
+            $upcomingActivities->push([
+                'title' => $virtualClass->title,
+                'type' => 'Virtual Class',
+                'date' => $virtualClass->meeting_date->format('M d, Y').' '.$virtualClass->start_time,
+                'url' => route('admin.virtual_classes.show', $virtualClass),
+            ]);
+        }
+
+        return $upcomingActivities->sortBy('date')->take(5)->values()->toArray();
+    }
+
     protected function calculateAssignmentCompletionRate(): float
     {
         // Calculate actual assignment completion rate: (submitted assignments / total expected submissions) * 100
         // Total expected submissions = sum of published assignments across all enrolled students
         $publishedAssignments = Assignment::where('assignments.status', 'published')->get();
-        
+
         if ($publishedAssignments->isEmpty()) {
             return 0;
         }

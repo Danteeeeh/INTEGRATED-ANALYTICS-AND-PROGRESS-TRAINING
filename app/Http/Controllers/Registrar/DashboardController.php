@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicPeriod;
+use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\Quiz;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\VirtualClass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -49,6 +52,7 @@ class DashboardController extends Controller
             'recent_courses' => Course::orderBy('created_at', 'desc')->limit(6)->get(),
             'current_period' => AcademicPeriod::where('is_current', true)->first()
                 ?? AcademicPeriod::latest()->first(),
+            'upcoming_activities' => $this->getUpcomingActivities(),
         ];
 
         return view('registrar.dashboard', compact('stats'));
@@ -62,6 +66,60 @@ class DashboardController extends Controller
         }
 
         return (Enrollment::where('status', 'completed')->count() / $total) * 100;
+    }
+
+    private function getUpcomingActivities(): array
+    {
+        $upcomingActivities = collect();
+
+        // Get upcoming assignments system-wide
+        $upcomingAssignments = Assignment::where('status', 'published')
+            ->where('due_date', '>', now())
+            ->orderBy('due_date')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingAssignments as $assignment) {
+            $upcomingActivities->push([
+                'title' => $assignment->title,
+                'type' => 'Assignment',
+                'date' => $assignment->due_date->format('M d, Y g:i A'),
+                'url' => route('admin.assignments.show', $assignment),
+            ]);
+        }
+
+        // Get upcoming quizzes system-wide
+        $upcomingQuizzes = Quiz::where('status', 'published')
+            ->where('availability_from', '>', now())
+            ->orderBy('availability_from')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingQuizzes as $quiz) {
+            $upcomingActivities->push([
+                'title' => $quiz->title,
+                'type' => 'Quiz',
+                'date' => $quiz->availability_from->format('M d, Y g:i A'),
+                'url' => route('admin.quizzes.show', $quiz),
+            ]);
+        }
+
+        // Get upcoming virtual classes system-wide
+        $upcomingVirtualClasses = VirtualClass::where('meeting_date', '>=', now()->startOfDay())
+            ->orderBy('meeting_date')
+            ->limit(5)
+            ->get();
+
+        foreach ($upcomingVirtualClasses as $virtualClass) {
+            $upcomingActivities->push([
+                'title' => $virtualClass->title,
+                'type' => 'Virtual Class',
+                'date' => $virtualClass->meeting_date->format('M d, Y').' '.$virtualClass->start_time,
+                'url' => route('admin.virtual_classes.show', $virtualClass),
+            ]);
+        }
+
+        return $upcomingActivities->sortBy('date')->take(5)->values()->toArray();
     }
 
     /**

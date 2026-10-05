@@ -199,6 +199,42 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // Combine upcoming activities
+        $upcomingActivities = collect();
+        foreach ($upcomingAssignments as $assignment) {
+            $upcomingActivities->push([
+                'title' => $assignment->title,
+                'type' => 'Assignment',
+                'date' => $assignment->due_date->format('M d, Y g:i A'),
+                'url' => $assignment->class_id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#',
+            ]);
+        }
+        foreach ($upcomingQuizzes as $quiz) {
+            $upcomingActivities->push([
+                'title' => $quiz->title,
+                'type' => 'Quiz',
+                'date' => $quiz->availability_from->format('M d, Y g:i A'),
+                'url' => $quiz->class_id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#',
+            ]);
+        }
+        foreach ($upcomingExams as $exam) {
+            $upcomingActivities->push([
+                'title' => $exam->title,
+                'type' => 'Exam',
+                'date' => $exam->starts_at->format('M d, Y g:i A'),
+                'url' => $exam->class_id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#',
+            ]);
+        }
+        foreach ($upcomingVirtualClasses as $virtualClass) {
+            $upcomingActivities->push([
+                'title' => $virtualClass->title,
+                'type' => 'Virtual Class',
+                'date' => $virtualClass->meeting_date->format('M d, Y').' '.$virtualClass->start_time,
+                'url' => route('student.classes.virtual_classes.show', [$virtualClass->class, $virtualClass]),
+            ]);
+        }
+        $upcomingActivities = $upcomingActivities->sortBy('date')->take(5);
+
         // Learning streak (consecutive days with activity)
         $learningStreak = $this->calculateLearningStreak($studentId);
 
@@ -263,6 +299,9 @@ class DashboardController extends Controller
             // Engagement
             'learning_streak' => $learningStreak,
             'performance_assessment' => $performanceAssessment,
+
+            // Upcoming Activities (combined)
+            'upcoming_activities' => $upcomingActivities,
 
             // Recent Activity
             'recent_enrollments' => $enrollments->take(5),

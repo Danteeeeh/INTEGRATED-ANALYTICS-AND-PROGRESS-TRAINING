@@ -352,6 +352,29 @@
         </section>
     </div>
 
+    {{-- ═══ UPCOMING ACTIVITIES ═══ --}}
+    <section class="dash-panel">
+        <div class="dash-panel-head">
+            <h4><i class="fa-solid fa-calendar-days"></i> Upcoming activities</h4>
+            <span class="panel-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+        </div>
+        <div style="padding:14px">
+            @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
+                <div class="activity-list">
+                    @foreach($stats['upcoming_activities'] as $activity)
+                        <div class="activity-item">
+                            <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : ($activity['type'] === 'Exam' ? 'fa-graduation-cap' : 'fa-video')) }}" aria-hidden="true"></i>
+                            <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
+                            @if(!empty($activity['url']))<a href="{{ $activity['url'] }}">Open <i class="fa-solid fa-arrow-right"></i></a>@endif
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="empty-state"><i class="fa-solid fa-calendar-check"></i>No upcoming activities</div>
+            @endif
+        </div>
+    </section>
+
     {{-- ═══ ACHIEVEMENTS + ANNOUNCEMENTS ═══ --}}
     <div class="dash-grid">
         <section class="dash-panel">

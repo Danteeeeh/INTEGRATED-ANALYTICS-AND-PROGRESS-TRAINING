@@ -14,6 +14,7 @@ class UserSeeder extends Seeder
         $admin = Role::where('slug', Role::ADMIN)->first();
         $instructor = Role::where('slug', Role::INSTRUCTOR)->first();
         $student = Role::where('slug', Role::STUDENT)->first();
+        $registrar = Role::where('slug', Role::REGISTRAR)->first();
 
         User::updateOrCreate(
             ['email' => 'admin@lms.local'],
@@ -41,7 +42,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-
         User::updateOrCreate(
             ['email' => 'student@lms.local'],
             [
@@ -50,6 +50,19 @@ class UserSeeder extends Seeder
                 'identifier' => 'STU-0001',
                 'password' => Hash::make('Password123!'),
                 'role_id' => $student->id,
+                'status' => 'active',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'registrar@lms.local'],
+            [
+                'first_name' => 'Demo',
+                'last_name' => 'Registrar',
+                'identifier' => 'REG-0001',
+                'password' => Hash::make('Password123!'),
+                'role_id' => $registrar->id,
                 'status' => 'active',
                 'email_verified_at' => now(),
             ]
