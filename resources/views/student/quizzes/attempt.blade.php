@@ -152,7 +152,7 @@
                     <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 4px;">Progress</div>
                     <div id="progress" style="font-size: 1.8rem; font-weight: 700;">0/{{ $inProgress->answers->count() }}</div>
                     <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 4px;">
-                        {{ round((0 / $inProgress->answers->count()) * 100) }}% Complete
+                        {{ $inProgress->answers->count() > 0 ? round((0 / $inProgress->answers->count()) * 100) : 0 }}% Complete
                     </div>
                 </div>
 
