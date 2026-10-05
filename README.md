@@ -106,9 +106,9 @@ gradebook/progress/competencies/learning plans (Phase 8); analytics/reports (Pha
 full REST API surface + Postman collection (Phase 10); security hardening/deployment
 (Phase 11).
 
-**Out of scope:** Achievements (Badges and Certificates) has been removed from this
-build's requirements — no `badges`/`certificates` tables, routes, or sidebar links
-are planned.
+**Removed:** Achievements (Badges and Certificates) have been removed from this
+build's requirements — no `badges`/`certificates` tables, models, controllers, routes,
+or sidebar links exist in the system.
 
 ## Note on this build
 

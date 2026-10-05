@@ -18,7 +18,6 @@ class CourseCompletion extends Model
         'completion_percent',
         'final_grade',
         'requirements_met',
-        'certificate_id',
     ];
 
     protected function casts(): array
@@ -44,10 +43,5 @@ class CourseCompletion extends Model
     public function progress(): BelongsTo
     {
         return $this->belongsTo(CourseProgress::class, 'progress_id');
-    }
-
-    public function certificate(): BelongsTo
-    {
-        return $this->belongsTo(Certificate::class, 'certificate_id');
     }
 }

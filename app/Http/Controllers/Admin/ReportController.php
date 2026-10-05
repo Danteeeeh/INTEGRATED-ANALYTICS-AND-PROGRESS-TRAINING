@@ -378,8 +378,8 @@ class ReportController extends Controller
                     break;
 
                 case 'course-completion':
-                    fputcsv($handle, ['ID', 'Student', 'Student Email', 'Class Code', 'Course', 'Completion %', 'Final Grade', 'Completed At', 'Certificate']);
-                    CourseCompletion::with(['class.course', 'class.academicPeriod', 'student', 'certificate'])
+                    fputcsv($handle, ['ID', 'Student', 'Student Email', 'Class Code', 'Course', 'Completion %', 'Final Grade', 'Completed At']);
+                    CourseCompletion::with(['class.course', 'class.academicPeriod', 'student'])
                         ->when($request->filled('academic_period_id'), fn ($q) => $q->whereHas('class', fn ($cq) => $cq->where('academic_period_id', $request->academic_period_id)))
                         ->when($request->filled('course_id'), fn ($q) => $q->whereHas('class', fn ($cq) => $cq->where('course_id', $request->course_id)))
                         ->when($request->filled('search'), function ($q) use ($request) {
@@ -401,7 +401,6 @@ class ReportController extends Controller
                                     $c->completion_percent,
                                     $c->final_grade,
                                     $c->completed_at?->toDateTimeString(),
-                                    $c->certificate?->code ?? '-',
                                 ]);
                             }
                         });

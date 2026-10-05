@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\AssignmentExtension;
-use App\Models\BadgeAward;
 use App\Models\ClassModel;
 use App\Models\CourseCompletion;
 use App\Models\CourseProgress;
@@ -190,21 +189,6 @@ class DashboardController extends Controller
             ->sortByDesc('last_accessed')
             ->first();
 
-        // Certificates
-        $certificates = CourseCompletion::where('student_id', $studentId)
-            ->with('certificate')
-            ->whereHas('certificate')
-            ->orderBy('completed_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Badges
-        $badges = BadgeAward::where('student_id', $studentId)
-            ->with('badge')
-            ->orderBy('issued_at', 'desc')
-            ->limit(5)
-            ->get();
-
         // Announcements for student's courses
         $announcements = Announcement::where(function ($q) use ($courseIds, $classIds) {
             $q->whereIn('course_id', $courseIds)
@@ -271,12 +255,6 @@ class DashboardController extends Controller
             'recent_grades' => $recentGrades,
             'recent_feedback' => $recentFeedback,
             'total_grades' => Grade::where('student_id', $studentId)->count(),
-
-            // Achievements
-            'certificates' => $certificates,
-            'badges' => $badges,
-            'total_certificates' => $certificates->count(),
-            'total_badges' => $badges->count(),
 
             // Communication
             'announcements' => $announcements,

@@ -261,39 +261,6 @@
         </div>
     </div>
 
-    <!-- Achievement Badges -->
-    <div class="form-card" style="margin-top: 24px;">
-        <h3><i class="fa-solid fa-trophy"></i> Achievements</h3>
-        
-        @php
-            $badges = \App\Models\BadgeAward::where('user_id', $studentId)
-                ->whereHas('badge', function($q) use ($course) {
-                    $q->where('badgeable_type', \App\Models\Course::class)
-                      ->where('badgeable_id', $course->id);
-                })
-                ->with('badge')
-                ->get();
-        @endphp
-        
-        <div style="margin-top: 16px;">
-            @if($badges->isNotEmpty())
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-                    @foreach($badges as $award)
-                        <div style="text-align: center; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; min-width: 100px;">
-                            <div style="font-size: 2rem; margin-bottom: 8px;">{{ $award->badge->icon ?? '🏆' }}</div>
-                            <div style="font-weight: 600; color: #92400e; font-size: 0.9rem;">{{ $award->badge->name }}</div>
-                            <div style="font-size: 0.75rem; color: #b45309; margin-top: 4px;">{{ $award->issued_at->format('M d, Y') }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <div style="padding: 20px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px;">
-                    <i class="fa-solid fa-trophy" style="font-size: 2rem; margin-bottom: 8px;"></i>
-                    <div>Complete modules to earn achievements</div>
-                </div>
-            @endif
-        </div>
-    </div>
 </div>
 
 <script>

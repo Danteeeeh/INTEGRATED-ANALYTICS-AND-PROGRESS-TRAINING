@@ -129,11 +129,6 @@ class Course extends Model
             ->withTimestamps();
     }
 
-    public function badges(): HasMany
-    {
-        return $this->hasMany(Badge::class);
-    }
-
     public function enrollments(): HasManyThrough
     {
         return $this->hasManyThrough(

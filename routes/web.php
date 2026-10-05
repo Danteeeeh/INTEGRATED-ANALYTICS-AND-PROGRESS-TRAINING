@@ -33,7 +33,6 @@ use App\Http\Controllers\Admin\TermsOfServiceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VirtualClassController as AdminVirtualClassController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DiagnosticController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\NotificationController;
@@ -84,8 +83,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route('login'));
 
 Route::get('/diagnostic', [DiagnosticController::class, 'index'])->name('diagnostic');
-
-Route::get('/certificate/verify/{code}', [CertificateController::class, 'verify'])->name('certificate.verify');
 
 Route::get('/files/{mediaFile}', [FileController::class, 'download'])
     ->name('files.download')

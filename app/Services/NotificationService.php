@@ -169,36 +169,6 @@ class NotificationService
         ]);
     }
 
-    public function sendCourseCompletionNotification(int $userId, string $courseName, string $certificateLink): void
-    {
-        $this->createNotification([
-            'user_id' => $userId,
-            'title' => 'Course Completed!',
-            'message' => "Congratulations! You have completed {$courseName}",
-            'type' => 'achievement',
-            'link' => $certificateLink,
-            'data' => [
-                'course_name' => $courseName,
-                'certificate_link' => $certificateLink,
-            ],
-        ]);
-    }
-
-    public function sendBadgeAwardedNotification(int $userId, string $badgeName, string $badgeDescription): void
-    {
-        $this->createNotification([
-            'user_id' => $userId,
-            'title' => 'Badge Awarded!',
-            'message' => "You have been awarded the '{$badgeName}' badge: {$badgeDescription}",
-            'type' => 'achievement',
-            'link' => route('student.dashboard'),
-            'data' => [
-                'badge_name' => $badgeName,
-                'badge_description' => $badgeDescription,
-            ],
-        ]);
-    }
-
     public function sendVirtualClassReminderNotification(array $userIds, string $className, string $meetingTime, string $meetingLink): void
     {
         $this->createBulkNotification($userIds, [
