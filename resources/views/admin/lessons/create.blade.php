@@ -93,19 +93,19 @@
 
                     <div class="form-field full">
                         <label>Description</label>
-                        <textarea name="description" rows="3" placeholder="Short description">{{ old('description') }}</textarea>
+                        <textarea name="description" rows="3" style="width: 100%; min-width: 100%;" placeholder="Short description">{{ old('description') }}</textarea>
                         <span class="field-error">{{ $errors->first('description') }}</span>
                     </div>
 
                     <div class="form-field full">
                         <label>Objectives</label>
-                        <textarea name="objectives" rows="3" placeholder="Learning objectives">{{ old('objectives') }}</textarea>
+                        <textarea name="objectives" rows="3" style="width: 100%; min-width: 100%;" placeholder="Learning objectives">{{ old('objectives') }}</textarea>
                         <span class="field-error">{{ $errors->first('objectives') }}</span>
                     </div>
 
                     <div class="form-field full">
                         <label>Content</label>
-                        <textarea name="content" rows="8" placeholder="Lesson content (text, embedded media, or instructions)">{{ old('content') }}</textarea>
+                        <textarea name="content" rows="8" style="width: 100%; min-width: 100%;" placeholder="Lesson content (text, embedded media, or instructions)">{{ old('content') }}</textarea>
                         <span class="field-error">{{ $errors->first('content') }}</span>
                     </div>
                 </div>

@@ -51,28 +51,19 @@ class FileUploadService
 
         // Store file
         $disk = $options['disk'] ?? 'local';
-        $isPublic = $options['public'] ?? false;
-
-        if ($isPublic) {
-            $filePath = $file->storeAs($folder, $safeName, 'public');
-            $fullPath = Storage::disk('public')->path($filePath);
-        } else {
-            $filePath = $file->storeAs($folder, $safeName, $disk);
-            $fullPath = Storage::disk($disk)->path($filePath);
-        }
+        $filePath = $file->storeAs($folder, $safeName, $disk);
+        $fullPath = Storage::disk($disk)->path($filePath);
 
         // Create media file record
         $mediaFile = MediaFile::create([
-            'file_name' => $originalName,
-            'file_path' => $filePath,
-            'file_size' => $size,
-            'file_type' => $mimeType,
+            'original_name' => $originalName,
+            'file_name' => $safeName,
+            'path' => $filePath,
+            'size' => $size,
+            'mime_type' => $mimeType,
             'extension' => $extension,
             'disk' => $disk,
-            'is_public' => $isPublic,
-            'uploaded_by' => auth()->id(),
-            'uploadable_type' => $options['uploadable_type'] ?? null,
-            'uploadable_id' => $options['uploadable_id'] ?? null,
+            'uploader_id' => auth()->id(),
         ]);
 
         AuditLog::create([
@@ -191,8 +182,8 @@ class FileUploadService
         $disk = $mediaFile->disk;
 
         // Delete from storage
-        if (Storage::disk($disk)->exists($mediaFile->file_path)) {
-            Storage::disk($disk)->delete($mediaFile->file_path);
+        if (Storage::disk($disk)->exists($mediaFile->path)) {
+            Storage::disk($disk)->delete($mediaFile->path);
         }
 
         // Delete record
@@ -204,7 +195,7 @@ class FileUploadService
             'resource' => 'media_file',
             'resource_id' => $mediaFile->id,
             'details' => [
-                'file_name' => $mediaFile->file_name,
+                'file_name' => $mediaFile->original_name,
             ],
         ]);
 
@@ -213,10 +204,6 @@ class FileUploadService
 
     public function getFileUrl(MediaFile $mediaFile): string
     {
-        if ($mediaFile->is_public) {
-            return Storage::disk('public')->url($mediaFile->file_path);
-        }
-
         // For private files, we need a secure download route
         return route('files.download', $mediaFile->id);
     }
@@ -225,16 +212,16 @@ class FileUploadService
     {
         $disk = $mediaFile->disk;
 
-        if (! Storage::disk($disk)->exists($mediaFile->file_path)) {
+        if (! Storage::disk($disk)->exists($mediaFile->path)) {
             abort(404, 'File not found');
         }
 
-        $file = Storage::disk($disk)->get($mediaFile->file_path);
-        $mimeType = $mediaFile->file_type;
+        $file = Storage::disk($disk)->get($mediaFile->path);
+        $mimeType = $mediaFile->mime_type;
 
         return response($file, 200)
             ->header('Content-Type', $mimeType)
-            ->header('Content-Disposition', 'inline; filename="'.$mediaFile->file_name.'"')
+            ->header('Content-Disposition', 'inline; filename="'.$mediaFile->original_name.'"')
             ->header('Content-Length', strlen($file));
     }
 
@@ -242,13 +229,13 @@ class FileUploadService
     {
         $disk = $mediaFile->disk;
 
-        if (! Storage::disk($disk)->exists($mediaFile->file_path)) {
+        if (! Storage::disk($disk)->exists($mediaFile->path)) {
             abort(404, 'File not found');
         }
 
         return Storage::disk($disk)->download(
-            $mediaFile->file_path,
-            $mediaFile->file_name
+            $mediaFile->path,
+            $mediaFile->original_name
         );
     }
 

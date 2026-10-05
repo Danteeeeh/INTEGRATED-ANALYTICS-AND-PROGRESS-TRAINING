@@ -74,19 +74,19 @@
 
                 <div class="modal-row" style="margin-top:14px;">
                     <label>Description</label>
-                    <textarea name="description" rows="3" class="form-input">{{ old('description', $lesson->description) }}</textarea>
+                    <textarea name="description" rows="3" class="form-input" style="width: 100%; min-width: 100%;">{{ old('description', $lesson->description) }}</textarea>
                     @error('description')<span class="error-message">{{ $message }}</span>@enderror
                 </div>
 
                 <div class="modal-row" style="margin-top:14px;">
                     <label>Objectives</label>
-                    <textarea name="objectives" rows="3" class="form-input">{{ old('objectives', $lesson->objectives) }}</textarea>
+                    <textarea name="objectives" rows="3" class="form-input" style="width: 100%; min-width: 100%;">{{ old('objectives', $lesson->objectives) }}</textarea>
                     @error('objectives')<span class="error-message">{{ $message }}</span>@enderror
                 </div>
 
                 <div class="modal-row" style="margin-top:14px;">
                     <label>Content</label>
-                    <textarea name="content" rows="6" class="form-input">{{ old('content', $lesson->content) }}</textarea>
+                    <textarea name="content" rows="6" class="form-input" style="width: 100%; min-width: 100%;">{{ old('content', $lesson->content) }}</textarea>
                     @error('content')<span class="error-message">{{ $message }}</span>@enderror
                 </div>
             </div>

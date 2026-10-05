@@ -95,4 +95,19 @@ class MediaFile extends Model
     {
         return $this->mime_type;
     }
+
+    public function getFileSizeAttribute(): ?int
+    {
+        return $this->size;
+    }
+
+    public function getUploadedByAttribute(): ?int
+    {
+        return $this->uploader_id;
+    }
+
+    public function getIsPublicAttribute(): bool
+    {
+        return false; // Default to private, adjust if public/private logic is added later
+    }
 }

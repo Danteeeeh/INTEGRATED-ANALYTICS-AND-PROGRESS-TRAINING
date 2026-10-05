@@ -23,23 +23,18 @@ class FileController extends Controller
         try {
             $file = $request->file('file');
             $folder = $request->input('folder', 'uploads');
-            $isPublic = $request->boolean('public', false);
 
-            $mediaFile = $this->fileUploadService->uploadFile($file, $folder, [
-                'public' => $isPublic,
-                'uploadable_type' => $request->input('uploadable_type'),
-                'uploadable_id' => $request->input('uploadable_id'),
-            ]);
+            $mediaFile = $this->fileUploadService->uploadFile($file, $folder);
 
             return response()->json([
                 'success' => true,
                 'message' => 'File uploaded successfully',
                 'data' => [
                     'id' => $mediaFile->id,
-                    'file_name' => $mediaFile->file_name,
-                    'file_path' => $mediaFile->file_path,
-                    'file_size' => $mediaFile->file_size,
-                    'file_type' => $mediaFile->file_type,
+                    'file_name' => $mediaFile->original_name,
+                    'file_path' => $mediaFile->path,
+                    'file_size' => $mediaFile->size,
+                    'file_type' => $mediaFile->mime_type,
                     'url' => $this->fileUploadService->getFileUrl($mediaFile),
                 ],
             ], 201);
@@ -61,24 +56,19 @@ class FileController extends Controller
 
             $files = $request->file('files');
             $folder = $request->input('folder', 'uploads');
-            $isPublic = $request->boolean('public', false);
 
-            $uploadedFiles = $this->fileUploadService->uploadMultipleFiles($files, $folder, [
-                'public' => $isPublic,
-                'uploadable_type' => $request->input('uploadable_type'),
-                'uploadable_id' => $request->input('uploadable_id'),
-            ]);
+            $uploadedFiles = $this->fileUploadService->uploadMultipleFiles($files, $folder);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Files uploaded successfully',
-                'data' => $uploadedFiles->map(function ($mediaFile) {
+                'data' => collect($uploadedFiles)->map(function ($mediaFile) {
                     return [
                         'id' => $mediaFile->id,
-                        'file_name' => $mediaFile->file_name,
-                        'file_path' => $mediaFile->file_path,
-                        'file_size' => $mediaFile->file_size,
-                        'file_type' => $mediaFile->file_type,
+                        'file_name' => $mediaFile->original_name,
+                        'file_path' => $mediaFile->path,
+                        'file_size' => $mediaFile->size,
+                        'file_type' => $mediaFile->mime_type,
                         'url' => $this->fileUploadService->getFileUrl($mediaFile),
                     ];
                 }),
@@ -93,21 +83,9 @@ class FileController extends Controller
 
     public function download(MediaFile $mediaFile)
     {
-        // Authorization check
-        if (! $mediaFile->is_public && ! auth()->check()) {
+        // Authorization check - require authentication
+        if (! auth()->check()) {
             abort(403, 'Unauthorized access to this file.');
-        }
-
-        // Additional authorization for private files
-        if (! $mediaFile->is_public) {
-            $user = auth()->user();
-            $uploadable = $mediaFile->uploadable;
-
-            // Check if user has access to the file based on uploadable entity
-            if ($uploadable) {
-                // Add specific authorization logic based on uploadable type
-                // For now, allow all authenticated users to access
-            }
         }
 
         return $this->fileUploadService->downloadFile($mediaFile);
@@ -115,8 +93,8 @@ class FileController extends Controller
 
     public function serve(MediaFile $mediaFile)
     {
-        // Authorization check
-        if (! $mediaFile->is_public && ! auth()->check()) {
+        // Authorization check - require authentication
+        if (! auth()->check()) {
             abort(403, 'Unauthorized access to this file.');
         }
 
@@ -133,7 +111,7 @@ class FileController extends Controller
             $mediaFile = MediaFile::find($request->file_id);
 
             // Authorization check
-            if (! $mediaFile->is_public && auth()->id() !== $mediaFile->uploaded_by) {
+            if (auth()->id() !== $mediaFile->uploader_id) {
                 abort(403, 'You are not authorized to delete this file.');
             }
 
@@ -160,8 +138,8 @@ class FileController extends Controller
 
             $mediaFile = MediaFile::find($request->file_id);
 
-            // Authorization check
-            if (! $mediaFile->is_public && ! auth()->check()) {
+            // Authorization check - require authentication
+            if (! auth()->check()) {
                 abort(403, 'Unauthorized access to this file.');
             }
 
@@ -169,9 +147,9 @@ class FileController extends Controller
                 'success' => true,
                 'data' => [
                     'id' => $mediaFile->id,
-                    'file_name' => $mediaFile->file_name,
-                    'file_size' => $mediaFile->file_size,
-                    'file_type' => $mediaFile->file_type,
+                    'file_name' => $mediaFile->original_name,
+                    'file_size' => $mediaFile->size,
+                    'file_type' => $mediaFile->mime_type,
                     'extension' => $mediaFile->extension,
                     'uploaded_at' => $mediaFile->created_at->format('Y-m-d H:i:s'),
                     'url' => $this->fileUploadService->getFileUrl($mediaFile),
