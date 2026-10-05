@@ -71,6 +71,16 @@ class QuizAttempt extends Model
         return $this->hasMany(QuizAnswer::class);
     }
 
+    public function grade(): HasOne
+    {
+        return $this->hasOne(Grade::class)->where('student_id', $this->student_id);
+    }
+
+    public function getGradeAttribute()
+    {
+        return $this->grade()->first();
+    }
+
     public function scopeInProgress($query)
     {
         return $query->where('quiz_attempts.status', self::STATUS_IN_PROGRESS);
