@@ -109,6 +109,11 @@ class Assignment extends Model
         return $this->hasMany(AssignmentSubmission::class);
     }
 
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(AssignmentExtension::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('assignments.status', self::STATUS_PUBLISHED);
@@ -145,5 +150,45 @@ class Assignment extends Model
                 $q->whereNull('availability_until')
                     ->orWhere('availability_until', '>=', Carbon::now());
             });
+    }
+
+    public function isOverdue(): bool
+    {
+        // Assignment is overdue if it's past the due date
+        if ($this->due_date && Carbon::parse($this->due_date)->isPast()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isOverdueForStudent(int $studentId): bool
+    {
+        // Check if the assignment has an extension for this student
+        $extension = AssignmentExtension::where('assignment_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return false;
+        }
+
+        return $this->isOverdue();
+    }
+
+    public function getEffectiveDeadlineForStudent(int $studentId): ?Carbon
+    {
+        // Check if the assignment has an extension for this student
+        $extension = AssignmentExtension::where('assignment_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return Carbon::parse($extension->extended_until);
+        }
+
+        return $this->due_date ? Carbon::parse($this->due_date) : null;
     }
 }

@@ -9,6 +9,7 @@
     $continue = $stats['continue_learning'] ?? null;
     $progressData = $stats['course_progress'] ?? [];
     $firstClassId = $stats['my_enrollments']?->first()?->class_id;
+    $overdueCount = ($stats['overdue_assignments'] ?? collect())->count() + ($stats['overdue_quizzes'] ?? collect())->count() + ($stats['overdue_exams'] ?? collect())->count();
 @endphp
 
 @section('page-title-bar')
@@ -117,9 +118,9 @@
             value="{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}"
             icon="fa-bell"
             valueId="stat-tasks-value"
-            trend="{{ ($stats['overdue_assignments'] ?? collect())->count() > 0 ? 'Due soon' : 'On track' }}"
+            trend="{{ $overdueCount > 0 ? 'Due soon' : 'On track' }}"
         >
-            <x-slot name="footer"><i class="fa-solid fa-triangle-exclamation" style="color:#fb7185"></i> <span id="stat-overdue-value">{{ ($stats['overdue_assignments'] ?? collect())->count() }}</span> overdue</x-slot>
+            <x-slot name="footer"><i class="fa-solid fa-triangle-exclamation" style="color:#fb7185"></i> <span id="stat-overdue-value">{{ $overdueCount }}</span> overdue</x-slot>
         </x-user-stat-card>
     </div>
 
@@ -204,13 +205,13 @@
     @endif
 
     {{-- ═══ OVERDUE WARNING ═══ --}}
-    @if(($stats['overdue_assignments'] ?? collect())->isNotEmpty())
+    @if($overdueCount > 0)
         <div class="overdue-strip">
             <div class="overdue-head">
                 <span class="overdue-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
                 <div>
-                    <h4>{{ ($stats['overdue_assignments'] ?? collect())->count() }} overdue assignment{{ ($stats['overdue_assignments'] ?? collect())->count() > 1 ? 's' : '' }}</h4>
-                    <p>Submit these to avoid grade penalties.</p>
+                    <h4>{{ $overdueCount }} overdue item{{ $overdueCount > 1 ? 's' : '' }}</h4>
+                    <p>Complete these to avoid grade penalties.</p>
                 </div>
             </div>
             <ul class="overdue-list">
@@ -219,6 +220,22 @@
                         <a href="{{ $assignment->class?->id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#' }}">
                             <span class="od-name">{{ $assignment->title }}</span>
                             <span class="od-meta">{{ $assignment->class?->course?->title ?? '' }} · due {{ $assignment->due_date?->diffForHumans() }}</span>
+                        </a>
+                    </li>
+                @endforeach
+                @foreach(($stats['overdue_quizzes'] ?? []) as $quiz)
+                    <li>
+                        <a href="{{ $quiz->class?->id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#' }}">
+                            <span class="od-name">{{ $quiz->title }}</span>
+                            <span class="od-meta">{{ $quiz->class?->course?->title ?? '' }} · due {{ $quiz->availability_until?->diffForHumans() }}</span>
+                        </a>
+                    </li>
+                @endforeach
+                @foreach(($stats['overdue_exams'] ?? []) as $exam)
+                    <li>
+                        <a href="{{ $exam->class?->id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#' }}">
+                            <span class="od-name">{{ $exam->title }}</span>
+                            <span class="od-meta">{{ $exam->class?->course?->title ?? '' }} · due {{ $exam->ends_at?->diffForHumans() }}</span>
                         </a>
                     </li>
                 @endforeach

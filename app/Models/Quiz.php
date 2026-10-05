@@ -84,6 +84,107 @@ class Quiz extends Model
         return true;
     }
 
+    public function isLocked(): bool
+    {
+        // Quiz is locked if it's past the due date (availability_until)
+        if ($this->availability_until && Carbon::parse($this->availability_until)->isPast()) {
+            return true;
+        }
+
+        // Quiz is locked if status is closed
+        if ($this->status === self::STATUS_CLOSED) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isNotYetAvailable(): bool
+    {
+        // Quiz is not yet available if availability_from is in the future
+        if ($this->availability_from && Carbon::parse($this->availability_from)->isFuture()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function getAvailabilityStatus(): string
+    {
+        if ($this->status !== self::STATUS_PUBLISHED) {
+            return 'not_published';
+        }
+
+        if ($this->isLocked()) {
+            return 'locked';
+        }
+
+        if ($this->isNotYetAvailable()) {
+            return 'not_yet_available';
+        }
+
+        return 'available';
+    }
+
+    public function getAvailabilityMessage(): string
+    {
+        if ($this->status !== self::STATUS_PUBLISHED) {
+            return 'This quiz is not yet published.';
+        }
+
+        if ($this->isLocked()) {
+            $dueDate = $this->availability_until ? Carbon::parse($this->availability_until)->format('F j, Y g:i A') : 'Unknown';
+            return "This quiz is locked. The due date was {$dueDate}.";
+        }
+
+        if ($this->isNotYetAvailable()) {
+            $availableFrom = $this->availability_from ? Carbon::parse($this->availability_from)->format('F j, Y g:i A') : 'Unknown';
+            return "This quiz will be available starting {$availableFrom}.";
+        }
+
+        return 'This quiz is available for taking.';
+    }
+
+    public function isOverdue(): bool
+    {
+        // Quiz is overdue if it's past the due date (availability_until)
+        if ($this->availability_until && Carbon::parse($this->availability_until)->isPast()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isOverdueForStudent(int $studentId): bool
+    {
+        // Check if the quiz has an extension for this student
+        $extension = QuizExtension::where('quiz_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return false;
+        }
+
+        return $this->isOverdue();
+    }
+
+    public function getEffectiveDeadlineForStudent(int $studentId): ?Carbon
+    {
+        // Check if the quiz has an extension for this student
+        $extension = QuizExtension::where('quiz_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return Carbon::parse($extension->extended_until);
+        }
+
+        return $this->availability_until ? Carbon::parse($this->availability_until) : null;
+    }
+
     public function resolveCourseId(): ?int
     {
         $this->loadMissing(['class', 'module', 'lesson.module']);
@@ -126,6 +227,11 @@ class Quiz extends Model
     public function attempts(): HasMany
     {
         return $this->hasMany(QuizAttempt::class);
+    }
+
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(QuizExtension::class);
     }
 
     public function scopePublished($query)

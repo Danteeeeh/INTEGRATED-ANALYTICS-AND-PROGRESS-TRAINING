@@ -81,7 +81,10 @@ class ExamController extends Controller
             ->inProgress()
             ->first();
 
-        return view('student.exams.show', compact('course', 'exam', 'enrollment', 'myAttempts', 'inProgressAttempt'));
+        $isOverdue = $exam->isOverdueForStudent($studentId);
+        $effectiveDeadline = $exam->getEffectiveDeadlineForStudent($studentId);
+
+        return view('student.exams.show', compact('course', 'exam', 'enrollment', 'myAttempts', 'inProgressAttempt', 'isOverdue', 'effectiveDeadline'));
     }
 
     public function confirmStart(Course $course, Exam $exam): View
@@ -102,6 +105,11 @@ class ExamController extends Controller
         if (!$exam->isAvailable()) {
             return redirect()->route('student.courses.exams.show', [$course, $exam])
                 ->with('error', 'This exam is not currently available.');
+        }
+
+        if ($exam->isOverdueForStudent($studentId)) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam is overdue and no longer available for attempts.');
         }
 
         return view('student.exams.confirm', compact('course', 'exam', 'enrollment'));
@@ -125,6 +133,11 @@ class ExamController extends Controller
         if (!$exam->isAvailable()) {
             return redirect()->route('student.courses.exams.show', [$course, $exam])
                 ->with('error', 'This exam is not currently available.');
+        }
+
+        if ($exam->isOverdueForStudent($studentId)) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam is overdue and no longer available for attempts.');
         }
 
         $inProgress = ExamAttempt::ofExam($exam->id)

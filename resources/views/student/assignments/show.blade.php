@@ -23,6 +23,24 @@
         </x-slot>
     </x-user-page-header>
 
+    @if($isOverdue)
+        <div class="alert alert-danger" style="margin-bottom: 20px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>This assignment is overdue.</strong>
+            @if($effectiveDeadline)
+                The deadline was {{ $effectiveDeadline->format('F j, Y g:i A') }}.
+            @else
+                The deadline has passed.
+            @endif
+            No new submissions are allowed.
+        </div>
+    @elseif($effectiveDeadline)
+        <div class="alert alert-info" style="margin-bottom: 20px;">
+            <i class="fa-solid fa-clock"></i>
+            <strong>Deadline:</strong> {{ $effectiveDeadline->format('F j, Y g:i A') }}
+        </div>
+    @endif
+
     <div class="user-panel">
         <div class="user-panel-head"><h3><i class="fa-solid fa-info-circle"></i> Assignment</h3></div>
         <div class="user-panel-body">

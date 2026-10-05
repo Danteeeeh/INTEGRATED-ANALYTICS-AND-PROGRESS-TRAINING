@@ -91,6 +91,71 @@
     </div>
 
     <div class="user-panel">
+        <div class="user-panel-head"><h3><i class="fa-solid fa-clock"></i> Deadline Extensions</h3></div>
+        <div class="user-panel-body">
+            <form action="{{ route('instructor.courses.quizzes.extensions.grant', [$course, $quiz]) }}" method="POST">
+                @csrf
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="student_id">Student</label>
+                        <select id="student_id" name="student_id" required>
+                            <option value="">Select a student...</option>
+                            @foreach($course->enrollments()->where('status', 'active')->get() as $enrollment)
+                                <option value="{{ $enrollment->student_id }}">{{ $enrollment->student->name }} ({{ $enrollment->student->email }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="extended_until">Extended Until</label>
+                        <input type="datetime-local" id="extended_until" name="extended_until" required>
+                    </div>
+                    <div class="form-field full">
+                        <label for="reason">Reason (Optional)</label>
+                        <input type="text" id="reason" name="reason" placeholder="e.g., Medical emergency, family emergency, etc.">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Grant Extension</button>
+                </div>
+            </form>
+
+            @if($quiz->extensions && $quiz->extensions->count() > 0)
+                <div style="margin-top: 20px;">
+                    <h4>Active Extensions</h4>
+                    <div class="user-table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Extended Until</th>
+                                    <th>Reason</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($quiz->extensions as $extension)
+                                    <tr>
+                                        <td>{{ $extension->student->name }}</td>
+                                        <td>{{ $extension->extended_until->format('M j, Y g:i A') }}</td>
+                                        <td>{{ $extension->reason ?? '—' }}</td>
+                                        <td>
+                                            <form action="{{ route('instructor.courses.quizzes.extensions.revoke', [$course, $quiz, $extension->student_id]) }}" method="POST" onsubmit="return confirm('Revoke this extension?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-times"></i> Revoke</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="user-panel">
         <div class="user-panel-head"><h3><i class="fa-solid fa-list-ol"></i> Questions</h3><span class="user-status">{{ $quiz->questions->count() }} questions</span></div>
         <div class="user-panel-body">
             @if($quiz->questions->count() > 0)

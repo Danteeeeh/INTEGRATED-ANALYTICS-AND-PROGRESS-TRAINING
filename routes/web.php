@@ -405,6 +405,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{assignment}/submissions', [InstructorAssignmentController::class, 'submissions'])->name('submissions');
                     Route::get('/{assignment}/submissions/{submission}', [InstructorAssignmentController::class, 'showSubmission'])->name('submissions.show');
                     Route::post('/{assignment}/submissions/{submission}/grade', [InstructorAssignmentController::class, 'gradeSubmission'])->name('submissions.grade');
+                    Route::post('/{assignment}/extensions', [InstructorAssignmentController::class, 'grantExtension'])->name('extensions.grant');
+                    Route::delete('/{assignment}/extensions/{student_id}', [InstructorAssignmentController::class, 'revokeExtension'])->name('extensions.revoke');
                 });
 
                 Route::prefix('quizzes')->name('quizzes.')->group(function () {
@@ -421,6 +423,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{quiz}/attempts', [InstructorQuizController::class, 'attempts'])->name('attempts');
                     Route::get('/{quiz}/attempts/{attempt}', [InstructorQuizController::class, 'showAttempt'])->name('attempts.show');
                     Route::post('/{quiz}/attempts/{attempt}/grade', [InstructorQuizController::class, 'gradeAttempt'])->name('attempts.grade');
+                    Route::post('/{quiz}/extensions', [InstructorQuizController::class, 'grantExtension'])->name('extensions.grant');
+                    Route::delete('/{quiz}/extensions/{student_id}', [InstructorQuizController::class, 'revokeExtension'])->name('extensions.revoke');
                 });
 
                 Route::prefix('exams')->name('exams.')->group(function () {
@@ -433,6 +437,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::delete('/{exam}', [InstructorExamController::class, 'destroy'])->name('destroy');
                     Route::post('/{exam}/publish', [InstructorExamController::class, 'publish'])->name('publish');
                     Route::post('/{exam}/close', [InstructorExamController::class, 'close'])->name('close');
+                    Route::post('/{exam}/extensions', [InstructorExamController::class, 'grantExtension'])->name('extensions.grant');
+                    Route::delete('/{exam}/extensions/{student_id}', [InstructorExamController::class, 'revokeExtension'])->name('extensions.revoke');
                 });
 
                 Route::prefix('rubrics')->name('rubrics.')->group(function () {

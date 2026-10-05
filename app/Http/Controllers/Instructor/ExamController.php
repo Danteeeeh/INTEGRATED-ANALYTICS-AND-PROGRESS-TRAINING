@@ -274,4 +274,65 @@ class ExamController extends Controller
 
         return back();
     }
+
+    public function grantExtension(Request $request, Course $course, Exam $exam): RedirectResponse
+    {
+        // Verify instructor owns this exam
+        if ($exam->class->instructor_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:users,id',
+            'extended_until' => 'required|date|after:now',
+            'reason' => 'nullable|string',
+        ]);
+
+        $studentId = $validated['student_id'];
+
+        // Check if student is enrolled in the course
+        $enrollment = \App\Models\Enrollment::where('student_id', $studentId)
+            ->whereHas('class', function ($q) use ($course) {
+                $q->where('course_id', $course->id);
+            })
+            ->where('status', 'active')
+            ->first();
+
+        if (! $enrollment) {
+            return back()->with('error', 'Student is not enrolled in this course.');
+        }
+
+        // Update or create extension
+        \App\Models\ExamExtension::updateOrCreate(
+            [
+                'exam_id' => $exam->id,
+                'student_id' => $studentId,
+            ],
+            [
+                'extended_until' => $validated['extended_until'],
+                'reason' => $validated['reason'] ?? null,
+                'granted_by' => auth()->id(),
+            ]
+        );
+
+        return back()->with('success', 'Exam extension granted successfully.');
+    }
+
+    public function revokeExtension(Course $course, Exam $exam, int $studentId): RedirectResponse
+    {
+        // Verify instructor owns this exam
+        if ($exam->class->instructor_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $extension = \App\Models\ExamExtension::where('exam_id', $exam->id)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if ($extension) {
+            $extension->delete();
+        }
+
+        return back()->with('success', 'Exam extension revoked successfully.');
+    }
 }

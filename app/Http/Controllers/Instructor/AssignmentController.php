@@ -320,4 +320,63 @@ class AssignmentController extends Controller
         return redirect()->route('instructor.courses.assignments.submissions.show', [$course, $assignment, $submission])
             ->with('success', 'Submission graded successfully.');
     }
+
+    public function grantExtension(Request $request, Course $course, Assignment $assignment): RedirectResponse
+    {
+        $this->authorize('update', $assignment);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:users,id',
+            'extended_until' => 'required|date|after:now',
+            'reason' => 'nullable|string',
+        ]);
+
+        $studentId = $validated['student_id'];
+
+        // Check if student is enrolled in the course
+        $enrollment = Enrollment::where('student_id', $studentId)
+            ->whereHas('class', function ($q) use ($course) {
+                $q->where('course_id', $course->id);
+            })
+            ->where('status', 'active')
+            ->first();
+
+        if (! $enrollment) {
+            return back()->with('error', 'Student is not enrolled in this course.');
+        }
+
+        // Update or create extension
+        \App\Models\AssignmentExtension::updateOrCreate(
+            [
+                'assignment_id' => $assignment->id,
+                'student_id' => $studentId,
+            ],
+            [
+                'extended_until' => $validated['extended_until'],
+                'reason' => $validated['reason'] ?? null,
+                'granted_by' => auth()->id(),
+            ]
+        );
+
+        return back()->with('success', 'Assignment extension granted successfully.');
+    }
+
+    public function revokeExtension(Course $course, Assignment $assignment, int $studentId): RedirectResponse
+    {
+        $this->authorize('update', $assignment);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $extension = \App\Models\AssignmentExtension::where('assignment_id', $assignment->id)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if ($extension) {
+            $extension->delete();
+        }
+
+        return back()->with('success', 'Assignment extension revoked successfully.');
+    }
 }

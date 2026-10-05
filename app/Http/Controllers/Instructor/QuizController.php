@@ -479,4 +479,113 @@ class QuizController extends Controller
             ]);
         }
     }
+
+    public function grantExtension(Request $request, Course $course, Quiz $quiz): RedirectResponse
+    {
+        $this->authorize('update', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:users,id',
+            'extended_until' => 'required|date|after:now',
+            'reason' => 'nullable|string',
+        ]);
+
+        $studentId = $validated['student_id'];
+
+        // Check if student is enrolled in the course
+        $enrollment = \App\Models\Enrollment::where('student_id', $studentId)
+            ->whereHas('class', function ($q) use ($course) {
+                $q->where('course_id', $course->id);
+            })
+            ->where('status', 'active')
+            ->first();
+
+        if (! $enrollment) {
+            return back()->with('error', 'Student is not enrolled in this course.');
+        }
+
+        // Update or create extension
+        \App\Models\QuizExtension::updateOrCreate(
+            [
+                'quiz_id' => $quiz->id,
+                'student_id' => $studentId,
+            ],
+            [
+                'extended_until' => $validated['extended_until'],
+                'reason' => $validated['reason'] ?? null,
+                'granted_by' => auth()->id(),
+            ]
+        );
+
+        return back()->with('success', 'Quiz extension granted successfully.');
+    }
+
+    public function revokeExtension(Course $course, Quiz $quiz, int $studentId): RedirectResponse
+    {
+        $this->authorize('update', $quiz);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+
+        $extension = \App\Models\QuizExtension::where('quiz_id', $quiz->id)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if ($extension) {
+            $extension->delete();
+        }
+
+        return back()->with('success', 'Quiz extension revoked successfully.');
+    }
+    {
+        $position = 1;
+
+        foreach ($questionsData as $questionData) {
+            $courseId = $quiz->class?->course_id
+                ?? $quiz->module?->course_id
+                ?? $quiz->lesson?->module?->course_id;
+
+            // Create or find a question bank for this quiz
+            $questionBank = \App\Models\QuestionBank::firstOrCreate(
+                [
+                    'course_id' => $courseId,
+                    'title' => $quiz->title . ' Questions',
+                    'created_by' => $userId,
+                ],
+                [
+                    'description' => 'Questions for quiz: ' . $quiz->title,
+                    'status' => 'active',
+                ]
+            );
+
+            // Create the question
+            $question = \App\Models\Question::create([
+                'question_bank_id' => $questionBank->id,
+                'question_type' => 'multiple_choice',
+                'question_text' => $questionData['text'],
+                'default_points' => $questionData['points'] ?? 1,
+                'difficulty' => 'medium',
+                'created_by' => $userId,
+                'status' => 'active',
+            ]);
+
+            // Create choices
+            $correctChoiceIndex = $questionData['correct_choice'];
+            foreach ($questionData['choices'] as $index => $choiceText) {
+                \App\Models\QuestionChoice::create([
+                    'question_id' => $question->id,
+                    'choice_text' => $choiceText,
+                    'is_correct' => ($index + 1) == $correctChoiceIndex,
+                    'position' => $index + 1,
+                ]);
+            }
+
+            // Attach question to quiz
+            $quiz->questions()->attach($question->id, [
+                'position' => $position++,
+                'points' => $questionData['points'] ?? 1,
+            ]);
+        }
+    }
 }

@@ -92,7 +92,10 @@ class AssignmentController extends Controller
             ->latest()
             ->first();
 
-        return view('student.assignments.show', compact('course', 'assignment', 'enrollment', 'mySubmission'));
+        $isOverdue = $assignment->isOverdueForStudent($studentId);
+        $effectiveDeadline = $assignment->getEffectiveDeadlineForStudent($studentId);
+
+        return view('student.assignments.show', compact('course', 'assignment', 'enrollment', 'mySubmission', 'isOverdue', 'effectiveDeadline'));
     }
 
     public function submitForm(Course $course, Assignment $assignment): View
@@ -122,6 +125,11 @@ class AssignmentController extends Controller
                 ->with('error', 'You have already submitted this assignment and resubmission is not allowed.');
         }
 
+        if ($assignment->isOverdueForStudent($studentId)) {
+            return redirect()->route('student.courses.assignments.show', [$course, $assignment])
+                ->with('error', 'This assignment is overdue and no longer available for submission.');
+        }
+
         return view('student.assignments.submit', compact('course', 'assignment', 'enrollment', 'existingSubmission'));
     }
 
@@ -149,6 +157,10 @@ class AssignmentController extends Controller
 
         if ($latestSubmission && ! $assignment->allow_resubmission) {
             return back()->with('error', 'You have already submitted this assignment.');
+        }
+
+        if ($assignment->isOverdueForStudent($studentId)) {
+            return back()->with('error', 'This assignment is overdue and no longer available for submission.');
         }
 
         if ($assignment->max_attempts && $latestSubmission) {

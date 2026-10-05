@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\AssignmentExtension;
 use App\Models\BadgeAward;
 use App\Models\ClassModel;
 use App\Models\CourseCompletion;
@@ -11,6 +12,7 @@ use App\Models\CourseProgress;
 use App\Models\Enrollment;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Models\ExamExtension;
 use App\Models\Feedback;
 use App\Models\Grade;
 use App\Models\Lesson;
@@ -18,6 +20,7 @@ use App\Models\LessonProgress;
 use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\QuizExtension;
 use App\Models\VirtualClass;
 use App\Services\ContentProgressService;
 use App\Services\StudentPerformanceAssessmentService;
@@ -60,15 +63,44 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Overdue assignments
-        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
-            ->where('due_date', '<', now())
+        // Overdue assignments (considering extensions)
+        $allAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
-            ->orderBy('due_date', 'desc')
-            ->limit(5)
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
             ->get();
+
+        $overdueAssignments = $allAssignments->filter(function ($assignment) use ($studentId) {
+            $effectiveDeadline = $assignment->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        })->take(5);
+
+        // Overdue quizzes (considering extensions)
+        $allQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            })
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
+            ->get();
+
+        $overdueQuizzes = $allQuizzes->filter(function ($quiz) use ($studentId) {
+            $effectiveDeadline = $quiz->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        })->take(5);
+
+        // Overdue exams (considering extensions)
+        $allExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            })
+            ->with(['class.course'])
+            ->get();
+
+        $overdueExams = $allExams->filter(function ($exam) use ($studentId) {
+            $effectiveDeadline = $exam->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        })->take(5);
 
         // Upcoming quizzes
         $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
@@ -221,11 +253,13 @@ class DashboardController extends Controller
 
             // Quizzes
             'upcoming_quizzes' => $upcomingQuizzes,
+            'overdue_quizzes' => $overdueQuizzes,
             'recent_quiz_attempts' => $recentQuizAttempts,
             'total_quizzes' => $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)->count(),
 
             // Exams
             'upcoming_exams' => $upcomingExams,
+            'overdue_exams' => $overdueExams,
             'recent_exam_attempts' => $recentExamAttempts,
             'total_exams' => $this->contentProgress->studentExamsQuery($classIds, $courseIds)->count(),
 
@@ -704,15 +738,44 @@ class DashboardController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        // Overdue assignments
-        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
-            ->where('due_date', '<', now())
+        // Overdue assignments (considering extensions)
+        $allAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
             ->with(['class.course', 'module.course', 'lesson.module.course'])
-            ->orderBy('due_date', 'desc')
             ->get();
+
+        $overdueAssignments = $allAssignments->filter(function ($assignment) use ($studentId) {
+            $effectiveDeadline = $assignment->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        });
+
+        // Overdue quizzes (considering extensions)
+        $allQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
+            ->get();
+
+        $overdueQuizzes = $allQuizzes->filter(function ($quiz) use ($studentId) {
+            $effectiveDeadline = $quiz->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        });
+
+        // Overdue exams (considering extensions)
+        $allExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->with(['class.course'])
+            ->get();
+
+        $overdueExams = $allExams->filter(function ($exam) use ($studentId) {
+            $effectiveDeadline = $exam->getEffectiveDeadlineForStudent($studentId);
+            return $effectiveDeadline && $effectiveDeadline->isPast();
+        });
 
         // Incomplete quizzes (not attempted yet)
         $incompleteQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
@@ -746,6 +809,8 @@ class DashboardController extends Controller
             'enrollments',
             'incompleteAssignments',
             'overdueAssignments',
+            'overdueQuizzes',
+            'overdueExams',
             'incompleteQuizzes',
             'incompleteExams'
         ));

@@ -136,6 +136,11 @@ class Exam extends Model
         return $this->hasMany(ExamAttempt::class);
     }
 
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(ExamExtension::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('status', self::STATUS_PUBLISHED);
@@ -244,5 +249,45 @@ class Exam extends Model
             self::TYPE_OTHER => 'Other',
             default => 'Exam',
         };
+    }
+
+    public function isOverdue(): bool
+    {
+        // Exam is overdue if it's past the end date
+        if ($this->ends_at && now()->gt($this->ends_at)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isOverdueForStudent(int $studentId): bool
+    {
+        // Check if the exam has an extension for this student
+        $extension = ExamExtension::where('exam_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return false;
+        }
+
+        return $this->isOverdue();
+    }
+
+    public function getEffectiveDeadlineForStudent(int $studentId): ?\Illuminate\Support\Carbon
+    {
+        // Check if the exam has an extension for this student
+        $extension = ExamExtension::where('exam_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return \Illuminate\Support\Carbon::parse($extension->extended_until);
+        }
+
+        return $this->ends_at ? \Illuminate\Support\Carbon::parse($this->ends_at) : null;
     }
 }

@@ -95,7 +95,10 @@ class QuizController extends Controller
             ->inProgress()
             ->first();
 
-        return view('student.quizzes.show', compact('course', 'quiz', 'enrollment', 'myAttempts', 'inProgressAttempt'));
+        $isOverdue = $quiz->isOverdueForStudent($studentId);
+        $effectiveDeadline = $quiz->getEffectiveDeadlineForStudent($studentId);
+
+        return view('student.quizzes.show', compact('course', 'quiz', 'enrollment', 'myAttempts', 'inProgressAttempt', 'isOverdue', 'effectiveDeadline'));
     }
 
     public function startAttempt(Course $course, Quiz $quiz): View|RedirectResponse
@@ -133,6 +136,16 @@ class QuizController extends Controller
             ]);
             return redirect()->route('student.courses.quizzes.show', [$course, $quiz])
                 ->with('error', 'This quiz is not currently available.');
+        }
+
+        if ($quiz->isOverdueForStudent($studentId)) {
+            \Log::error('Quiz attempt: Quiz is overdue for student', [
+                'quiz_id' => $quiz->id,
+                'student_id' => $studentId,
+                'availability_until' => $quiz->availability_until,
+            ]);
+            return redirect()->route('student.courses.quizzes.show', [$course, $quiz])
+                ->with('error', 'This quiz is overdue and no longer available for attempts.');
         }
 
         $inProgress = QuizAttempt::ofQuiz($quiz->id)
