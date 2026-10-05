@@ -70,7 +70,7 @@ class AssignmentSubmission extends Model
             ->first();
 
         if (!$gradeItem) {
-            return null;
+            return Grade::where('id', 0)->where('student_id', $this->student_id);
         }
 
         return Grade::where('grade_item_id', $gradeItem->id)

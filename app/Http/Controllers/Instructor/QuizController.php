@@ -175,6 +175,8 @@ class QuizController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
+        $quiz->load(['questions.choices']);
+
         $classes = ClassModel::where('course_id', $course->id)
             ->where('instructor_id', auth()->id())
             ->get();

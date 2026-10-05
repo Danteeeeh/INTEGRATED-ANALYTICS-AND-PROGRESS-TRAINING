@@ -76,7 +76,15 @@ class AssignmentPolicy
             return false;
         }
 
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $user->classesInstructing()->where('id', $assignment->class_id)->exists();
+        }
+
+        return false;
     }
 
     public function grade(User $user, Assignment $assignment): bool
