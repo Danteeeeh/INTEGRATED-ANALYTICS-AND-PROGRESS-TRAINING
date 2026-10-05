@@ -27,6 +27,7 @@ Seeded accounts (password for all: `Password123!`):
 | Admin      | admin@lms.local         |
 | Instructor | instructor@lms.local    |
 | Student    | student@lms.local       |
+| Registrar  | registrar@lms.local     |
 
 ## Run tests
 
