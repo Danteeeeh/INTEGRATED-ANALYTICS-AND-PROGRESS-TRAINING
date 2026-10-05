@@ -132,6 +132,44 @@
         </a>
     </div>
 
+    {{-- ═══ INCOMPLETE ITEMS ═══ --}}
+    @if(($incompleteAssignments ?? collect())->isNotEmpty() || ($incompleteQuizzes ?? collect())->isNotEmpty())
+        <section class="user-panel course-incomplete-panel" aria-labelledby="course-incomplete-title">
+            <div class="user-panel-head">
+                <div>
+                    <span class="course-section-eyebrow">Pending tasks</span>
+                    <h3 id="course-incomplete-title"><i class="fa-solid fa-clock" aria-hidden="true"></i> Incomplete Items</h3>
+                </div>
+            </div>
+            <div class="user-panel-body">
+                @forelse(($incompleteAssignments ?? []) as $assignment)
+                    <a href="{{ $assignment->class_id ? route('student.courses.assignments.show', [$course, $assignment]) : '#' }}" class="course-announcement-row">
+                        <span class="course-announcement-icon" style="color: #d97706; background: rgba(245, 158, 11, 0.12);"><i class="fa-solid fa-file-pen" aria-hidden="true"></i></span>
+                        <span class="course-announcement-copy">
+                            <strong>{{ $assignment->title }}</strong>
+                            <small>Assignment • Due {{ $assignment->due_date?->format('M d, Y') }}</small>
+                        </span>
+                        <span class="user-status pending">Pending</span>
+                        <i class="fa-solid fa-chevron-right course-announcement-arrow" aria-hidden="true"></i>
+                    </a>
+                @empty
+                @endforelse
+                @forelse(($incompleteQuizzes ?? []) as $quiz)
+                    <a href="{{ $quiz->class_id ? route('student.courses.quizzes.show', [$course, $quiz]) : '#' }}" class="course-announcement-row">
+                        <span class="course-announcement-icon" style="color: #7c3aed; background: rgba(124, 58, 237, 0.12);"><i class="fa-solid fa-circle-question" aria-hidden="true"></i></span>
+                        <span class="course-announcement-copy">
+                            <strong>{{ $quiz->title }}</strong>
+                            <small>Quiz • Available until {{ $quiz->availability_until?->format('M d, Y') ?? 'No deadline' }}</small>
+                        </span>
+                        <span class="user-status pending">Not taken</span>
+                        <i class="fa-solid fa-chevron-right course-announcement-arrow" aria-hidden="true"></i>
+                    </a>
+                @empty
+                @endforelse
+            </div>
+        </section>
+    @endif
+
     {{-- ═══ ANNOUNCEMENTS ═══ --}}
     <section class="user-panel course-announcements-panel" aria-labelledby="course-announcements-title">
         <div class="user-panel-head">

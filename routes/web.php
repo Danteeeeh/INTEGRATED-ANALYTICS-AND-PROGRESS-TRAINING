@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\RubricController as AdminRubricController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Admin\TermsOfServiceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VirtualClassController as AdminVirtualClassController;
 use App\Http\Controllers\Auth\LoginController;
@@ -234,6 +235,18 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         Route::resource('question_banks', AdminQuestionBankController::class);
         Route::resource('questions', AdminQuestionController::class);
+
+        Route::prefix('terms_of_service')->name('terms_of_service.')->group(function () {
+            Route::get('/', [TermsOfServiceController::class, 'index'])->name('index');
+            Route::get('/create', [TermsOfServiceController::class, 'create'])->name('create');
+            Route::post('/', [TermsOfServiceController::class, 'store'])->name('store');
+            Route::get('/{termsOfService}', [TermsOfServiceController::class, 'show'])->name('show');
+            Route::get('/{termsOfService}/edit', [TermsOfServiceController::class, 'edit'])->name('edit');
+            Route::put('/{termsOfService}', [TermsOfServiceController::class, 'update'])->name('update');
+            Route::delete('/{termsOfService}', [TermsOfServiceController::class, 'destroy'])->name('destroy');
+            Route::post('/{termsOfService}/activate', [TermsOfServiceController::class, 'activate'])->name('activate');
+            Route::post('/{termsOfService}/deactivate', [TermsOfServiceController::class, 'deactivate'])->name('deactivate');
+        });
 
         Route::resource('announcements', AdminAnnouncementController::class);
         Route::post('announcements/{announcement}/pin', [AdminAnnouncementController::class, 'pin'])->name('announcements.pin');
@@ -487,6 +500,13 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::get('/', [InstructorLearningPlanController::class, 'index'])->name('index');
                 Route::post('/{student}', [InstructorLearningPlanController::class, 'store'])->name('store');
             });
+
+            Route::prefix('{class}/student_module_assignments')->name('student_module_assignments.')->group(function () {
+                Route::get('/', [StudentModuleAssignmentController::class, 'index'])->name('index');
+                Route::get('/create', [StudentModuleAssignmentController::class, 'create'])->name('create');
+                Route::post('/', [StudentModuleAssignmentController::class, 'store'])->name('store');
+                Route::delete('/{assignment}', [StudentModuleAssignmentController::class, 'destroy'])->name('destroy');
+            });
         });
 
         Route::prefix('learning-plans')->name('learning-plans.')->group(function () {
@@ -517,6 +537,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/dashboard/real-time-stats', [StudentDashboard::class, 'getRealTimeStats'])->name('dashboard.real-time-stats');
         Route::get('/dashboard/search', [StudentDashboard::class, 'search'])->name('dashboard.search');
         Route::get('/dashboard/analytics', [StudentDashboard::class, 'getAnalytics'])->name('dashboard.analytics');
+        Route::get('/incomplete', [StudentDashboard::class, 'incomplete'])->name('incomplete');
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
         Route::get('enrollments', [StudentEnrollmentController::class, 'index'])->name('enrollments.index');
         Route::get('enrollments/{enrollment}', [StudentEnrollmentController::class, 'show'])->name('enrollments.show');

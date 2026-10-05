@@ -39,6 +39,7 @@
         </x-slot>
         <x-slot name="actions">
             <a href="{{ route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> Browse courses</a>
+            <a href="{{ route('student.incomplete') }}" class="btn btn-secondary"><i class="fa-solid fa-clock"></i> Incomplete Items</a>
             <a href="{{ route('student.enrollments.index') }}" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Enrollments</a>
             <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-graduation-cap"></i> My grades</a>
             <button onclick="refreshDashboard()" class="btn btn-secondary"><i class="fa-solid fa-sync-alt"></i> Refresh</button>

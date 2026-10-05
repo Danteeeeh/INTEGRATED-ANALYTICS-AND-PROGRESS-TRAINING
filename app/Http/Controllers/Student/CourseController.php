@@ -153,6 +153,30 @@ class CourseController extends Controller
             ->limit(5)
             ->get();
 
+        // Incomplete assignments (not submitted yet)
+        $incompleteAssignments = (clone $assignments)
+            ->whereDoesntHave('submissions', function ($q) use ($student) {
+                $q->where('student_id', $student->id);
+            })
+            ->where('due_date', '>=', now())
+            ->orderBy('due_date')
+            ->limit(5)
+            ->get();
+
+        // Incomplete quizzes (not attempted yet)
+        $incompleteQuizzes = (clone $quizzes)
+            ->whereDoesntHave('attempts', function ($q) use ($student) {
+                $q->where('student_id', $student->id);
+            })
+            ->where('availability_from', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('availability_until')
+                    ->orWhere('availability_until', '>=', now());
+            })
+            ->orderBy('availability_from')
+            ->limit(5)
+            ->get();
+
         return view('student.courses.show', compact(
             'course',
             'modulesCount',
@@ -164,7 +188,9 @@ class CourseController extends Controller
             'assignmentsProgress',
             'quizzesProgress',
             'examsProgress',
-            'recentAnnouncements'
+            'recentAnnouncements',
+            'incompleteAssignments',
+            'incompleteQuizzes'
         ));
     }
 }

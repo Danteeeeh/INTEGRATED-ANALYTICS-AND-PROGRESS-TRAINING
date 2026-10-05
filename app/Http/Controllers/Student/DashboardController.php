@@ -678,4 +678,76 @@ class DashboardController extends Controller
             'performance_assessment' => $assessment,
         ];
     }
+
+    /**
+     * Show incomplete assignments and quizzes
+     */
+    public function incomplete(): View
+    {
+        $studentId = auth()->id();
+
+        // Get student's enrollments
+        $enrollments = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->with(['class.course', 'class.instructor'])
+            ->get();
+
+        $classIds = $enrollments->pluck('class_id');
+        $courseIds = $enrollments->pluck('class.course_id')->filter();
+
+        // Incomplete assignments (not submitted yet)
+        $incompleteAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+            ->whereDoesntHave('submissions', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
+            ->orderBy('due_date')
+            ->get();
+
+        // Overdue assignments
+        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+            ->where('due_date', '<', now())
+            ->whereDoesntHave('submissions', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
+            ->orderBy('due_date', 'desc')
+            ->get();
+
+        // Incomplete quizzes (not attempted yet)
+        $incompleteQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->where('availability_from', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('availability_until')
+                    ->orWhere('availability_until', '>=', now());
+            })
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
+            ->orderBy('availability_from')
+            ->get();
+
+        // Incomplete exams (not attempted yet)
+        $incompleteExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            })
+            ->where('starts_at', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', now());
+            })
+            ->with(['class.course'])
+            ->orderBy('starts_at')
+            ->get();
+
+        return view('student.incomplete', compact(
+            'enrollments',
+            'incompleteAssignments',
+            'overdueAssignments',
+            'incompleteQuizzes',
+            'incompleteExams'
+        ));
+    }
 }

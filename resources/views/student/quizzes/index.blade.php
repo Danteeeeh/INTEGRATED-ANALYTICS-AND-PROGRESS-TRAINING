@@ -21,12 +21,15 @@
                     $best = $quiz->attempts->first();
                     $available = $quiz->available();
                     $attempted = $best !== null;
+                    $isCompleted = $attempted && in_array($best->status, ['submitted', 'auto_submitted', 'graded']);
                 @endphp
-                <div class="learning-card">
+                <div class="learning-card" style="{{ $isCompleted ? 'opacity: 0.7;' : '' }}">
                     <div>
                         <div class="user-kicker">
-                            @if($attempted)
-                                <span style="color:var(--user-success)"><i class="fa-solid fa-circle-check"></i> Attempted</span>
+                            @if($isCompleted)
+                                <span style="color:var(--user-success)"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                            @elseif($attempted)
+                                <span style="color:var(--user-warning)"><i class="fa-solid fa-clock"></i> In Progress</span>
                             @elseif($available)
                                 Available now
                             @else

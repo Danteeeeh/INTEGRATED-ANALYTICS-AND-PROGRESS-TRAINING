@@ -25,6 +25,10 @@
                 <i class="fa-solid fa-graduation-cap"></i>
                 Open Gradebook
             </a>
+            <a href="{{ route('instructor.classes.student_module_assignments.index', $class) }}" class="btn-add" style="padding: 10px 16px; font-size: .78rem;">
+                <i class="fa-solid fa-users-gear"></i>
+                Module Assignments
+            </a>
             <a href="{{ route('instructor.classes.index') }}" class="btn-modal-cancel" style="padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
                 <i class="fa-solid fa-arrow-left"></i>
                 Back to Classes

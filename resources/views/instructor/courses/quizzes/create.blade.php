@@ -229,6 +229,25 @@
             </div>
 
             <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-clock"></i> Availability</div>
+                <div class="cc-grid">
+                    <div class="cc-field">
+                        <label>Available From</label>
+                        <input type="datetime-local" name="availability_from" value="{{ old('availability_from') }}" class="form-input">
+                        <span class="cc-hint">Kapag magsisimula pwedeng kuhanan ang quiz</span>
+                        @error('availability_from')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+
+                    <div class="cc-field">
+                        <label>Available Until</label>
+                        <input type="datetime-local" name="availability_until" value="{{ old('availability_until') }}" class="form-input">
+                        <span class="cc-hint">Kapag matatapos ang pagkuha ng quiz</span>
+                        @error('availability_until')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="cc-section">
                 <div class="cc-section-title"><i class="fa-solid fa-align-left"></i> Details</div>
                 <div class="cc-grid">
                     <div class="cc-field full">

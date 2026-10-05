@@ -9,6 +9,7 @@ use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
+use App\Models\StudentModuleAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,19 +31,31 @@ class QuizController extends Controller
             abort(403);
         }
 
+        // Get module IDs assigned to this student
+        $assignedModuleIds = StudentModuleAssignment::byStudent($studentId)
+            ->byClass($enrollment->class_id)
+            ->pluck('module_id');
+
         $quizzes = Quiz::published()
-            ->where(function ($q) use ($course) {
+            ->where(function ($q) use ($course, $assignedModuleIds) {
+                // Class-level quizzes (not in modules)
                 $q->whereHas('class', function ($q2) use ($course) {
                     $q2->where('course_id', $course->id);
                 })
-                ->orWhere(function ($q2) use ($course) {
-                    $q2->whereHas('module', function ($q3) use ($course) {
-                        $q3->where('course_id', $course->id)->published();
+                // Module-level quizzes (only from assigned modules)
+                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
+                    $q2->whereHas('module', function ($q3) use ($course, $assignedModuleIds) {
+                        $q3->where('course_id', $course->id)
+                            ->whereIn('id', $assignedModuleIds)
+                            ->published();
                     });
                 })
-                ->orWhere(function ($q2) use ($course) {
-                    $q2->whereHas('lesson.module', function ($q3) use ($course) {
-                        $q3->where('course_id', $course->id)->published();
+                // Lesson-level quizzes (only from lessons in assigned modules)
+                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
+                    $q2->whereHas('lesson.module', function ($q3) use ($course, $assignedModuleIds) {
+                        $q3->where('course_id', $course->id)
+                            ->whereIn('id', $assignedModuleIds)
+                            ->published();
                     });
                 });
             })

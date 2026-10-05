@@ -20,6 +20,8 @@
     <style>
         .quiz-container {
             transition: all 0.3s ease;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .quiz-container.focus-mode {
@@ -32,6 +34,7 @@
             background: #f8fafc;
             overflow-y: auto;
             padding: 20px;
+            max-width: none;
         }
 
         .quiz-container.focus-mode .focus-btn {
@@ -59,17 +62,18 @@
         }
 
         .timer-circle {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
+            font-size: 2rem;
             font-weight: 700;
             color: white;
             transition: all 0.3s ease;
             position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .timer-circle.warning {
@@ -102,11 +106,11 @@
         }
 
         .timer-progress-bar {
-            height: 6px;
+            height: 8px;
             background: #e2e8f0;
-            border-radius: 3px;
+            border-radius: 4px;
             overflow: hidden;
-            margin-top: 8px;
+            margin-top: 10px;
         }
 
         .timer-progress-fill {
@@ -122,6 +126,43 @@
         .timer-progress-fill.danger {
             background: linear-gradient(90deg, #ef4444, #dc2626);
         }
+
+        .choice-label {
+            position: relative;
+        }
+
+        .choice-label:hover {
+            border-color: #3b82f6 !important;
+            background: #f8fafc !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        .choice-label input:checked + span {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .choice-label input:checked {
+            accent-color: #3b82f6;
+        }
+
+        .question-card {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .timer-circle {
+                width: 70px;
+                height: 70px;
+                font-size: 1.5rem;
+            }
+        }
     </style>
 
     <div class="quiz-container" id="quizContainer">
@@ -131,16 +172,22 @@
         </button>
 
         <!-- Quiz Info Bar -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; color: white; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-                <div style="flex: 1; min-width: 200px;">
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 6px;">{{ $quiz->title }}</div>
-                    <div style="font-size: 0.95rem; opacity: 0.9;">{{ $inProgress->answers->count() }} Questions • Attempt {{ $inProgress->attempt_number }}</div>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 28px; border-radius: 20px; color: white; margin-bottom: 28px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px;">
+                <div style="flex: 1; min-width: 250px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; line-height: 1.3;">{{ $quiz->title }}</div>
+                    <div style="font-size: 1rem; opacity: 0.95; font-weight: 500;">
+                        <i class="fa-solid fa-list-ol" style="margin-right: 6px;"></i>
+                        {{ $inProgress->answers->count() }} Questions
+                        <span style="margin: 0 8px; opacity: 0.5;">•</span>
+                        <i class="fa-solid fa-redo" style="margin-right: 6px;"></i>
+                        Attempt {{ $inProgress->attempt_number }}
+                    </div>
                 </div>
 
                 @if($quiz->time_limit_minutes)
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 4px;">Time Remaining</div>
+                    <div style="text-align: center; min-width: 140px;">
+                        <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Time Remaining</div>
                         <div class="timer-circle normal" id="timerCircle">{{ $quiz->time_limit_minutes }}:00</div>
                         <div class="timer-progress-bar">
                             <div class="timer-progress-fill" id="timerProgress" style="width: 100%;"></div>
@@ -148,47 +195,50 @@
                     </div>
                 @endif
 
-                <div style="text-align: center;">
-                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 4px;">Progress</div>
-                    <div id="progress" style="font-size: 1.8rem; font-weight: 700;">0/{{ $inProgress->answers->count() }}</div>
-                    <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 4px;">
+                <div style="text-align: center; min-width: 120px;">
+                    <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Progress</div>
+                    <div id="progress" style="font-size: 2rem; font-weight: 800; line-height: 1;">0/{{ $inProgress->answers->count() }}</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 6px; font-weight: 500;">
                         {{ $inProgress->answers->count() > 0 ? round((0 / $inProgress->answers->count()) * 100) : 0 }}% Complete
                     </div>
                 </div>
 
                 <button type="button" onclick="toggleFocusMode()"
-                        style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-                    <i class="fa-solid fa-expand"></i> Focus Mode
+                        style="background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 14px 24px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.95rem; transition: all 0.2s; backdrop-filter: blur(10px);">
+                    <i class="fa-solid fa-expand" style="margin-right: 8px;"></i> Focus Mode
                 </button>
             </div>
         </div>
 
     <!-- Question Navigation -->
-    <div class="form-card" style="margin-bottom: 24px; background: white; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); padding: 24px;">
-        <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 1.1rem;"><i class="fa-solid fa-list-ol" style="color: #3b82f6; margin-right: 8px;"></i> Question Navigation</h3>
-        <div id="questionNav" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;">
+    <div class="form-card" style="margin-bottom: 28px; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 28px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 20px 0; color: #1e293b; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center;">
+            <i class="fa-solid fa-list-ol" style="color: #3b82f6; margin-right: 10px; font-size: 1.1rem;"></i>
+            Question Navigation
+        </h3>
+        <div id="questionNav" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px;">
             @foreach($inProgress->answers as $index => $answer)
                 <button type="button"
                         onclick="goToQuestion({{ $index }})"
                         class="question-nav-btn"
                         data-question="{{ $index }}"
-                        style="width: 44px; height: 44px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; font-weight: 600; color: #64748b; transition: all 0.25s ease; font-size: 1rem;">
+                        style="width: 48px; height: 48px; border: 2px solid #e2e8f0; border-radius: 12px; background: white; cursor: pointer; font-weight: 700; color: #64748b; transition: all 0.25s ease; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     {{ $index + 1 }}
                 </button>
             @endforeach
         </div>
-        <div style="display: flex; gap: 20px; margin-top: 16px; font-size: 0.85rem; color: #64748b; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 6px;"></div>
-                <span style="font-weight: 500;">Current</span>
+        <div style="display: flex; gap: 24px; margin-top: 20px; font-size: 0.9rem; color: #64748b; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);"></div>
+                <span style="font-weight: 600; color: #1e293b;">Current</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 6px;"></div>
-                <span style="font-weight: 500;">Answered</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);"></div>
+                <span style="font-weight: 600; color: #1e293b;">Answered</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 20px; height: 20px; background: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 6px;"></div>
-                <span style="font-weight: 500;">Unanswered</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 24px; height: 24px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px;"></div>
+                <span style="font-weight: 600; color: #1e293b;">Unanswered</span>
             </div>
         </div>
     </div>
@@ -202,13 +252,13 @@
             <div class="question-card" id="question-{{ $index }}"
                  style="display: {{ $index === 0 ? 'block' : 'none' }}; margin-bottom: 24px;">
 
-                <div class="form-card" style="background: white; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); padding: 28px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-                        <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                            <span style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 8px 16px; border-radius: 24px; font-size: 0.9rem; font-weight: 600;">
+                <div class="form-card" style="background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 32px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                            <span style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.95rem; font-weight: 700; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
                                 Question {{ $index + 1 }}
                             </span>
-                            <span style="background: #f1f5f9; color: #64748b; padding: 6px 14px; border-radius: 16px; font-size: 0.85rem; font-weight: 500;">
+                            <span style="background: #f1f5f9; color: #64748b; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0;">
                                 {{ ($quizAnswer->question->question_type === 'multiple_choice' ? 'Multiple Choice' :
                                ($quizAnswer->question->question_type === 'true_false' ? 'True/False' :
                                ($quizAnswer->question->question_type === 'multiple_answer' ? 'Multiple Answer' :
@@ -216,43 +266,44 @@
                                ($quizAnswer->question->question_type === 'essay' ? 'Essay' : 'Question'))))) }}
                             </span>
                         </h3>
-                        <span style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; padding: 6px 14px; border-radius: 16px; font-size: 0.85rem; font-weight: 600;">
+                        <span style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.2);">
+                            <i class="fa-solid fa-star" style="margin-right: 6px;"></i>
                             {{ $quizAnswer->question->quizzes->find($quiz->id)?->pivot->points ?? $quizAnswer->question->default_points ?? 1 }} pts
                         </span>
                     </div>
 
-                    <div style="font-size: 1.15rem; color: #1e293b; margin-bottom: 24px; line-height: 1.7; font-weight: 500;">
+                    <div style="font-size: 1.25rem; color: #1e293b; margin-bottom: 28px; line-height: 1.8; font-weight: 600; padding: 20px; background: #f8fafc; border-radius: 16px; border-left: 4px solid #3b82f6;">
                         {!! $quizAnswer->question->question_text !!}
                     </div>
 
                     @if($quizAnswer->question->question_type === 'multiple_choice' || $quizAnswer->question->question_type === 'true_false')
-                        <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
                             @foreach($quizAnswer->question->choices as $choice)
                                 <label class="choice-label"
-                                       style="display: flex; align-items: center; padding: 18px 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.25s ease; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                       style="display: flex; align-items: center; padding: 20px 24px; border: 2px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.3s ease; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                                     <input type="radio"
                                            name="answers[{{ $quizAnswer->question->id }}]"
                                            value="{{ $choice->id }}"
                                            {{ old('answers.'.$quizAnswer->question->id) == $choice->id ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
-                                           style="width: 22px; height: 22px; margin-right: 14px; accent-color: #3b82f6; cursor: pointer;">
-                                    <span style="flex: 1; font-size: 1rem; color: #334155;">{!! $choice->choice_text !!}</span>
+                                           style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
+                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice->choice_text !!}</span>
                                 </label>
                             @endforeach
                         </div>
 
                     @elseif($quizAnswer->question->question_type === 'multiple_answer')
-                        <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
                             @foreach($quizAnswer->question->choices as $choice)
                                 <label class="choice-label"
-                                       style="display: flex; align-items: center; padding: 18px 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.25s ease; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                       style="display: flex; align-items: center; padding: 20px 24px; border: 2px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.3s ease; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                                     <input type="checkbox"
                                            name="answers[{{ $quizAnswer->question->id }}][]"
                                            value="{{ $choice->id }}"
                                            {{ in_array($choice->id, old('answers.'.$quizAnswer->question->id, [])) ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
-                                           style="width: 22px; height: 22px; margin-right: 14px; accent-color: #3b82f6; cursor: pointer;">
-                                    <span style="flex: 1; font-size: 1rem; color: #334155;">{!! $choice->choice_text !!}</span>
+                                           style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
+                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice->choice_text !!}</span>
                                 </label>
                             @endforeach
                         </div>
@@ -260,10 +311,10 @@
                     @elseif($quizAnswer->question->question_type === 'short_answer' || $quizAnswer->question->question_type === 'essay')
                         <div>
                             <textarea name="answers[{{ $quizAnswer->question->id }}]"
-                                      rows="{{ $quizAnswer->question->question_type === 'essay' ? '10' : '5' }}"
+                                      rows="{{ $quizAnswer->question->question_type === 'essay' ? '12' : '6' }}"
                                       placeholder="Enter your answer here..."
                                       oninput="markAnswered({{ $index }})"
-                                      style="width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.2s; line-height: 1.6;">{{ old('answers.'.$quizAnswer->question->id) }}</textarea>
+                                      style="width: 100%; padding: 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; font-size: 1.05rem; resize: vertical; transition: all 0.2s; line-height: 1.7; background: #f8fafc;">{{ old('answers.'.$quizAnswer->question->id) }}</textarea>
                         </div>
                     @endif
                 </div>
@@ -271,25 +322,26 @@
         @endforeach
 
         <!-- Navigation Buttons -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 36px; gap: 20px;">
             <button type="button" id="prevBtn" onclick="prevQuestion()"
-                    style="flex: 1; padding: 14px 28px; border-radius: 12px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 600; font-size: 1rem; transition: all 0.2s;">
-                <i class="fa-solid fa-arrow-left"></i> Previous
+                    style="flex: 1; padding: 16px 32px; border-radius: 14px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 700; font-size: 1.05rem; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Previous
             </button>
 
             <button type="button" id="nextBtn" onclick="nextQuestion()"
-                    style="flex: 1; padding: 14px 28px; border-radius: 12px; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; font-weight: 600; font-size: 1rem; transition: all 0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); display: flex;">
-                Next <i class="fa-solid fa-arrow-right"></i>
+                    style="flex: 1; padding: 16px 32px; border-radius: 14px; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; font-weight: 700; font-size: 1.05rem; transition: all 0.2s; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35); display: flex; align-items: center; justify-content: center;">
+                Next <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>
             </button>
         </div>
 
         <!-- Submit Button -->
-        <div style="text-align: center; margin-top: 32px; padding-top: 32px; border-top: 2px solid #e2e8f0;">
+        <div style="text-align: center; margin-top: 40px; padding-top: 40px; border-top: 2px solid #e2e8f0;">
             <button type="submit" onclick="return confirmSubmit()"
-                    style="padding: 16px 40px; border-radius: 12px; cursor: pointer; font-size: 1.1rem; font-weight: 700; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3); transition: all 0.2s;">
-                <i class="fa-solid fa-check-circle"></i> Submit Quiz
+                    style="padding: 18px 48px; border-radius: 14px; cursor: pointer; font-size: 1.15rem; font-weight: 800; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); transition: all 0.2s;">
+                <i class="fa-solid fa-check-circle" style="margin-right: 10px;"></i> Submit Quiz
             </button>
-            <div style="font-size: 0.9rem; color: #64748b; margin-top: 12px; font-weight: 500;">
+            <div style="font-size: 0.95rem; color: #64748b; margin-top: 14px; font-weight: 600;">
+                <i class="fa-solid fa-info-circle" style="margin-right: 6px;"></i>
                 Make sure you have answered all questions before submitting
             </div>
         </div>

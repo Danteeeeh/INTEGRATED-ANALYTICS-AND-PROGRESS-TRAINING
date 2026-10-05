@@ -67,8 +67,11 @@
                 </div>
 
                 <div class="modal-row" style="margin-top:14px;">
-                    <label>External URL</label>
-                    <input type="url" name="external_url" value="{{ old('external_url', $lesson->external_url) }}" class="form-input" placeholder="https://...">
+                    <label>Video Reference / External URL</label>
+                    <input type="url" name="external_url" value="{{ old('external_url', $lesson->external_url) }}" class="form-input" placeholder="https://youtube.com/watch?v=...">
+                    <span style="display:block;color:var(--dash-muted,#9eafca);font-size:.75rem;margin-top:4px;">
+                        Add a video link (YouTube, Vimeo, etc.) or external resource for students. Use this for video lessons or supplementary materials.
+                    </span>
                     @error('external_url')<span class="error-message">{{ $message }}</span>@enderror
                 </div>
 

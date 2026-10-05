@@ -69,6 +69,11 @@ class Module extends Model
         return $this->hasMany(LessonProgress::class, 'module_id');
     }
 
+    public function studentAssignments(): HasMany
+    {
+        return $this->hasMany(StudentModuleAssignment::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('modules.status', self::STATUS_PUBLISHED);

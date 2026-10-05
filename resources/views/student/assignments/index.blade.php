@@ -19,12 +19,15 @@
             @foreach($assignments as $assignment)
                 @php
                     $sub = $assignment->submissions->first();
+                    $isCompleted = $sub && in_array($sub->status, ['submitted', 'graded']);
                     $status = $sub ? $sub->status : ($assignment->due_date && $assignment->due_date->isPast() ? 'overdue' : 'open');
                 @endphp
-                <div class="learning-card">
+                <div class="learning-card" style="{{ $isCompleted ? 'opacity: 0.7;' : '' }}">
                     <div>
                         <div class="user-kicker">
-                            @if($assignment->due_date)
+                            @if($isCompleted)
+                                <span style="color:var(--user-success)"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                            @elseif($assignment->due_date)
                                 @if($assignment->due_date->isPast())
                                     <span style="color:var(--user-danger)">Due {{ $assignment->due_date->diffForHumans() }}</span>
                                 @else
