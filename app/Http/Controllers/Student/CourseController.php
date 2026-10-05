@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\Course;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
+use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Services\CourseService;
 use Illuminate\View\View;
@@ -38,21 +40,62 @@ class CourseController extends Controller
             ->wherePivot('status', 'active')
             ->pluck('classes.id');
 
-        $modulesCount = $course->modules()->count();
+        $modulesCount = $course->modules()->published()->count();
 
-        $assignments = $course->assignments()->whereIn('assignments.class_id', $classIds);
+        $assignments = Assignment::published()
+            ->where(function ($q) use ($course) {
+                $q->whereHas('class', function ($q2) use ($course) {
+                    $q2->where('course_id', $course->id);
+                })
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                })
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('lesson.module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                });
+            });
         $assignmentsCount = (clone $assignments)->count();
 
-        $quizzes = $course->quizzes()->whereIn('quizzes.class_id', $classIds);
+        $quizzes = Quiz::published()
+            ->where(function ($q) use ($course) {
+                $q->whereHas('class', function ($q2) use ($course) {
+                    $q2->where('course_id', $course->id);
+                })
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                })
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('lesson.module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                });
+            });
         $quizzesCount = (clone $quizzes)->count();
 
-        $exams = $course->exams()->whereIn('exams.class_id', $classIds);
+        $exams = Exam::published()
+            ->where(function ($q) use ($course) {
+                $q->whereHas('class', function ($q2) use ($course) {
+                    $q2->where('course_id', $course->id);
+                })
+                ->orWhere('exams.course_id', $course->id)
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                });
+            });
         $examsCount = (clone $exams)->count();
 
         $announcementsCount = $course->announcements()->count();
 
-        // Progress: lessons completed across the course's modules.
-        $lessonIds = Lesson::whereIn('module_id', $course->modules()->pluck('id'))->pluck('id');
+        $publishedModuleIds = $course->modules()->published()->pluck('id');
+        $lessonIds = Lesson::whereIn('module_id', $publishedModuleIds)->published()->pluck('id');
         $lessonsTotal = $lessonIds->count();
         $lessonsDone = $lessonsTotal > 0
             ? LessonProgress::whereIn('lesson_id', $lessonIds)

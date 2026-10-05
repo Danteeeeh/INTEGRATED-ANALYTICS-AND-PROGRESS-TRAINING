@@ -28,8 +28,18 @@
 # Prevent directory listing
 Options -Indexes
 
+# Allow Vite build manifest JSONs (/build/*.json); deny all other .json files (sensitive configs)
+<IfModule mod_setenvif.c>
+    SetEnvIf Request_URI "^/build/.+\.json$" IS_VITE_BUILD_JSON=1
+</IfModule>
+<FilesMatch "\.json$">
+    <RequireAny>
+        Require env IS_VITE_BUILD_JSON
+    </RequireAny>
+</FilesMatch>
+
 # Protect sensitive files
-<FilesMatch "\.(env|htaccess|ini|log|sh|sql|json)$">
+<FilesMatch "\.(env|htaccess|ini|log|sh|sql)$">
     Require all denied
 </FilesMatch>
 
@@ -79,5 +89,5 @@ Options -Indexes
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{REQUEST_SCHEME} == 'https' || %{HTTP:X-Forwarded-Proto} == 'https'"
 </IfModule>

@@ -34,8 +34,16 @@ class ExamController extends Controller
         }
 
         $exams = Exam::published()
-            ->whereHas('class', function ($q) use ($course) {
-                $q->where('course_id', $course->id);
+            ->where(function ($q) use ($course) {
+                $q->whereHas('class', function ($q2) use ($course) {
+                    $q2->where('course_id', $course->id);
+                })
+                ->orWhere('exams.course_id', $course->id)
+                ->orWhere(function ($q2) use ($course) {
+                    $q2->whereHas('module', function ($q3) use ($course) {
+                        $q3->where('course_id', $course->id)->published();
+                    });
+                });
             })
             ->with(['attempts' => function ($q) use ($studentId) {
                 $q->ofStudent($studentId)->latest();

@@ -35,7 +35,10 @@ class CoursePolicy
         }
 
         if ($user->isStudent()) {
-            return $user->enrolledClasses()->where('course_id', $course->id)->exists();
+            return $user->enrolledClasses()
+                ->wherePivot('status', 'active')
+                ->where('course_id', $course->id)
+                ->exists();
         }
 
         return false;

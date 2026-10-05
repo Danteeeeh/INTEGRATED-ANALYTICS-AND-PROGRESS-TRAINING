@@ -228,29 +228,37 @@ class AssignmentService
     public function gradeSubmission(AssignmentSubmission $submission, array $data): AssignmentSubmission
     {
         return DB::transaction(function () use ($submission, $data) {
-            $oldGrade = $submission->grade;
+            $oldGrade = $submission->grade?->points;
 
             $submission->update([
-                'grade' => $data['grade'],
-                'feedback' => $data['feedback'] ?? null,
                 'graded_by' => auth()->id(),
                 'graded_at' => now(),
                 'status' => 'graded',
             ]);
 
+            // Create or update grade item
+            $gradeItem = GradeItem::firstOrCreate([
+                'related_type' => Assignment::class,
+                'related_id' => $submission->assignment_id,
+            ], [
+                'title' => $submission->assignment->title,
+                'max_points' => $submission->assignment->points,
+                'is_released' => true,
+                'released_at' => now(),
+            ]);
+
             // Create or update grade record
             $grade = Grade::updateOrCreate(
                 [
+                    'grade_item_id' => $gradeItem->id,
                     'student_id' => $submission->student_id,
-                    'gradable_type' => Assignment::class,
-                    'gradable_id' => $submission->assignment_id,
                 ],
                 [
                     'points' => $data['grade'],
-                    'max_points' => $submission->assignment->points,
-                    'percentage' => ($data['grade'] / $submission->assignment->points) * 100,
+                    'score_percent' => ($data['grade'] / $submission->assignment->points) * 100,
                     'graded_by' => auth()->id(),
                     'graded_at' => now(),
+                    'feedback' => $data['feedback'] ?? null,
                 ]
             );
 
@@ -258,8 +266,6 @@ class AssignmentService
             GradeHistory::create([
                 'student_id' => $submission->student_id,
                 'grade_id' => $grade->id,
-                'gradable_type' => Assignment::class,
-                'gradable_id' => $submission->assignment_id,
                 'previous_grade' => $oldGrade,
                 'new_grade' => $data['grade'],
                 'modified_by' => auth()->id(),

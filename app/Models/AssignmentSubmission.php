@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AssignmentSubmission extends Model
@@ -63,14 +62,27 @@ class AssignmentSubmission extends Model
         return $this->hasMany(SubmissionFile::class, 'assignment_submission_id');
     }
 
-    public function grade(): HasOne
+    public function allStudentGrades(): HasMany
     {
-        return $this->hasOne(Grade::class)->where('student_id', $this->student_id);
+        return $this->hasMany(Grade::class, 'student_id', 'student_id');
     }
 
     public function getGradeAttribute()
     {
-        return $this->grade()->first();
+        if ($this->relationLoaded('allStudentGrades')) {
+            return $this->allStudentGrades->first(function ($grade) {
+                return $grade->item
+                    && $grade->item->related_type === Assignment::class
+                    && $grade->item->related_id === $this->assignment_id;
+            });
+        }
+
+        return Grade::where('student_id', $this->student_id)
+            ->whereHas('item', function ($query) {
+                $query->where('related_type', Assignment::class)
+                    ->where('related_id', $this->assignment_id);
+            })
+            ->first();
     }
 
     public function rubricAssessments(): HasMany

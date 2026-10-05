@@ -104,14 +104,27 @@ class ExamAttempt extends Model
         return $this->hasMany(ExamAnswer::class);
     }
 
-    public function grade(): HasOne
+    public function allStudentGrades(): HasMany
     {
-        return $this->hasOne(Grade::class)->where('student_id', $this->student_id);
+        return $this->hasMany(Grade::class, 'student_id', 'student_id');
     }
 
     public function getGradeAttribute()
     {
-        return $this->grade()->first();
+        if ($this->relationLoaded('allStudentGrades')) {
+            return $this->allStudentGrades->first(function ($grade) {
+                return $grade->item
+                    && $grade->item->related_type === Exam::class
+                    && $grade->item->related_id === $this->exam_id;
+            });
+        }
+
+        return Grade::where('student_id', $this->student_id)
+            ->whereHas('item', function ($query) {
+                $query->where('related_type', Exam::class)
+                    ->where('related_id', $this->exam_id);
+            })
+            ->first();
     }
 
     public function scopeInProgress($query)

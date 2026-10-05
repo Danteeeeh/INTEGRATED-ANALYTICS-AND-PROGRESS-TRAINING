@@ -355,17 +355,26 @@ class QuizService
             'graded_at' => now(),
         ]);
 
+        // Create or update grade item
+        $gradeItem = GradeItem::firstOrCreate([
+            'related_type' => Quiz::class,
+            'related_id' => $attempt->quiz_id,
+        ], [
+            'title' => $attempt->quiz->title,
+            'max_points' => $totalPoints,
+            'is_released' => true,
+            'released_at' => now(),
+        ]);
+
         // Create grade record
         Grade::updateOrCreate(
             [
+                'grade_item_id' => $gradeItem->id,
                 'student_id' => $attempt->student_id,
-                'gradable_type' => Quiz::class,
-                'gradable_id' => $attempt->quiz_id,
             ],
             [
                 'points' => $earnedPoints,
-                'max_points' => $totalPoints,
-                'percentage' => $score,
+                'score_percent' => $score,
                 'graded_by' => null, // Auto-graded
                 'graded_at' => now(),
             ]

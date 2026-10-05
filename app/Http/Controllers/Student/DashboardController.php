@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
-use App\Models\Assignment;
 use App\Models\BadgeAward;
 use App\Models\ClassModel;
 use App\Models\CourseCompletion;
@@ -20,6 +19,7 @@ use App\Models\Module;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\VirtualClass;
+use App\Services\ContentProgressService;
 use App\Services\StudentPerformanceAssessmentService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -30,7 +30,10 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private StudentPerformanceAssessmentService $performanceAssessment) {}
+    public function __construct(
+        private StudentPerformanceAssessmentService $performanceAssessment,
+        private \App\Services\ContentProgressService $contentProgress,
+    ) {}
 
     public function __invoke(): View
     {
@@ -51,16 +54,14 @@ class DashboardController extends Controller
         $courseIds = $activeEnrollments->pluck('class.course_id')->filter();
 
         // Upcoming assignments
-        $upcomingAssignments = Assignment::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $upcomingAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '>', now())
             ->orderBy('due_date')
             ->limit(5)
             ->get();
 
         // Overdue assignments
-        $overdueAssignments = Assignment::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '<', now())
             ->whereDoesntHave('submissions', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
@@ -70,8 +71,7 @@ class DashboardController extends Controller
             ->get();
 
         // Upcoming quizzes
-        $upcomingQuizzes = Quiz::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
             ->where('availability_from', '>', now())
             ->orderBy('availability_from')
             ->limit(5)
@@ -79,14 +79,13 @@ class DashboardController extends Controller
 
         // Recent quiz attempts
         $recentQuizAttempts = QuizAttempt::where('student_id', $studentId)
-            ->with(['quiz.class'])
+            ->with(['quiz.class', 'quiz.module.course', 'quiz.lesson.module.course'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
         // Upcoming exams
-        $upcomingExams = Exam::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $upcomingExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
             ->where('starts_at', '>', now())
             ->orderBy('starts_at')
             ->limit(5)
@@ -136,23 +135,25 @@ class DashboardController extends Controller
         foreach ($activeEnrollments as $enrollment) {
             $course = $enrollment->class->course;
             if ($course) {
-                $progress = CourseProgress::where('student_id', $studentId)
+                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
+                $persisted = CourseProgress::where('student_id', $studentId)
                     ->where('class_id', $enrollment->class_id)
                     ->first();
 
                 $courseProgressData[] = [
                     'course' => $course,
-                    'progress' => $progress ? $progress->progress_percent : 0,
-                    'last_accessed' => $progress ? $progress->updated_at : null,
+                    'progress' => $liveProgress['overall'],
+                    'breakdown' => $liveProgress,
+                    'last_accessed' => $persisted?->updated_at,
                 ];
 
-                $overallProgress += ($progress ? $progress->progress_percent : 0);
+                $overallProgress += $liveProgress['overall'];
             }
         }
 
         $overallProgress = $activeEnrollments->isNotEmpty() ? $overallProgress / $activeEnrollments->count() : 0;
 
-        // Continue learning (most recent course with progress)
+        // Continue learning (most recent course with progress by last accessed)
         $continueLearning = collect($courseProgressData)
             ->sortByDesc('last_accessed')
             ->first();
@@ -216,20 +217,17 @@ class DashboardController extends Controller
             // Assignments
             'upcoming_assignments' => $upcomingAssignments,
             'overdue_assignments' => $overdueAssignments,
-            'total_assignments' => Assignment::whereIn('class_id', $classIds)
-                ->count(),
+            'total_assignments' => $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)->count(),
 
             // Quizzes
             'upcoming_quizzes' => $upcomingQuizzes,
             'recent_quiz_attempts' => $recentQuizAttempts,
-            'total_quizzes' => Quiz::whereIn('class_id', $classIds)
-                ->count(),
+            'total_quizzes' => $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)->count(),
 
             // Exams
             'upcoming_exams' => $upcomingExams,
             'recent_exam_attempts' => $recentExamAttempts,
-            'total_exams' => Exam::whereIn('class_id', $classIds)
-                ->count(),
+            'total_exams' => $this->contentProgress->studentExamsQuery($classIds, $courseIds)->count(),
 
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
@@ -403,6 +401,7 @@ class DashboardController extends Controller
         $classIds = Enrollment::where('student_id', $studentId)
             ->where('status', 'active')
             ->pluck('class_id');
+        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
 
         switch ($type) {
             case 'courses':
@@ -423,32 +422,32 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'assignments':
-                return Assignment::whereIn('class_id', $classIds)
+                return $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
                     ->where('title', 'like', "%{$query}%")
-                    ->with('class.course')
+                    ->with(['class.course', 'module.course', 'lesson.module.course'])
                     ->limit(10)
                     ->get()
                     ->map(fn ($a) => [
                         'id' => $a->id,
                         'title' => $a->title,
-                        'class_code' => $a->class->code ?? '',
-                        'course_title' => $a->class->course->title ?? '',
+                        'class_code' => $a->class?->code ?? '',
+                        'course_title' => ($a->class?->course ?? $a->module?->course ?? $a->lesson?->module?->course)?->title ?? '',
                         'due_date' => $a->due_date?->format('Y-m-d'),
                         'status' => $a->status,
                     ])
                     ->toArray();
 
             case 'quizzes':
-                return Quiz::whereIn('class_id', $classIds)
+                return $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
                     ->where('title', 'like', "%{$query}%")
-                    ->with('class.course')
+                    ->with(['class.course', 'module.course', 'lesson.module.course'])
                     ->limit(10)
                     ->get()
                     ->map(fn ($q) => [
                         'id' => $q->id,
                         'title' => $q->title,
-                        'class_code' => $q->class->code ?? '',
-                        'course_title' => $q->class->course->title ?? '',
+                        'class_code' => $q->class?->code ?? '',
+                        'course_title' => ($q->class?->course ?? $q->module?->course ?? $q->lesson?->module?->course)?->title ?? '',
                         'availability_from' => $q->availability_from?->format('Y-m-d'),
                         'status' => $q->status,
                     ])
@@ -557,6 +556,11 @@ class DashboardController extends Controller
 
                 case 'quizzes':
                     $attempts = QuizAttempt::where('student_id', $studentId)
+                        ->whereIn('status', [
+                            QuizAttempt::STATUS_SUBMITTED,
+                            QuizAttempt::STATUS_AUTO_SUBMITTED,
+                            QuizAttempt::STATUS_GRADED,
+                        ])
                         ->with('quiz')
                         ->orderBy('created_at')
                         ->get()
@@ -581,12 +585,14 @@ class DashboardController extends Controller
 
                     $progressData = [];
                     foreach ($enrollments as $enrollment) {
-                        $progress = CourseProgress::where('student_id', $studentId)
-                            ->where('class_id', $enrollment->class_id)
-                            ->first();
+                        $course = $enrollment->class->course;
+                        if (! $course) {
+                            continue;
+                        }
+                        $live = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
                         $progressData[] = [
-                            'course' => $enrollment->class->course->title ?? 'Course',
-                            'progress' => round($progress?->progress_percent ?? 0, 1),
+                            'course' => $course->title ?? 'Course',
+                            'progress' => round($live['overall'] ?? 0, 1),
                         ];
                     }
 
@@ -623,19 +629,17 @@ class DashboardController extends Controller
 
         $activeEnrollments = $enrollments->where('status', 'active');
         $classIds = $activeEnrollments->pluck('class_id');
+        $courseIds = $activeEnrollments->pluck('class.course_id')->filter();
 
-        $upcomingAssignments = Assignment::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $upcomingAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '>', now())
             ->orderBy('due_date')->limit(5)->get();
 
-        $upcomingQuizzes = Quiz::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
             ->where('availability_from', '>', now())
             ->orderBy('availability_from')->limit(5)->get();
 
-        $overdueAssignments = Assignment::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '<', now())
             ->whereDoesntHave('submissions', fn ($q) => $q->where('student_id', $studentId))
             ->orderBy('due_date', 'desc')->limit(5)->get();
@@ -645,10 +649,22 @@ class DashboardController extends Controller
             ->whereHas('item', fn ($q) => $q->where('is_released', true))
             ->orderBy('graded_at', 'desc')->limit(5)->get();
 
+        $overallProgress = 0;
+        $courseProgressCount = 0;
+        foreach ($activeEnrollments as $enrollment) {
+            $course = $enrollment->class->course;
+            if ($course) {
+                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
+                $overallProgress += $liveProgress['overall'];
+                $courseProgressCount++;
+            }
+        }
+        $overallProgress = $courseProgressCount > 0 ? $overallProgress / $courseProgressCount : 0;
+
         $assessment = $this->performanceAssessment->assess(
             $studentId,
             $classIds,
-            0,
+            $overallProgress,
             $this->calculateLearningStreak($studentId),
         );
 

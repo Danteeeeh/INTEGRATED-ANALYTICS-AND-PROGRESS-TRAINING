@@ -71,14 +71,27 @@ class QuizAttempt extends Model
         return $this->hasMany(QuizAnswer::class);
     }
 
-    public function grade(): HasOne
+    public function allStudentGrades(): HasMany
     {
-        return $this->hasOne(Grade::class)->where('student_id', $this->student_id);
+        return $this->hasMany(Grade::class, 'student_id', 'student_id');
     }
 
     public function getGradeAttribute()
     {
-        return $this->grade()->first();
+        if ($this->relationLoaded('allStudentGrades')) {
+            return $this->allStudentGrades->first(function ($grade) {
+                return $grade->item
+                    && $grade->item->related_type === Quiz::class
+                    && $grade->item->related_id === $this->quiz_id;
+            });
+        }
+
+        return Grade::where('student_id', $this->student_id)
+            ->whereHas('item', function ($query) {
+                $query->where('related_type', Quiz::class)
+                    ->where('related_id', $this->quiz_id);
+            })
+            ->first();
     }
 
     public function scopeInProgress($query)

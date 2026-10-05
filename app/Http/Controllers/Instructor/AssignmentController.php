@@ -214,7 +214,7 @@ class AssignmentController extends Controller
         $this->authorize('view', $assignment);
         abort_if($submission->assignment_id !== $assignment->id, 404);
 
-        $submission->load('student', 'files', 'rubricAssessments.criterion', 'grade');
+        $submission->load('student', 'files', 'rubricAssessments.criterion');
 
         return view('instructor.courses.assignments.submission', compact('course', 'assignment', 'submission'));
     }

@@ -105,25 +105,54 @@ class ClassController extends Controller
                 ->where('status', LessonProgress::STATUS_COMPLETED)
                 ->count();
 
-            $totalAssignments = $class->assignments()->count();
-            $completedAssignments = AssignmentSubmission::where('student_id', $studentId)
-                ->whereHas('assignment', function ($q) use ($class) {
-                    $q->where('class_id', $class->id);
-                })
-                ->whereIn('status', ['submitted', 'graded', 'returned'])
-                ->count();
+            $assignmentsBase = Assignment::published()
+                ->where(function ($q) use ($class) {
+                    $q->where('assignments.class_id', $class->id)
+                        ->orWhere(function ($q2) use ($class) {
+                            $q2->whereHas('module', function ($q3) use ($class) {
+                                $q3->where('course_id', $class->course_id);
+                            });
+                        })
+                        ->orWhere(function ($q2) use ($class) {
+                            $q2->whereHas('lesson.module', function ($q3) use ($class) {
+                                $q3->where('course_id', $class->course_id);
+                            });
+                        });
+                });
+            $totalAssignments = (clone $assignmentsBase)->count();
+            $completedAssignments = $totalAssignments > 0
+                ? AssignmentSubmission::where('student_id', $studentId)
+                    ->whereIn('assignment_id', (clone $assignmentsBase)->pluck('assignments.id'))
+                    ->whereIn('status', ['submitted', 'graded', 'returned', 'resubmitted'])
+                    ->count()
+                : 0;
 
-            $totalQuizzes = $class->quizzes()->count();
-            $completedQuizzes = QuizAttempt::where('student_id', $studentId)
-                ->whereHas('quiz', function ($q) use ($class) {
-                    $q->where('class_id', $class->id);
-                })
-                ->whereIn('status', [
-                    QuizAttempt::STATUS_SUBMITTED,
-                    QuizAttempt::STATUS_AUTO_SUBMITTED,
-                    QuizAttempt::STATUS_GRADED,
-                ])
-                ->count();
+            $quizzesBase = Quiz::published()
+                ->where(function ($q) use ($class) {
+                    $q->where('quizzes.class_id', $class->id)
+                        ->orWhere(function ($q2) use ($class) {
+                            $q2->whereHas('module', function ($q3) use ($class) {
+                                $q3->where('course_id', $class->course_id);
+                            });
+                        })
+                        ->orWhere(function ($q2) use ($class) {
+                            $q2->whereHas('lesson.module', function ($q3) use ($class) {
+                                $q3->where('course_id', $class->course_id);
+                            });
+                        });
+                });
+            $totalQuizzes = (clone $quizzesBase)->count();
+            $completedQuizzes = $totalQuizzes > 0
+                ? QuizAttempt::where('student_id', $studentId)
+                    ->whereIn('quiz_id', (clone $quizzesBase)->pluck('quizzes.id'))
+                    ->whereIn('status', [
+                        QuizAttempt::STATUS_SUBMITTED,
+                        QuizAttempt::STATUS_AUTO_SUBMITTED,
+                        QuizAttempt::STATUS_GRADED,
+                    ])
+                    ->distinct('quiz_id')
+                    ->count('quiz_id')
+                : 0;
 
             // Calculate current grade
             $grades = Grade::where('student_id', $studentId)
@@ -156,7 +185,7 @@ class ClassController extends Controller
             ];
 
             // Get upcoming activities
-            $upcomingAssignments = $class->assignments()
+            $upcomingAssignments = (clone $assignmentsBase)
                 ->where('due_date', '>', now())
                 ->orderBy('due_date')
                 ->limit(3)
@@ -170,7 +199,7 @@ class ClassController extends Controller
                     ];
                 });
 
-            $upcomingQuizzes = $class->quizzes()
+            $upcomingQuizzes = (clone $quizzesBase)
                 ->where('availability_from', '>', now())
                 ->orderBy('availability_from')
                 ->limit(3)
@@ -287,18 +316,42 @@ class ClassController extends Controller
         $courseIds = $enrollments->pluck('class.course_id')->filter();
 
         // Get upcoming assignments
-        $assignments = Assignment::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $assignments = Assignment::published()
+            ->where(function ($q) use ($classIds, $courseIds) {
+                $q->whereIn('assignments.class_id', $classIds)
+                    ->orWhere(function ($q2) use ($courseIds) {
+                        $q2->whereHas('module', function ($q3) use ($courseIds) {
+                            $q3->whereIn('course_id', $courseIds);
+                        });
+                    })
+                    ->orWhere(function ($q2) use ($courseIds) {
+                        $q2->whereHas('lesson.module', function ($q3) use ($courseIds) {
+                            $q3->whereIn('course_id', $courseIds);
+                        });
+                    });
+            })
             ->where('due_date', '>=', now()->startOfMonth())
-            ->with('class.course')
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
             ->orderBy('due_date')
             ->get();
 
         // Get upcoming quizzes
-        $quizzes = Quiz::whereIn('class_id', $classIds)
-            ->where('status', 'published')
+        $quizzes = Quiz::published()
+            ->where(function ($q) use ($classIds, $courseIds) {
+                $q->whereIn('quizzes.class_id', $classIds)
+                    ->orWhere(function ($q2) use ($courseIds) {
+                        $q2->whereHas('module', function ($q3) use ($courseIds) {
+                            $q3->whereIn('course_id', $courseIds);
+                        });
+                    })
+                    ->orWhere(function ($q2) use ($courseIds) {
+                        $q2->whereHas('lesson.module', function ($q3) use ($courseIds) {
+                            $q3->whereIn('course_id', $courseIds);
+                        });
+                    });
+            })
             ->where('availability_from', '>=', now()->startOfMonth())
-            ->with('class.course')
+            ->with(['class.course', 'module.course', 'lesson.module.course'])
             ->orderBy('availability_from')
             ->get();
 
@@ -324,26 +377,34 @@ class ClassController extends Controller
         $events = collect();
 
         foreach ($assignments as $assignment) {
+            $course = $assignment->class?->course
+                ?? $assignment->module?->course
+                ?? $assignment->lesson?->module?->course;
+            $classCode = $assignment->class?->code ?? '';
             $events->push([
                 'title' => $assignment->title,
                 'type' => 'assignment',
                 'date' => $assignment->due_date->format('Y-m-d'),
                 'time' => $assignment->due_date->format('H:i'),
-                'course' => $assignment->class->course->title,
-                'class' => $assignment->class->code,
-                'url' => route('student.courses.assignments.show', [$assignment->class->course, $assignment]),
+                'course' => $course?->title ?? '',
+                'class' => $classCode,
+                'url' => $course ? route('student.courses.assignments.show', [$course, $assignment]) : '#',
             ]);
         }
 
         foreach ($quizzes as $quiz) {
+            $course = $quiz->class?->course
+                ?? $quiz->module?->course
+                ?? $quiz->lesson?->module?->course;
+            $classCode = $quiz->class?->code ?? '';
             $events->push([
                 'title' => $quiz->title,
                 'type' => 'quiz',
                 'date' => $quiz->availability_from->format('Y-m-d'),
                 'time' => $quiz->availability_from->format('H:i'),
-                'course' => $quiz->class->course->title,
-                'class' => $quiz->class->code,
-                'url' => route('student.courses.quizzes.show', [$quiz->class->course, $quiz]),
+                'course' => $course?->title ?? '',
+                'class' => $classCode,
+                'url' => $course ? route('student.courses.quizzes.show', [$course, $quiz]) : '#',
             ]);
         }
 
