@@ -76,7 +76,7 @@
                         <label style="display:block; margin-bottom:6px; color:#c7d4ec; font-size:0.85rem; font-weight:600;">Student</label>
                         <select name="student_id" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #374151; background:#1f2937; color:#eef4ff;">
                             <option value="">Select a student...</option>
-                            @foreach($course->enrollments()->where('status', 'active')->get() as $enrollment)
+                            @foreach($course->enrollments()->where('enrollments.status', 'active')->get() as $enrollment)
                                 <option value="{{ $enrollment->student_id }}">{{ $enrollment->student->name }} ({{ $enrollment->student->email }})</option>
                             @endforeach
                         </select>

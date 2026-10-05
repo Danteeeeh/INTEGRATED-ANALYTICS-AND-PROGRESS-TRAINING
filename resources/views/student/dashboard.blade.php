@@ -307,12 +307,20 @@
                                 <p class="dash-list-sub">Quiz · {{ $quiz->class?->course?->title ?? '' }}</p>
                             </div>
                             <div class="dash-list-meta">
-                                <span class="dash-meta-chip m-blue">Opens {{ $quiz->availability_from?->format('M j') }}</span>
-                                <span class="dash-list-date">{{ $quiz->availability_from?->diffForHumans() }}</span>
+                                @if($quiz->availability_from && $quiz->availability_from->isFuture())
+                                    <span class="dash-meta-chip m-blue">Opens {{ $quiz->availability_from->format('M j') }}</span>
+                                    <span class="dash-list-date">{{ $quiz->availability_from->diffForHumans() }}</span>
+                                @elseif($quiz->availability_until)
+                                    <span class="dash-meta-chip m-amber">Due {{ $quiz->availability_until->format('M j') }}</span>
+                                    <span class="dash-list-date">{{ $quiz->availability_until->diffForHumans() }}</span>
+                                @else
+                                    <span class="dash-meta-chip m-blue">Available</span>
+                                @endif
                             </div>
                         </a>
                     </li>
                 @empty
+                    <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming quizzes</li>
                 @endforelse
                 @forelse(($stats['upcoming_exams'] ?? []) as $exam)
                     <li class="dash-list-item">
@@ -323,12 +331,21 @@
                                 <p class="dash-list-sub">Exam · {{ $exam->class?->course?->title ?? '' }}</p>
                             </div>
                             <div class="dash-list-meta">
-                                <span class="dash-meta-chip m-rose">Starts {{ $exam->starts_at?->format('M j') }}</span>
-                                <span class="dash-list-date">{{ $exam->starts_at?->diffForHumans() }}</span>
+                                @if($exam->starts_at && $exam->starts_at->isFuture())
+                                    <span class="dash-meta-chip m-rose">Starts {{ $exam->starts_at->format('M j') }}</span>
+                                    <span class="dash-list-date">{{ $exam->starts_at->diffForHumans() }}</span>
+                                @elseif($exam->ends_at)
+                                    <span class="dash-meta-chip m-amber">Ends {{ $exam->ends_at->format('M j') }}</span>
+                                    <span class="dash-list-date">{{ $exam->ends_at->diffForHumans() }}</span>
+                                @else
+                                    <span class="dash-meta-chip m-rose">Available</span>
+                                @endif
                             </div>
                         </a>
                     </li>
                 @empty
+                    <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming exams</li>
+                @endforelse
                 @endforelse
                 @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty() && ($stats['upcoming_exams'] ?? [])->isEmpty())
                     <li class="dash-list-empty"><i class="fa-solid fa-mug-hot"></i> All caught up — nothing due soon</li>

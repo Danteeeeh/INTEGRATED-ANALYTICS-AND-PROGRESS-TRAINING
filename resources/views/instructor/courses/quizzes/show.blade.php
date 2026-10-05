@@ -102,7 +102,7 @@
                         <label for="student_id">Student</label>
                         <select id="student_id" name="student_id" required>
                             <option value="">Select a student...</option>
-                            @foreach($course->enrollments()->where('status', 'active')->get() as $enrollment)
+                            @foreach($course->enrollments()->where('enrollments.status', 'active')->get() as $enrollment)
                                 <option value="{{ $enrollment->student_id }}">{{ $enrollment->student->name }} ({{ $enrollment->student->email }})</option>
                             @endforeach
                         </select>

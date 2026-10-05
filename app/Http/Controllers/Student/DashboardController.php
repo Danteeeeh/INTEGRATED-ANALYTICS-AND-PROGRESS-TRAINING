@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\Assignment;
 use App\Models\AssignmentExtension;
 use App\Models\ClassModel;
 use App\Models\CourseCompletion;
@@ -55,9 +56,16 @@ class DashboardController extends Controller
         $classIds = $activeEnrollments->pluck('class_id');
         $courseIds = $activeEnrollments->pluck('class.course_id')->filter();
 
-        // Upcoming assignments
+        // Calculate week from now for upcoming items
+        $weekFromNow = now()->addDays(7);
+
+        // Upcoming assignments (due within the next 7 days, not yet submitted)
         $upcomingAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+            ->whereDoesntHave('submissions', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            })
             ->where('due_date', '>', now())
+            ->where('due_date', '<=', $weekFromNow)
             ->orderBy('due_date')
             ->limit(5)
             ->get();
@@ -101,9 +109,24 @@ class DashboardController extends Controller
             return $effectiveDeadline && $effectiveDeadline->isPast();
         })->take(5);
 
-        // Upcoming quizzes
+        // Upcoming quizzes (available now, opening soon, or due within the next 7 days)
         $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
-            ->where('availability_from', '>', now())
+            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            })
+            ->where(function ($query) use ($weekFromNow) {
+                // Quizzes currently available (opened and not expired)
+                $query->where('availability_from', '<=', now())
+                    ->where(function ($q) {
+                        $q->whereNull('availability_until')
+                            ->orWhere('availability_until', '>', now());
+                    });
+                // Quizzes opening within the next 7 days
+                $query->orWhere(function ($q) use ($weekFromNow) {
+                    $q->where('availability_from', '>', now())
+                        ->where('availability_from', '<=', $weekFromNow);
+                });
+            })
             ->orderBy('availability_from')
             ->limit(5)
             ->get();
@@ -115,9 +138,24 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Upcoming exams
+        // Upcoming exams (available now, starting soon, or ending within the next 7 days)
         $upcomingExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
-            ->where('starts_at', '>', now())
+            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            })
+            ->where(function ($query) use ($weekFromNow) {
+                // Exams currently available (started and not ended)
+                $query->where('starts_at', '<=', now())
+                    ->where(function ($q) {
+                        $q->whereNull('ends_at')
+                            ->orWhere('ends_at', '>', now());
+                    });
+                // Exams starting within the next 7 days
+                $query->orWhere(function ($q) use ($weekFromNow) {
+                    $q->where('starts_at', '>', now())
+                        ->where('starts_at', '<=', $weekFromNow);
+                });
+            })
             ->orderBy('starts_at')
             ->limit(5)
             ->get();
@@ -129,14 +167,17 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Upcoming virtual classes
+        // Upcoming virtual classes (within the next 7 days)
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->where(function ($query) {
+            ->where(function ($query) use ($weekFromNow) {
+                // Virtual classes in the next 7 days
                 $query->whereDate('meeting_date', '>', today())
-                    ->orWhere(function ($sameDay) {
-                        $sameDay->whereDate('meeting_date', today())
-                            ->whereTime('start_time', '>', now()->format('H:i:s'));
-                    });
+                    ->whereDate('meeting_date', '<=', $weekFromNow);
+                // Virtual classes today that haven't started yet
+                $query->orWhere(function ($sameDay) {
+                    $sameDay->whereDate('meeting_date', today())
+                        ->whereTime('start_time', '>', now()->format('H:i:s'));
+                });
             })
             ->with('class.course')
             ->orderBy('meeting_date')
@@ -205,7 +246,8 @@ class DashboardController extends Controller
             $upcomingActivities->push([
                 'title' => $assignment->title,
                 'type' => 'Assignment',
-                'date' => $assignment->due_date->format('M d, Y g:i A'),
+                'date' => $assignment->due_date ? $assignment->due_date->format('M d, Y g:i A') : 'No due date',
+                'date_obj' => $assignment->due_date ?? now()->addYears(100),
                 'url' => $assignment->class_id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#',
             ]);
         }
@@ -213,7 +255,8 @@ class DashboardController extends Controller
             $upcomingActivities->push([
                 'title' => $quiz->title,
                 'type' => 'Quiz',
-                'date' => $quiz->availability_from->format('M d, Y g:i A'),
+                'date' => $quiz->availability_from ? $quiz->availability_from->format('M d, Y g:i A') : 'Available now',
+                'date_obj' => $quiz->availability_from ?? now(),
                 'url' => $quiz->class_id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#',
             ]);
         }
@@ -221,7 +264,8 @@ class DashboardController extends Controller
             $upcomingActivities->push([
                 'title' => $exam->title,
                 'type' => 'Exam',
-                'date' => $exam->starts_at->format('M d, Y g:i A'),
+                'date' => $exam->starts_at ? $exam->starts_at->format('M d, Y g:i A') : 'Available now',
+                'date_obj' => $exam->starts_at ?? now(),
                 'url' => $exam->class_id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#',
             ]);
         }
@@ -230,10 +274,14 @@ class DashboardController extends Controller
                 'title' => $virtualClass->title,
                 'type' => 'Virtual Class',
                 'date' => $virtualClass->meeting_date->format('M d, Y').' '.$virtualClass->start_time,
+                'date_obj' => $virtualClass->meeting_date,
                 'url' => route('student.classes.virtual_classes.show', [$virtualClass->class, $virtualClass]),
             ]);
         }
-        $upcomingActivities = $upcomingActivities->sortBy('date')->take(5);
+        $upcomingActivities = $upcomingActivities->sortBy('date_obj')->map(function ($item) {
+            unset($item['date_obj']);
+            return $item;
+        })->take(5);
 
         // Learning streak (consecutive days with activity)
         $learningStreak = $this->calculateLearningStreak($studentId);

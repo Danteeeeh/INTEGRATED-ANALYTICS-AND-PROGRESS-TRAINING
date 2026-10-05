@@ -78,15 +78,23 @@
             </a>
         </div>
         <div style="padding: 16px 24px;">
-            @forelse($lesson->materials as $material)
+            @forelse($lesson->lessonMaterials as $material)
                 <div class="module-mini-card">
                     <div class="module-mini-icon"><i class="fa-solid fa-paperclip"></i></div>
                     <div class="module-mini-body">
-                        <div class="module-mini-title">{{ $material->pivot->title ?? $material->filename }}</div>
+                        <div class="module-mini-title">
+                            {{ $material->title ?? $material->mediaFile?->file_name ?? 'Untitled' }}
+                            @if($material->is_required)
+                                <span style="margin:0 8px;"><span class="badge-published">Required</span></span>
+                            @endif
+                        </div>
                         <div class="module-mini-meta">
-                            {{ $material->file_type ?? 'File' }}
-                            @if($material->pivot->is_required ?? false)
-                                <span style="margin:0 8px;">·</span><span class="badge-published">Required</span>
+                            {{ $material->mediaFile?->mime_type ?? 'File' }}
+                            @if($material->mediaFile)
+                                <span style="margin:0 8px;">·</span>
+                                <a href="{{ route('files.download', $material->mediaFile) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                    <i class="fa-solid fa-download"></i> Download
+                                </a>
                             @endif
                         </div>
                     </div>

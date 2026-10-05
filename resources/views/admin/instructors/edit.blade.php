@@ -23,6 +23,7 @@
             <form action="{{ route('admin.instructors.update', $instructor) }}" method="POST" class="enhanced-form">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="role_id" value="{{ $instructor->role_id }}">
 
                 <div class="form-section" data-section="1">
                     <div class="modal-section-title">

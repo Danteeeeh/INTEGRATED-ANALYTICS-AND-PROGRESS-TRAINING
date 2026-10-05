@@ -216,6 +216,11 @@ class FileUploadService
 
     public function getFileUrl(MediaFile $mediaFile): string
     {
+        // For public files, return the direct URL
+        if ($mediaFile->disk === 'public') {
+            return Storage::disk('public')->url($mediaFile->path);
+        }
+
         // For private files, we need a secure download route
         return route('files.download', $mediaFile->id);
     }

@@ -123,15 +123,18 @@
     </div>
     <section class="student-activity-panel" aria-label="Weekly learning activity">
         <div class="activity-chart">
-            @foreach($weeklyActivity as $day)
+            @foreach($weeklyActivity['data'] as $day)
                 <div class="activity-day">
                     <div class="activity-label">{{ $day['date'] }}</div>
                     <div class="activity-bars">
-                        <div class="activity-bar activity-bar--lessons" style="height: {{ min($day['lessons_completed'] * 20, 100) }}%" title="{{ $day['lessons_completed'] }} lessons">
+                        <div class="activity-bar activity-bar--lessons" style="height: {{ $day['lessons_completed'] > 0 ? min(($day['lessons_completed'] / $weeklyActivity['max']['lessons']) * 100, 100) : 0 }}%" title="{{ $day['lessons_completed'] }} lessons">
                             <span>{{ $day['lessons_completed'] }}</span>
                         </div>
-                        <div class="activity-bar activity-bar--quizzes" style="height: {{ min($day['quizzes_taken'] * 20, 100) }}%" title="{{ $day['quizzes_taken'] }} quizzes">
+                        <div class="activity-bar activity-bar--quizzes" style="height: {{ $day['quizzes_taken'] > 0 ? min(($day['quizzes_taken'] / $weeklyActivity['max']['quizzes']) * 100, 100) : 0 }}%" title="{{ $day['quizzes_taken'] }} quizzes">
                             <span>{{ $day['quizzes_taken'] }}</span>
+                        </div>
+                        <div class="activity-bar activity-bar--assignments" style="height: {{ $day['assignments_submitted'] > 0 ? min(($day['assignments_submitted'] / $weeklyActivity['max']['assignments']) * 100, 100) : 0 }}%" title="{{ $day['assignments_submitted'] }} assignments">
+                            <span>{{ $day['assignments_submitted'] }}</span>
                         </div>
                     </div>
                 </div>
@@ -140,6 +143,7 @@
         <div class="activity-legend">
             <span class="legend-item"><span class="legend-color lessons"></span> Lessons Completed</span>
             <span class="legend-item"><span class="legend-color quizzes"></span> Quizzes Taken</span>
+            <span class="legend-item"><span class="legend-color assignments"></span> Assignments Submitted</span>
         </div>
     </section>
 

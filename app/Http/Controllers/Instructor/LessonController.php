@@ -89,9 +89,10 @@ class LessonController extends Controller
         // Handle file uploads for lesson materials
         if ($request->hasFile('materials')) {
             $fileUploadService = new FileUploadService();
-            
+
             foreach ($request->file('materials') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                    'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,
                 ]);
@@ -185,9 +186,10 @@ class LessonController extends Controller
         if ($request->hasFile('materials')) {
             $fileUploadService = new FileUploadService();
             $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
-            
+
             foreach ($request->file('materials') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                    'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,
                 ]);
@@ -278,7 +280,8 @@ class LessonController extends Controller
             $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
 
             foreach ($request->file('files') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                    'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,
                 ]);
@@ -355,7 +358,7 @@ class LessonController extends Controller
             ->with('success', 'Material added successfully.');
     }
 
-    public function updateMaterial(Request $request, Course $course, Module $module, Lesson $lesson, LessonMaterial $material): RedirectResponse
+    public function updateMaterial(Request $request, Course $course, Module $module, Lesson $lesson, LessonMaterial $material): \Illuminate\Http\JsonResponse
     {
         $this->authorize('update', $lesson);
 
@@ -376,8 +379,11 @@ class LessonController extends Controller
 
         $material->update($validated);
 
-        return redirect()->route('instructor.courses.modules.lessons.materials', [$course, $module, $lesson])
-            ->with('success', 'Material updated successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Material updated successfully.',
+            'data' => $material->load('mediaFile')
+        ]);
     }
 
     public function deleteMaterial(Course $course, Module $module, Lesson $lesson, LessonMaterial $material): RedirectResponse

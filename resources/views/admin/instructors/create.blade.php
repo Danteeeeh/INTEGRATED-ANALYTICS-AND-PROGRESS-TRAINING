@@ -22,6 +22,7 @@
         <div class="user-panel-body">
             <form action="{{ route('admin.instructors.store') }}" method="POST" class="enhanced-form">
                 @csrf
+                <input type="hidden" name="role_id" value="{{ $roles->first()->id ?? '' }}">
 
                 <div class="form-section" data-section="1">
                     <div class="modal-section-title">

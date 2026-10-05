@@ -101,7 +101,7 @@
             </div>
             
             <div style="display: flex; gap: 8px; margin-top: 16px;">
-                <button type="button" onclick="addMaterial()" class="btn-add" style="flex: 1; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                <button type="button" id="submitMaterialBtn" onclick="addMaterial()" class="btn-add" style="flex: 1; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
                     <i class="fa-solid fa-plus"></i> Add Material
                 </button>
                 <button type="button" onclick="cancelUpload()" class="btn-modal-cancel" style="flex: 1; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
@@ -165,7 +165,7 @@
                             @endif
                             @if($material->mediaFile)
                                 <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
-                                    {{ $material->mediaFile->file_name }} • {{ \App\Helpers\FileHelper::formatFileSize($material->mediaFile->file_size) }}
+                                    {{ $material->mediaFile->file_name }} • {{ \App\Helpers\FileHelper::formatFileSize($material->mediaFile->size) }}
                                 </div>
                             @endif
                             @if($material->access_until)
@@ -178,14 +178,19 @@
                         <!-- Actions -->
                         <div style="display: flex; gap: 8px; margin-left: 16px;">
                             @if($material->mediaFile)
+                                <a href="{{ $material->mediaFile->url }}"
+                                   target="_blank"
+                                   class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
                                 <a href="{{ route('files.download', $material->mediaFile) }}"
-                                   class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem;">
-                                    <i class="fa-solid fa-download"></i>
+                                   class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-download"></i> Download
                                 </a>
                             @endif
                             <button type="button" onclick="editMaterial({{ $material->id }})"
-                                    class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
-                                <i class="fa-solid fa-edit"></i>
+                                    class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-edit"></i> Edit
                             </button>
                             <form method="POST" action="{{ route('instructor.courses.modules.lessons.materials.delete', [$course, $module, $lesson, $material]) }}"
                                   onsubmit="return confirm('Are you sure you want to delete this material?');" style="display: inline;">
@@ -278,12 +283,20 @@
 
         function cancelUpload() {
             uploadedFiles = [];
+            currentMaterialId = null;
             document.getElementById('materialForm').style.display = 'none';
             document.getElementById('dropZoneContent').style.display = 'block';
             document.getElementById('fileInput').value = '';
             document.getElementById('materialTitle').value = '';
             document.getElementById('materialDescription').value = '';
             document.getElementById('materialAccessUntil').value = '';
+
+            // Reset button back to Add Material
+            const addButton = document.getElementById('submitMaterialBtn');
+            if (addButton) {
+                addButton.innerHTML = '<i class="fa-solid fa-plus"></i> Add Material';
+                addButton.onclick = addMaterial;
+            }
         }
 
         async function addMaterial() {
@@ -313,7 +326,10 @@
             });
             formData.append('title', title);
             formData.append('description', description);
-            formData.append('is_required', required);
+            formData.append('is_required', required ? '1' : '0');
+            if (accessUntil) {
+                formData.append('access_until', accessUntil);
+            }
 
             try {
                 const response = await fetch('{{ route('instructor.courses.modules.lessons.materials.upload', [$course, $module, $lesson]) }}', {
@@ -354,8 +370,89 @@
         }
 
         function editMaterial(materialId) {
-            // Implement edit functionality
-            alert('Edit functionality for material ' + materialId);
+            // Find the material data from the page
+            const materials = @json($lesson->lessonMaterials);
+            const material = materials.find(m => m.id === materialId);
+
+            if (!material) {
+                alert('Material not found');
+                return;
+            }
+
+            // Populate the form with material data
+            document.getElementById('materialTitle').value = material.title || '';
+            document.getElementById('materialDescription').value = material.description || '';
+            document.getElementById('materialPosition').value = material.position || 1;
+            document.getElementById('materialRequired').checked = material.is_required || false;
+
+            if (material.access_until) {
+                const accessUntil = new Date(material.access_until);
+                // Format to datetime-local format (YYYY-MM-DDTHH:mm)
+                const offset = accessUntil.getTimezoneOffset() * 60000;
+                const localISOTime = (new Date(accessUntil - offset)).toISOString().slice(0, 16);
+                document.getElementById('materialAccessUntil').value = localISOTime;
+            } else {
+                document.getElementById('materialAccessUntil').value = '';
+            }
+
+            // Store the material ID for updating
+            currentMaterialId = materialId;
+
+            // Show the form
+            showMaterialForm();
+
+            // Change the add button to update button
+            const addButton = document.getElementById('submitMaterialBtn');
+            addButton.innerHTML = '<i class="fa-solid fa-save"></i> Update Material';
+            addButton.onclick = function() { updateMaterial(materialId); };
+        }
+
+        async function updateMaterial(materialId) {
+            const title = document.getElementById('materialTitle').value;
+            const description = document.getElementById('materialDescription').value;
+            const position = document.getElementById('materialPosition').value;
+            const required = document.getElementById('materialRequired').checked;
+            const accessUntil = document.getElementById('materialAccessUntil').value;
+
+            if (!title) {
+                alert('Please enter a title for the material');
+                return;
+            }
+
+            try {
+                const response = await fetch('{{ route('instructor.courses.modules.lessons.materials.update', [$course, $module, $lesson, 'ID']) }}'.replace('ID', materialId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        position: position,
+                        is_required: required,
+                        access_until: accessUntil || null,
+                        _method: 'PUT'
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.message || 'Update failed');
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Material updated successfully!');
+                    location.reload();
+                } else {
+                    throw new Error(result.message || 'Update failed');
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                alert('Error updating material: ' + error.message);
+            }
         }
 
         async function deleteMaterial(materialId) {

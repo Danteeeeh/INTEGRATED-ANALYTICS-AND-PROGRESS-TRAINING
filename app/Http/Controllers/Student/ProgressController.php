@@ -53,15 +53,18 @@ class ProgressController extends Controller
                     })
                     ->get();
 
+                $totalModules = $course->modules()->published()->count();
+                $totalLessons = $course->lessons()->published()->count();
+
                 $courseProgressData[] = [
                     'course' => $course,
                     'class' => $enrollment->class,
                     'progress' => $progress ? $progress->progress_percent : 0,
                     'last_accessed' => $progress ? $progress->updated_at : null,
                     'modules_completed' => $moduleProgress->where('status', 'completed')->count(),
-                    'total_modules' => $moduleProgress->count(),
+                    'total_modules' => $totalModules,
                     'lessons_completed' => $lessonProgress->where('status', 'completed')->count(),
-                    'total_lessons' => $lessonProgress->count(),
+                    'total_lessons' => $totalLessons,
                 ];
             }
         }
@@ -167,21 +170,43 @@ class ProgressController extends Controller
     protected function getWeeklyActivity(int $studentId): array
     {
         $activity = [];
+        $maxLessons = 0;
+        $maxQuizzes = 0;
+        $maxAssignments = 0;
+
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
+            $lessonsCompleted = LessonProgress::where('student_id', $studentId)
+                ->whereDate('updated_at', $date)
+                ->where('status', 'completed')
+                ->count();
+            $quizzesTaken = QuizAttempt::where('student_id', $studentId)
+                ->whereDate('created_at', $date)
+                ->count();
+            $assignmentsSubmitted = AssignmentSubmission::where('student_id', $studentId)
+                ->whereDate('submitted_at', $date)
+                ->count();
+
+            $maxLessons = max($maxLessons, $lessonsCompleted);
+            $maxQuizzes = max($maxQuizzes, $quizzesTaken);
+            $maxAssignments = max($maxAssignments, $assignmentsSubmitted);
+
             $activity[] = [
                 'date' => $date->format('D'),
-                'lessons_completed' => LessonProgress::where('student_id', $studentId)
-                    ->whereDate('updated_at', $date)
-                    ->where('status', 'completed')
-                    ->count(),
-                'quizzes_taken' => QuizAttempt::where('student_id', $studentId)
-                    ->whereDate('created_at', $date)
-                    ->count(),
+                'lessons_completed' => $lessonsCompleted,
+                'quizzes_taken' => $quizzesTaken,
+                'assignments_submitted' => $assignmentsSubmitted,
             ];
         }
 
-        return $activity;
+        return [
+            'data' => $activity,
+            'max' => [
+                'lessons' => max($maxLessons, 1),
+                'quizzes' => max($maxQuizzes, 1),
+                'assignments' => max($maxAssignments, 1),
+            ],
+        ];
     }
 
     protected function getCompletionTimeline(int $studentId): array

@@ -155,10 +155,16 @@
                                         <span style="font-size: 0.75rem; color: var(--dash-muted, #9eafca);">({{ $material->extension ?? '—' }})</span>
                                     </div>
                                     <div style="display: flex; gap: 8px;">
-                                        <a href="{{ $material->url }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
-                                        <form method="POST" action="{{ route('instructor.courses.modules.lessons.deleteMaterial', [$course, $module, $lesson, $material->pivot->id ?? $material->id]) }}" onsubmit="return confirm('Delete this material?');" style="display: inline;">
+                                        @if($material->pivot)
+                                            <a href="{{ route('files.download', $material->pivot->mediaFile) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                        @else
+                                            <a href="{{ $material->url }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                        @endif
+                                        <form method="POST" action="{{ route('instructor.courses.modules.lessons.materials.delete', [$course, $module, $lesson, $material->pivot->id ?? $material->id]) }}" onsubmit="return confirm('Delete this material?');" style="display: inline;">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;">
