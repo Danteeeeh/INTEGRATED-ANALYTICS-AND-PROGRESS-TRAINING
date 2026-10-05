@@ -277,6 +277,8 @@ class ExamController extends Controller
 
     public function grantExtension(Request $request, Course $course, Exam $exam): RedirectResponse
     {
+        $this->authorize('extendDeadline', $exam);
+
         // Verify instructor owns this exam
         if ($exam->class->instructor_id !== auth()->id()) {
             abort(403);
@@ -320,6 +322,8 @@ class ExamController extends Controller
 
     public function revokeExtension(Course $course, Exam $exam, int $studentId): RedirectResponse
     {
+        $this->authorize('extendDeadline', $exam);
+
         // Verify instructor owns this exam
         if ($exam->class->instructor_id !== auth()->id()) {
             abort(403);

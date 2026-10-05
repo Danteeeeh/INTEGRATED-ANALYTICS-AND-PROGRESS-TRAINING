@@ -323,7 +323,7 @@ class AssignmentController extends Controller
 
     public function grantExtension(Request $request, Course $course, Assignment $assignment): RedirectResponse
     {
-        $this->authorize('update', $assignment);
+        $this->authorize('extendDeadline', $assignment);
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
@@ -365,7 +365,7 @@ class AssignmentController extends Controller
 
     public function revokeExtension(Course $course, Assignment $assignment, int $studentId): RedirectResponse
     {
-        $this->authorize('update', $assignment);
+        $this->authorize('extendDeadline', $assignment);
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 

@@ -482,7 +482,7 @@ class QuizController extends Controller
 
     public function grantExtension(Request $request, Course $course, Quiz $quiz): RedirectResponse
     {
-        $this->authorize('update', $quiz);
+        $this->authorize('extendDeadline', $quiz);
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
@@ -524,7 +524,7 @@ class QuizController extends Controller
 
     public function revokeExtension(Course $course, Quiz $quiz, int $studentId): RedirectResponse
     {
-        $this->authorize('update', $quiz);
+        $this->authorize('extendDeadline', $quiz);
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 

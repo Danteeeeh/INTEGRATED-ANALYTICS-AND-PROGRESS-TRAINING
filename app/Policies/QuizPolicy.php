@@ -142,4 +142,72 @@ class QuizPolicy
 
         return false;
     }
+
+    public function reopen(User $user, Quiz $quiz): bool
+    {
+        if (! $user->hasPermission('quizzes.reopen')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $user->classesInstructing()->where('id', $quiz->class_id)->exists();
+        }
+
+        return false;
+    }
+
+    public function extendDeadline(User $user, Quiz $quiz): bool
+    {
+        if (! $user->hasPermission('quizzes.extend_deadline')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $user->classesInstructing()->where('id', $quiz->class_id)->exists();
+        }
+
+        return false;
+    }
+
+    public function resetAttempt(User $user, Quiz $quiz): bool
+    {
+        if (! $user->hasPermission('quizzes.reset_attempt')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $user->classesInstructing()->where('id', $quiz->class_id)->exists();
+        }
+
+        return false;
+    }
+
+    public function manageSettings(User $user, Quiz $quiz): bool
+    {
+        if (! $user->hasPermission('quizzes.manage_settings')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $user->classesInstructing()->where('id', $quiz->class_id)->exists();
+        }
+
+        return false;
+    }
 }

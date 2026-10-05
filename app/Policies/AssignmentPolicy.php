@@ -177,4 +177,89 @@ class AssignmentPolicy
 
         return false;
     }
+
+    public function reopen(User $user, Assignment $assignment): bool
+    {
+        if (! $user->hasPermission('assignments.reopen')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $this->instructorManagesAssignment($user, $assignment);
+        }
+
+        return false;
+    }
+
+    public function extendDeadline(User $user, Assignment $assignment): bool
+    {
+        if (! $user->hasPermission('assignments.extend_deadline')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $this->instructorManagesAssignment($user, $assignment);
+        }
+
+        return false;
+    }
+
+    public function allowResubmission(User $user, Assignment $assignment): bool
+    {
+        if (! $user->hasPermission('assignments.allow_resubmission')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $this->instructorManagesAssignment($user, $assignment);
+        }
+
+        return false;
+    }
+
+    public function resetAttempt(User $user, Assignment $assignment): bool
+    {
+        if (! $user->hasPermission('assignments.reset_attempt')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $this->instructorManagesAssignment($user, $assignment);
+        }
+
+        return false;
+    }
+
+    public function manageSettings(User $user, Assignment $assignment): bool
+    {
+        if (! $user->hasPermission('assignments.manage_settings')) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isInstructor()) {
+            return $this->instructorManagesAssignment($user, $assignment);
+        }
+
+        return false;
+    }
 }
