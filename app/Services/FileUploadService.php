@@ -51,7 +51,19 @@ class FileUploadService
 
         // Store file
         $disk = $options['disk'] ?? 'local';
-        $filePath = $file->storeAs($folder, $safeName, $disk);
+        
+        try {
+            $filePath = $file->storeAs($folder, $safeName, $disk);
+        } catch (\Exception $e) {
+            \Log::error('File storage error: ' . $e->getMessage(), [
+                'folder' => $folder,
+                'filename' => $safeName,
+                'disk' => $disk,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('Failed to store file: ' . $e->getMessage());
+        }
+        
         $fullPath = Storage::disk($disk)->path($filePath);
 
         // Create media file record

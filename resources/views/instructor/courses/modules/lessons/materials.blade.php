@@ -324,6 +324,20 @@
                     body: formData
                 });
 
+                // Check if response is OK
+                if (!response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorResult = await response.json();
+                        throw new Error(errorResult.message || 'Upload failed');
+                    } else {
+                        // Server returned HTML error page
+                        const text = await response.text();
+                        console.error('Server error:', text);
+                        throw new Error('Server error: ' + response.status + ' ' + response.statusText);
+                    }
+                }
+
                 const result = await response.json();
 
                 if (result.success) {
@@ -333,6 +347,7 @@
                     throw new Error(result.message || 'Upload failed');
                 }
             } catch (error) {
+                console.error('Upload error:', error);
                 alert('Error uploading files: ' + error.message);
                 cancelUpload();
             }
