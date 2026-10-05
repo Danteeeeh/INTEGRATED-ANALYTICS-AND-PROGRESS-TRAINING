@@ -281,6 +281,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Nested navigation toggles (departments and programs in Academic section)
+    const expandableLinks = document.querySelectorAll('.nav-link--expandable, .nav-link--program-toggle');
+    expandableLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const isExpanded = link.getAttribute('aria-expanded') === 'true';
+            const targetId = link.dataset.sidebarSubgroup || link.dataset.sidebarProgram;
+            const targetList = targetId ? document.getElementById(targetId) : link.nextElementSibling;
+
+            if (targetList) {
+                link.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+                targetList.classList.toggle('hidden', isExpanded);
+            }
+        });
+
+        link.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                link.click();
+            }
+        });
+    });
+
     // Prevent duplicate submissions and give every POST/PUT/DELETE form immediate feedback.
     document.querySelectorAll('form').forEach(function(form) {
         if (form.dataset.noLoading === 'true' || (form.method || 'get').toLowerCase() === 'get') return;

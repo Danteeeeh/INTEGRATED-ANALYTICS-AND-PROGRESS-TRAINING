@@ -59,14 +59,16 @@ class AssignmentController extends Controller
     {
         $this->authorize('create', Assignment::class);
 
+        $isDraft = $request->input('status') === 'draft';
+
         $validated = $request->validate([
             'class_id' => 'nullable|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
             'title' => 'required|string|max:255',
-            'instructions' => 'required|string',
-            'points' => 'required|integer|min:0',
-            'submission_type' => 'required|string|in:text,file,multiple_files',
+            'instructions' => $isDraft ? 'nullable|string' : 'required|string',
+            'points' => $isDraft ? 'nullable|integer|min:0' : 'required|integer|min:0',
+            'submission_type' => $isDraft ? 'nullable|string|in:text,file,multiple_files' : 'required|string|in:text,file,multiple_files',
             'due_date' => 'nullable|date',
             'allow_late' => 'boolean',
             'late_submission_deduction_percent' => 'nullable|integer|min:0|max:100',
@@ -129,14 +131,16 @@ class AssignmentController extends Controller
     {
         $this->authorize('update', $assignment);
 
+        $isDraft = $request->input('status') === 'draft';
+
         $validated = $request->validate([
             'class_id' => 'nullable|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
             'title' => 'required|string|max:255',
-            'instructions' => 'required|string',
-            'points' => 'required|integer|min:0',
-            'submission_type' => 'required|string|in:text,file,multiple_files',
+            'instructions' => $isDraft ? 'nullable|string' : 'required|string',
+            'points' => $isDraft ? 'nullable|integer|min:0' : 'required|integer|min:0',
+            'submission_type' => $isDraft ? 'nullable|string|in:text,file,multiple_files' : 'required|string|in:text,file,multiple_files',
             'due_date' => 'nullable|date',
             'allow_late' => 'boolean',
             'late_submission_deduction_percent' => 'nullable|integer|min:0|max:100',

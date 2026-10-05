@@ -182,7 +182,7 @@
 
                     <div class="cc-field">
                         <label>Status <span class="req">*</span></label>
-                        <select name="status" required>
+                        <select name="status" required id="statusField">
                             <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
                             <option value="published" {{ old('status') == 'published' ? 'selected' : '' }}>Published</option>
                         </select>
@@ -216,8 +216,8 @@
                     </div>
 
                     <div class="cc-field">
-                        <label>Result Visibility <span class="req">*</span></label>
-                        <select name="result_visibility" required>
+                        <label>Result Visibility <span class="req" id="resultVisibilityReq">*</span></label>
+                        <select name="result_visibility" id="resultVisibilityField">
                             @foreach($resultVisibilityOptions as $value => $label)
                                 <option value="{{ $value }}" {{ old('result_visibility', 'after_grading') === $value ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
@@ -243,6 +243,42 @@
                         <textarea name="instructions" rows="3" placeholder="Instructions para sa mga estudyante..." data-char-count="instCount">{{ old('instructions') }}</textarea>
                         <span class="cc-char" id="instCount">0 characters</span>
                         @error('instructions')<span class="error-message">{{ $message }}</span>@enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-list-check"></i> Questions</div>
+                <div class="cc-grid">
+                    <div class="cc-field full">
+                        <div id="questionsContainer">
+                            <div class="cc-hint" style="margin-bottom: 12px;">Add questions to your quiz. You can add multiple choice questions.</div>
+                            <button type="button" class="cc-btn cc-btn-save" onclick="addQuestion()" style="font-size: 0.78rem; padding: 9px 18px;">
+                                <i class="fa-solid fa-plus"></i> Add Question
+                            </button>
+                            <div id="questionsList" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cc-section">
+                <div class="cc-section-title"><i class="fa-solid fa-file-import"></i> Import Questions (Optional)</div>
+                <div class="cc-grid">
+                    <div class="cc-field full">
+                        <label>Upload Questions File (CSV or TXT)</label>
+                        <input type="file" name="import_file" accept=".csv,.txt" class="form-input">
+                        <span class="cc-hint">Upload a CSV or TXT file with questions. Format: numbered questions with choices marked with * for correct answers.</span>
+                    </div>
+                    <div class="cc-field">
+                        <label>Add to Question Bank (Optional)</label>
+                        <select name="question_bank_id" class="form-input">
+                            <option value="">No Question Bank</option>
+                            @foreach(\App\Models\QuestionBank::where('created_by', auth()->id())->orWhere('course_id', $course->id)->active()->get() as $bank)
+                                <option value="{{ $bank->id }}">{{ $bank->title }}</option>
+                            @endforeach
+                        </select>
+                        <span class="cc-hint">Questions will also be saved to this question bank for reuse</span>
                     </div>
                 </div>
             </div>
@@ -277,5 +313,76 @@
         form.addEventListener('change', () => { dirty = true; });
         form.addEventListener('submit', () => { dirty = false; });
         window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+        // Conditional required fields based on status
+        const statusField = document.getElementById('statusField');
+        const resultVisibilityField = document.getElementById('resultVisibilityField');
+        const resultVisibilityReq = document.getElementById('resultVisibilityReq');
+
+        function updateRequiredFields() {
+            const isDraft = statusField.value === 'draft';
+
+            if (isDraft) {
+                resultVisibilityField.removeAttribute('required');
+                resultVisibilityReq.style.display = 'none';
+            } else {
+                resultVisibilityField.setAttribute('required', 'required');
+                resultVisibilityReq.style.display = 'inline';
+            }
+        }
+
+        if (statusField) {
+            statusField.addEventListener('change', updateRequiredFields);
+            updateRequiredFields();
+        }
+
+        // Questions management
+        let questionCount = 0;
+
+        function addQuestion() {
+            questionCount++;
+            const questionsList = document.getElementById('questionsList');
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item';
+            questionDiv.style.cssText = 'background: rgba(139,92,246,.08); border: 1px solid rgba(139,92,246,.2); border-radius: 12px; padding: 20px; margin-bottom: 16px;';
+            questionDiv.id = 'question-' + questionCount;
+
+            questionDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <span style="color: #a78bfa; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Question ${questionCount}</span>
+                    <button type="button" onclick="removeQuestion(${questionCount})" style="background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">
+                        <i class="fa-solid fa-trash"></i> Remove
+                    </button>
+                </div>
+                <div class="cc-field" style="margin-bottom: 14px;">
+                    <label>Question Text <span class="req">*</span></label>
+                    <textarea name="questions[${questionCount}][text]" rows="2" required placeholder="Enter your question here..." style="width: 100%; min-height: 70px; padding: 9px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 9px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.88rem;"></textarea>
+                </div>
+                <div class="cc-field" style="margin-bottom: 14px;">
+                    <label>Points</label>
+                    <input type="number" name="questions[${questionCount}][points]" value="1" min="1" style="width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 9px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.88rem;">
+                </div>
+                <div style="margin-top: 12px;">
+                    <label style="color: var(--bcp-muted, #98a7c4); font-size: 0.72rem; font-weight: 750; margin-bottom: 8px; display: block;">Choices (mark the correct answer)</label>
+                    <div id="choices-${questionCount}">
+                        ${[1, 2, 3, 4].map(i => `
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="radio" name="questions[${questionCount}][correct_choice]" value="${i}" style="accent-color: #8b5cf6; cursor: pointer;">
+                                <input type="text" name="questions[${questionCount}][choices][${i}]" placeholder="Choice ${i}" required style="flex: 1; min-height: 38px; padding: 8px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 8px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.85rem;">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            questionsList.appendChild(questionDiv);
+        }
+
+        function removeQuestion(id) {
+            const questionDiv = document.getElementById('question-' + id);
+            if (questionDiv) {
+                questionDiv.remove();
+            }
+        }
     </script>
 @endsection

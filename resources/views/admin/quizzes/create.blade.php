@@ -268,8 +268,8 @@
                         @error('auto_save_seconds')<span class="quiz-error">{{ $message }}</span>@enderror
                     </div>
                     <div class="quiz-field">
-                        <label for="result_visibility">Result visibility</label>
-                        <select id="result_visibility" name="result_visibility" required>
+                        <label for="result_visibility">Result visibility <span id="resultVisibilityReq" class="required">*</span></label>
+                        <select id="result_visibility" name="result_visibility">
                             @foreach(['always' => 'Always visible', 'after_grading' => 'After grading', 'never' => 'Hidden'] as $value => $label)
                                 <option value="{{ $value }}" @selected(old('result_visibility', 'after_grading') === $value)>{{ $label }}</option>
                             @endforeach
@@ -301,10 +301,54 @@
                 </div>
             </section>
 
+            <section class="quiz-form-section">
+                <h4><i class="fa-solid fa-file-import"></i> Import Questions (Optional)</h4>
+                <div class="quiz-form-grid">
+                    <div class="quiz-field full">
+                        <label for="import_file">Upload Questions File (CSV or TXT)</label>
+                        <input id="import_file" type="file" name="import_file" accept=".csv,.txt">
+                        <span class="quiz-hint">Upload a CSV or TXT file with questions. Format: numbered questions with choices marked with * for correct answers. Example: "1. Question text? a. Choice1* b. Choice2 Type: multiple_choice Points: 1"</span>
+                    </div>
+                    <div class="quiz-field">
+                        <label for="question_bank_id">Add to Question Bank (Optional)</label>
+                        <select id="question_bank_id" name="question_bank_id">
+                            <option value="">No Question Bank</option>
+                            @foreach(\App\Models\QuestionBank::active()->get() as $bank)
+                                <option value="{{ $bank->id }}">{{ $bank->title }}</option>
+                            @endforeach
+                        </select>
+                        <span class="quiz-hint">Questions will also be saved to this question bank for reuse</span>
+                    </div>
+                </div>
+            </section>
+
             <div class="quiz-form-footer">
                 <a href="{{ route('admin.quizzes.index') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Create quiz</button>
             </div>
         </form>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusField = document.getElementById('status');
+        const resultVisibilityField = document.getElementById('result_visibility');
+        const resultVisibilityReq = document.getElementById('resultVisibilityReq');
+
+        function updateRequiredFields() {
+            const isDraft = statusField.value === 'draft';
+
+            if (isDraft) {
+                resultVisibilityField.removeAttribute('required');
+                resultVisibilityReq.style.display = 'none';
+            } else {
+                resultVisibilityField.setAttribute('required', 'required');
+                resultVisibilityReq.style.display = 'inline';
+            }
+        }
+
+        statusField.addEventListener('change', updateRequiredFields);
+        updateRequiredFields();
+    });
+    </script>
 @endsection

@@ -181,8 +181,8 @@
                     </div>
 
                     <div class="cc-field">
-                        <label>Submission Type <span class="req">*</span></label>
-                        <select name="submission_type" required class="form-input">
+                        <label>Submission Type <span class="req" id="submissionTypeReq">*</span></label>
+                        <select name="submission_type" id="submissionTypeField" class="form-input">
                             @foreach($submissionTypes as $key => $label)
                                 <option value="{{ $key }}" {{ old('submission_type') == $key ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
@@ -191,8 +191,8 @@
                     </div>
 
                     <div class="cc-field">
-                        <label>Points</label>
-                        <input type="number" name="points" value="{{ old('points', 100) }}" min="0" class="form-input">
+                        <label>Points <span class="req" id="pointsReq">*</span></label>
+                        <input type="number" name="points" id="pointsField" value="{{ old('points', 100) }}" min="0" class="form-input">
                         <span class="cc-hint">Maximum score para sa assignment</span>
                         @error('points')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
@@ -205,7 +205,7 @@
 
                     <div class="cc-field">
                         <label>Status <span class="req">*</span></label>
-                        <select name="status" required class="form-input">
+                        <select name="status" required class="form-input" id="statusField">
                             <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
                             <option value="published" {{ old('status') == 'published' ? 'selected' : '' }}>Published</option>
                             <option value="closed" {{ old('status') == 'closed' ? 'selected' : '' }}>Closed</option>
@@ -233,8 +233,8 @@
                 <div class="cc-section-title"><i class="fa-solid fa-align-left"></i> Instructions</div>
                 <div class="cc-grid">
                     <div class="cc-field full">
-                        <label>Instructions</label>
-                        <textarea name="instructions" rows="5" class="form-input" placeholder="Assignment instructions para sa mga estudyante..." data-char-count="instCount">{{ old('instructions') }}</textarea>
+                        <label>Instructions <span class="req" id="instructionsReq">*</span></label>
+                        <textarea name="instructions" id="instructionsField" rows="5" class="form-input" placeholder="Assignment instructions para sa mga estudyante..." data-char-count="instCount">{{ old('instructions') }}</textarea>
                         <span class="cc-char" id="instCount">0 characters</span>
                         @error('instructions')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
@@ -271,5 +271,39 @@
         form.addEventListener('change', () => { dirty = true; });
         form.addEventListener('submit', () => { dirty = false; });
         window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+        // Conditional required fields based on status
+        const statusField = document.getElementById('statusField');
+        const instructionsField = document.getElementById('instructionsField');
+        const instructionsReq = document.getElementById('instructionsReq');
+        const pointsField = document.getElementById('pointsField');
+        const pointsReq = document.getElementById('pointsReq');
+        const submissionTypeField = document.getElementById('submissionTypeField');
+        const submissionTypeReq = document.getElementById('submissionTypeReq');
+
+        function updateRequiredFields() {
+            const isDraft = statusField.value === 'draft';
+
+            if (isDraft) {
+                instructionsField.removeAttribute('required');
+                instructionsReq.style.display = 'none';
+                pointsField.removeAttribute('required');
+                pointsReq.style.display = 'none';
+                submissionTypeField.removeAttribute('required');
+                submissionTypeReq.style.display = 'none';
+            } else {
+                instructionsField.setAttribute('required', 'required');
+                instructionsReq.style.display = 'inline';
+                pointsField.setAttribute('required', 'required');
+                pointsReq.style.display = 'inline';
+                submissionTypeField.setAttribute('required', 'required');
+                submissionTypeReq.style.display = 'inline';
+            }
+        }
+
+        if (statusField) {
+            statusField.addEventListener('change', updateRequiredFields);
+            updateRequiredFields();
+        }
     </script>
 @endsection

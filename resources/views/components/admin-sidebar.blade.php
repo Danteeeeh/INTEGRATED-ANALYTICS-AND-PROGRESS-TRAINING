@@ -80,21 +80,28 @@
             <button type="button" class="nav-group-label" data-sidebar-group="academic" aria-expanded="true">Academic</button>
             <ul class="nav-list">
                 @foreach($departments as $department)
+                    @php
+                        $isDepartmentActive = in_array($activeNav, ['courses', 'modules', 'lessons', 'classes']) && request()->get('department') == $department->code;
+                    @endphp
                     <li class="nav-item nav-item--nested">
-                        <button type="button" class="nav-link nav-link--expandable" data-sidebar-subgroup="academic-{{ $department->code }}" aria-expanded="false">
+                        <button type="button" class="nav-link nav-link--expandable" data-sidebar-subgroup="academic-{{ $department->code }}" aria-expanded="{{ $isDepartmentActive ? 'true' : 'false' }}">
                             <i class="fa-solid fa-building-columns"></i>
                             <span>{{ $department->name }}</span>
                             <i class="fa-solid fa-chevron-down nav-link__chevron"></i>
                         </button>
-                        <ul class="nav-list nav-list--nested" id="academic-{{ $department->code }}">
+                        <ul class="nav-list nav-list--nested {{ $isDepartmentActive ? '' : 'hidden' }}" id="academic-{{ $department->code }}">
                             @if($department->programs->count() > 0)
                                 @foreach($department->programs->sortBy('name') as $program)
-                                    <li class="nav-item">
-                                        <div class="nav-program-label" title="{{ $program->code }}">
+                                    @php
+                                        $isProgramActive = in_array($activeNav, ['courses', 'modules', 'lessons', 'classes']) && request()->get('program') == $program->code;
+                                    @endphp
+                                    <li class="nav-item nav-item--program">
+                                        <button type="button" class="nav-link nav-link--program-toggle" data-sidebar-program="program-{{ $program->id }}" aria-expanded="{{ $isProgramActive ? 'true' : 'false' }}">
                                             <i class="fa-solid fa-book-open"></i>
                                             <span>{{ $program->name }}</span>
-                                        </div>
-                                        <ul class="nav-list nav-list--nested nav-list--program">
+                                            <i class="fa-solid fa-chevron-right nav-link__chevron"></i>
+                                        </button>
+                                        <ul class="nav-list nav-list--nested nav-list--program {{ $isProgramActive ? '' : 'hidden' }}" id="program-{{ $program->id }}">
                                             <li class="nav-item {{ $activeNav === 'courses' && request()->get('program') == $program->code ? 'active' : '' }}">
                                                 <a href="{{ route('admin.courses.index', ['department' => $department->code, 'program' => $program->code]) }}" class="nav-link" @if($activeNav === 'courses' && request()->get('program') == $program->code) aria-current="page" @endif>
                                                     <i class="fa-solid fa-book"></i>

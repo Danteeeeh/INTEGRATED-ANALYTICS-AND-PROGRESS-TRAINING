@@ -64,6 +64,8 @@ class QuizController extends Controller
     {
         $this->authorize('create', Quiz::class);
 
+        $isDraft = $request->input('status') === 'draft';
+
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
@@ -79,12 +81,14 @@ class QuizController extends Controller
             'allow_navigation' => 'boolean',
             'auto_save_seconds' => 'nullable|integer|min:0',
             'auto_submit_on_timeout' => 'boolean',
-            'result_visibility' => 'required|in:always,after_grading,never',
+            'result_visibility' => $isDraft ? 'nullable|in:always,after_grading,never' : 'required|in:always,after_grading,never',
             'review_allowed' => 'boolean',
             'show_correct_answers' => 'boolean',
             'availability_from' => 'nullable|date',
             'availability_until' => 'nullable|date',
             'status' => 'required|in:draft,published,closed',
+            'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
+            'question_bank_id' => 'nullable|exists:question_banks,id',
         ]);
 
         $validated['created_by'] = $request->user()->id;
@@ -98,7 +102,39 @@ class QuizController extends Controller
 
         $quiz = Quiz::create($validated);
 
-        session()->flash('success', 'Quiz created successfully.');
+        // Import questions if file is provided
+        if ($request->hasFile('import_file')) {
+            try {
+                $file = $request->file('import_file');
+                $filePath = $file->getRealPath();
+
+                $questionBank = $request->filled('question_bank_id')
+                    ? \App\Models\QuestionBank::find($request->question_bank_id)
+                    : null;
+
+                $importService = new QuizImportService();
+                $result = $importService->importQuestionsFromFile(
+                    $filePath,
+                    $quiz,
+                    $request->user()->id,
+                    $questionBank
+                );
+
+                $message = "Quiz created successfully. Imported {$result['created']} questions.";
+                if (! empty($result['errors'])) {
+                    $message .= " Some rows had errors: " . implode('; ', array_slice($result['errors'], 0, 3));
+                    if (count($result['errors']) > 3) {
+                        $message .= " and " . (count($result['errors']) - 3) . " more.";
+                    }
+                }
+
+                session()->flash('success', $message);
+            } catch (\Exception $e) {
+                session()->flash('success', 'Quiz created successfully, but question import failed: ' . $e->getMessage());
+            }
+        } else {
+            session()->flash('success', 'Quiz created successfully.');
+        }
 
         return redirect()->route('admin.quizzes.show', $quiz);
     }
@@ -126,6 +162,8 @@ class QuizController extends Controller
     {
         $this->authorize('update', $quiz);
 
+        $isDraft = $request->input('status') === 'draft';
+
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
@@ -141,7 +179,7 @@ class QuizController extends Controller
             'allow_navigation' => 'boolean',
             'auto_save_seconds' => 'nullable|integer|min:0',
             'auto_submit_on_timeout' => 'boolean',
-            'result_visibility' => 'required|in:always,after_grading,never',
+            'result_visibility' => $isDraft ? 'nullable|in:always,after_grading,never' : 'required|in:always,after_grading,never',
             'review_allowed' => 'boolean',
             'show_correct_answers' => 'boolean',
             'availability_from' => 'nullable|date',

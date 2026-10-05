@@ -19,7 +19,7 @@
 @section('content')
     <div class="form-card">
         <h3>Create Assignment</h3>
-        <form method="POST" action="{{ route('admin.assignments.store') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('admin.assignments.store') }}" enctype="multipart/form-data" id="assignmentForm">
             @csrf
             <div class="form-grid">
                 <div class="form-field full">
@@ -29,8 +29,8 @@
                 </div>
 
                 <div class="form-field full">
-                    <label>Instructions <span class="req">*</span></label>
-                    <textarea name="instructions" rows="5" required placeholder="Assignment instructions and requirements...">{{ old('instructions') }}</textarea>
+                    <label>Instructions <span class="req" id="instructionsReq">*</span></label>
+                    <textarea name="instructions" rows="5" id="instructionsField" placeholder="Assignment instructions and requirements...">{{ old('instructions') }}</textarea>
                     <span class="field-error">{{ $errors->first('instructions') }}</span>
                 </div>
 
@@ -48,14 +48,14 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Points <span class="req">*</span></label>
-                    <input type="number" name="points" required min="0" placeholder="e.g. 100" value="{{ old('points') }}">
+                    <label>Points <span class="req" id="pointsReq">*</span></label>
+                    <input type="number" name="points" id="pointsField" min="0" placeholder="e.g. 100" value="{{ old('points') }}">
                     <span class="field-error">{{ $errors->first('points') }}</span>
                     <span class="field-error"></span>
                 </div>
                 <div class="form-field">
                     <label>Status <span class="req">*</span></label>
-                    <select name="status" required>
+                    <select name="status" required id="statusField">
                         @foreach(['draft' => 'Draft', 'published' => 'Published', 'closed' => 'Closed'] as $value => $label)
                             <option value="{{ $value }}" @selected(old('status', 'draft') === $value)>{{ $label }}</option>
                         @endforeach
@@ -64,14 +64,14 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Due Date <span class="req">*</span></label>
-                    <input type="datetime-local" name="due_date" required value="{{ old('due_date') }}">
+                    <label>Due Date</label>
+                    <input type="datetime-local" name="due_date" value="{{ old('due_date') }}">
                     <span class="field-error"></span>
                 </div>
 
                 <div class="form-field">
-                    <label>Submission Type <span class="req">*</span></label>
-                    <select name="submission_type" required>
+                    <label>Submission Type <span class="req" id="submissionTypeReq">*</span></label>
+                    <select name="submission_type" id="submissionTypeField">
                         <option value="">Select Type</option>
                         <option value="{{ \App\Models\Assignment::TYPE_TEXT }}" {{ old('submission_type') == \App\Models\Assignment::TYPE_TEXT ? 'selected' : '' }}>Text Only</option>
                         <option value="{{ \App\Models\Assignment::TYPE_FILE }}" {{ old('submission_type') == \App\Models\Assignment::TYPE_FILE ? 'selected' : '' }}>Single File</option>
@@ -126,4 +126,39 @@
             </div>
         </form>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusField = document.getElementById('statusField');
+        const instructionsField = document.getElementById('instructionsField');
+        const instructionsReq = document.getElementById('instructionsReq');
+        const pointsField = document.getElementById('pointsField');
+        const pointsReq = document.getElementById('pointsReq');
+        const submissionTypeField = document.getElementById('submissionTypeField');
+        const submissionTypeReq = document.getElementById('submissionTypeReq');
+
+        function updateRequiredFields() {
+            const isDraft = statusField.value === 'draft';
+
+            if (isDraft) {
+                instructionsField.removeAttribute('required');
+                instructionsReq.style.display = 'none';
+                pointsField.removeAttribute('required');
+                pointsReq.style.display = 'none';
+                submissionTypeField.removeAttribute('required');
+                submissionTypeReq.style.display = 'none';
+            } else {
+                instructionsField.setAttribute('required', 'required');
+                instructionsReq.style.display = 'inline';
+                pointsField.setAttribute('required', 'required');
+                pointsReq.style.display = 'inline';
+                submissionTypeField.setAttribute('required', 'required');
+                submissionTypeReq.style.display = 'inline';
+            }
+        }
+
+        statusField.addEventListener('change', updateRequiredFields);
+        updateRequiredFields();
+    });
+    </script>
 @endsection
