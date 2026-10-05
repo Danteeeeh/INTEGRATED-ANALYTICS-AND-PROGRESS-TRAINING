@@ -368,6 +368,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
                         // Lesson Materials Management
                         Route::get('/{lesson}/materials', [InstructorLessonController::class, 'materials'])->name('materials');
+                        Route::post('/{lesson}/materials/upload', [InstructorLessonController::class, 'uploadMaterialFile'])->name('materials.upload');
                         Route::post('/{lesson}/materials', [InstructorLessonController::class, 'addMaterial'])->name('materials.add');
                         Route::put('/{lesson}/materials/{material}', [InstructorLessonController::class, 'updateMaterial'])->name('materials.update');
                         Route::delete('/{lesson}/materials/{material}', [InstructorLessonController::class, 'deleteMaterial'])->name('materials.delete');

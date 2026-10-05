@@ -251,9 +251,63 @@ class LessonController extends Controller
         abort_if($module->course_id !== $course->id, 404);
         abort_if($lesson->module_id !== $module->id, 404);
 
-        $lesson->load('materials.mediaFile');
+        $lesson->load('lessonMaterials.mediaFile');
 
         return view('instructor.courses.modules.lessons.materials', compact('course', 'module', 'lesson'));
+    }
+
+    public function uploadMaterialFile(Request $request, Course $course, Module $module, Lesson $lesson)
+    {
+        $this->authorize('update', $lesson);
+
+        abort_if(! $course->isManagedBy(auth()->user()), 403);
+        abort_if($module->course_id !== $course->id, 404);
+        abort_if($lesson->module_id !== $module->id, 404);
+
+        $request->validate([
+            'files' => 'required|array',
+            'files.*' => 'file|max:10240',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'is_required' => 'boolean',
+        ]);
+
+        $fileUploadService = new FileUploadService();
+        $uploadedMaterials = [];
+        $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
+
+        foreach ($request->file('files') as $index => $file) {
+            $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
+                'uploadable_type' => Lesson::class,
+                'uploadable_id' => $lesson->id,
+            ]);
+
+            $material = LessonMaterial::create([
+                'lesson_id' => $lesson->id,
+                'media_file_id' => $mediaFile->id,
+                'title' => $request->input('title', $file->getClientOriginalName()),
+                'description' => $request->input('description'),
+                'position' => $maxPosition + $index + 1,
+                'is_required' => $request->boolean('is_required', false),
+            ]);
+
+            $uploadedMaterials[] = [
+                'id' => $material->id,
+                'title' => $material->title,
+                'description' => $material->description,
+                'media_file_id' => $mediaFile->id,
+                'file_name' => $mediaFile->file_name,
+                'file_size' => $mediaFile->size,
+                'extension' => $mediaFile->extension,
+                'url' => $mediaFile->url,
+                'is_required' => $material->is_required,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $uploadedMaterials
+        ]);
     }
 
     public function addMaterial(Request $request, Course $course, Module $module, Lesson $lesson): RedirectResponse

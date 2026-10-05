@@ -113,11 +113,11 @@
 
     <!-- Existing Materials -->
     <div class="form-card">
-        <h3><i class="fa-solid fa-list"></i> Existing Materials ({{ $lesson->materials->count() }})</h3>
-        
-        @if($lesson->materials->isNotEmpty())
+        <h3><i class="fa-solid fa-list"></i> Existing Materials ({{ $lesson->lessonMaterials->count() }})</h3>
+
+        @if($lesson->lessonMaterials->isNotEmpty())
             <div style="margin-top: 16px;">
-                @foreach($lesson->materials as $material)
+                @foreach($lesson->lessonMaterials as $material)
                     <div class="material-item" 
                          style="display: flex; align-items: center; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; background: white;">
                         
@@ -147,7 +147,7 @@
                                 <i class="fa-solid fa-file" style="font-size: 2rem; color: #64748b;"></i>
                             @endif
                         </div>
-                        
+
                         <!-- Material Info -->
                         <div style="flex: 1;">
                             <div style="font-weight: 600; color: #1e293b;">
@@ -170,28 +170,31 @@
                             @endif
                             @if($material->access_until)
                                 <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">
-                                    <i class="fa-solid fa-clock"></i> Access until: {{ $material->access_until->format('M d, Y g:i A') }}
+                                    <i class="fa-solid fa-clock"></i> Access until: {{ \Carbon\Carbon::parse($material->access_until)->format('M d, Y g:i A') }}
                                 </div>
                             @endif
                         </div>
-                        
+
                         <!-- Actions -->
                         <div style="display: flex; gap: 8px; margin-left: 16px;">
                             @if($material->mediaFile)
-                                <a href="{{ route('files.download', $material->mediaFile) }}" 
+                                <a href="{{ route('files.download', $material->mediaFile) }}"
                                    class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem;">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                             @endif
-                            <button type="button" onclick="editMaterial({{ $material->id }})" 
+                            <button type="button" onclick="editMaterial({{ $material->id }})"
                                     class="btn-modal-cancel" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
                                 <i class="fa-solid fa-edit"></i>
                             </button>
-                            <button type="button" onclick="deleteMaterial({{ $material->id }})" 
-                                    class="btn-delete" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;"
-                                    onclick="return confirm('Are you sure you want to delete this material?');">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                            <form method="POST" action="{{ route('instructor.courses.modules.lessons.materials.delete', [$course, $module, $lesson, $material]) }}"
+                                  onsubmit="return confirm('Are you sure you want to delete this material?');" style="display: inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-delete" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 @endforeach
@@ -206,7 +209,7 @@
     </div>
 
     <!-- Bulk Actions -->
-    @if($lesson->materials->isNotEmpty())
+    @if($lesson->lessonMaterials->isNotEmpty())
         <div class="form-card">
             <h3><i class="fa-solid fa-tools"></i> Bulk Actions</h3>
             <div style="display: flex; gap: 8px; margin-top: 16px;">
@@ -308,13 +311,12 @@
             uploadedFiles.forEach(file => {
                 formData.append('files[]', file);
             });
-            formData.append('folder', 'lesson_materials');
-            formData.append('public', 'false');
-            formData.append('uploadable_type', 'App\\Models\\Lesson');
-            formData.append('uploadable_id', '{{ $lesson->id }}');
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('is_required', required);
 
             try {
-                const response = await fetch('/api/files/upload-multiple', {
+                const response = await fetch('{{ route('instructor.courses.modules.lessons.materials.upload', [$course, $module, $lesson]) }}', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -325,29 +327,10 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Create lesson materials
-                    for (const fileData of result.data) {
-                        await fetch('/instructor/lessons/{{ $lesson->id }}/materials', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                            },
-                            body: JSON.stringify({
-                                media_file_id: fileData.id,
-                                title: title,
-                                description: description,
-                                position: position,
-                                is_required: required,
-                                access_until: accessUntil || null,
-                            })
-                        });
-                    }
-
-                    alert('Materials uploaded successfully!');
+                    alert('Material uploaded successfully!');
                     location.reload();
                 } else {
-                    throw new Error(result.message);
+                    throw new Error(result.message || 'Upload failed');
                 }
             } catch (error) {
                 alert('Error uploading files: ' + error.message);
