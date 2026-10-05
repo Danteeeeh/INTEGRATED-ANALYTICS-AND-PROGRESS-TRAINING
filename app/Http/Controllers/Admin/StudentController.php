@@ -60,10 +60,39 @@ class StudentController extends Controller
         // Set status from dropdown
         $validated['status'] = $request->input('status', 'active');
 
-        User::create($validated);
+        $student = User::create($validated);
+
+        // Auto-enroll student in classes for their section
+        if ($student->section_id) {
+            $classes = ClassModel::where('section_id', $student->section_id)
+                ->where('status', 'active')
+                ->get();
+
+            foreach ($classes as $class) {
+                // Check if class is full
+                if ($class->isFull()) {
+                    continue;
+                }
+
+                // Check if already enrolled
+                $existing = Enrollment::where('student_id', $student->id)
+                    ->where('class_id', $class->id)
+                    ->where('status', '!=', 'dropped')
+                    ->first();
+
+                if (!$existing) {
+                    Enrollment::create([
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'status' => 'active',
+                        'enrolled_at' => now(),
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('admin.students.index')
-            ->with('status', 'Student created successfully.');
+            ->with('status', 'Student created and automatically enrolled in section classes.');
     }
 
     public function show(User $student): View
@@ -110,7 +139,39 @@ class StudentController extends Controller
             $validated[$field] = $request->filled($field) ? $request->input($field) : null;
         }
 
+        $oldSectionId = $student->section_id;
+        $newSectionId = $validated['section_id'] ?? null;
+
         $student->update($validated);
+
+        // Auto-enroll in new section's classes if section changed
+        if ($newSectionId && $newSectionId !== $oldSectionId) {
+            $classes = ClassModel::where('section_id', $newSectionId)
+                ->where('status', 'active')
+                ->get();
+
+            foreach ($classes as $class) {
+                // Check if class is full
+                if ($class->isFull()) {
+                    continue;
+                }
+
+                // Check if already enrolled
+                $existing = Enrollment::where('student_id', $student->id)
+                    ->where('class_id', $class->id)
+                    ->where('status', '!=', 'dropped')
+                    ->first();
+
+                if (!$existing) {
+                    Enrollment::create([
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'status' => 'active',
+                        'enrolled_at' => now(),
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('admin.students.index')
             ->with('status', 'Student updated successfully.');
@@ -207,17 +268,49 @@ class StudentController extends Controller
             'section_id' => ['nullable', 'exists:sections,id'],
         ]);
 
+        $newSectionId = $validated['section_id'] ?? null;
+        $oldSectionId = $student->section_id;
+
         $student->update([
-            'section_id' => $validated['section_id'] ?? null,
-            'program_id' => $validated['section_id']
-                ? optional(Section::find($validated['section_id'])->program)->id
+            'section_id' => $newSectionId,
+            'program_id' => $newSectionId
+                ? optional(Section::find($newSectionId)->program)->id
                 : null,
-            'department_id' => $validated['section_id']
-                ? optional(Section::find($validated['section_id'])->program?->department)->id
+            'department_id' => $newSectionId
+                ? optional(Section::find($newSectionId)->program?->department)->id
                 : null,
         ]);
 
-        return back()->with('status', 'Student section assignment updated.');
+        // Auto-enroll in new section's classes
+        if ($newSectionId && $newSectionId !== $oldSectionId) {
+            $classes = ClassModel::where('section_id', $newSectionId)
+                ->where('status', 'active')
+                ->get();
+
+            foreach ($classes as $class) {
+                // Check if class is full
+                if ($class->isFull()) {
+                    continue;
+                }
+
+                // Check if already enrolled
+                $existing = Enrollment::where('student_id', $student->id)
+                    ->where('class_id', $class->id)
+                    ->where('status', '!=', 'dropped')
+                    ->first();
+
+                if (!$existing) {
+                    Enrollment::create([
+                        'student_id' => $student->id,
+                        'class_id' => $class->id,
+                        'status' => 'active',
+                        'enrolled_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        return back()->with('status', 'Student section assignment updated and enrolled in section classes.');
     }
 
     public function import(Request $request): RedirectResponse

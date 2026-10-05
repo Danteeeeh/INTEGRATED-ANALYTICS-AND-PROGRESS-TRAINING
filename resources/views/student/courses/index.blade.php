@@ -21,7 +21,7 @@
         icon="{{ $feature && isset($featureMeta[$feature]) ? $featureMeta[$feature]['icon'] : 'fa-book' }}"
     >
         <x-slot name="actions">
-            <a href="{{ route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-school"></i> Browse Classes</a>
+            <a href="{{ route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-school"></i> My Classes</a>
         </x-slot>
     </x-user-page-header>
 
@@ -88,12 +88,8 @@
             <x-user-empty-state
                 icon="fa-book"
                 title="No courses enrolled yet"
-                description="Browse available classes and enroll to start learning."
-            >
-                <x-slot name="action">
-                    <a href="{{ route('student.classes.index') }}" class="btn btn-primary"><i class="fa-solid fa-school"></i> Browse Classes</a>
-                </x-slot>
-            </x-user-empty-state>
+                description="You are not enrolled in any courses yet. Contact your administrator for enrollment."
+            />
         @endif
     @endif
 </div>

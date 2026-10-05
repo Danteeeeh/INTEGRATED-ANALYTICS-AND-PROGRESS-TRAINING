@@ -23,33 +23,18 @@ class ClassController extends Controller
     {
         $studentId = auth()->id();
 
-        // Get available classes (active, not full, student not already enrolled)
+        // Get enrolled classes only
         $enrolledClassIds = Enrollment::where('student_id', $studentId)
             ->where('status', '!=', 'dropped')
             ->pluck('class_id')
             ->toArray();
 
-        $availableClasses = ClassModel::active()
-            ->whereNotIn('id', $enrolledClassIds)
-            ->with('course', 'academicPeriod', 'instructor')
-            ->orderBy('code')
-            ->get()
-            ->filter(function ($class) {
-                // Filter out full classes
-                $currentEnrollments = Enrollment::where('class_id', $class->id)
-                    ->where('status', '!=', 'dropped')
-                    ->count();
-
-                return ! $class->isFull();
-            });
-
-        // Get enrolled classes
         $enrolledClasses = ClassModel::whereIn('id', $enrolledClassIds)
             ->with('course', 'academicPeriod', 'instructor')
             ->orderBy('code')
             ->get();
 
-        return view('student.classes.index', compact('availableClasses', 'enrolledClasses'));
+        return view('student.classes.index', compact('enrolledClasses'));
     }
 
     public function show(ClassModel $class): View

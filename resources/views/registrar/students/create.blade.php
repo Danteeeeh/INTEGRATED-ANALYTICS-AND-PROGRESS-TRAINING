@@ -46,6 +46,19 @@
                     </div>
 
                     <div class="form-field">
+                        <label>Section</label>
+                        <select name="section_id">
+                            <option value="">-- Select Section --</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->id }}" {{ old('section_id') == $section->id ? 'selected' : '' }}>
+                                    {{ $section->code }} - {{ $section->name }} {{ $section->program ? '(' . $section->program->code . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <span class="field-error">{{ $errors->first('section_id') }}</span>
+                    </div>
+
+                    <div class="form-field">
                         <label>Temporary Password <span class="required">*</span></label>
                         <input type="password" name="password" required minlength="8" placeholder="Minimum 8 characters">
                         <span class="field-error">{{ $errors->first('password') }}</span>

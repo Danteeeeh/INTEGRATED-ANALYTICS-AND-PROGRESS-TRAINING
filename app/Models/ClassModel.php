@@ -63,6 +63,11 @@ class ClassModel extends Model
         return $this->belongsTo(Section::class);
     }
 
+    public function scopeBySection($query, $sectionId)
+    {
+        return $query->where('section_id', $sectionId);
+    }
+
     public function instructor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'instructor_id');

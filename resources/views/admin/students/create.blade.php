@@ -122,10 +122,10 @@
                 <section class="student-form-section" aria-labelledby="school-heading">
                     <div class="student-section-heading">
                         <span class="student-section-icon"><i class="fa-solid fa-school" aria-hidden="true"></i></span>
-                        <div><h3 id="school-heading">School assignment</h3><p>Attach this student to a department, program, and section.</p></div>
+                        <div><h3 id="school-heading">School assignment</h3><p>Attach this student to a department, program, and section for automatic enrollment.</p></div>
                     </div>
                     <div class="student-field-grid">
-                        @include('admin.users._hierarchy_fields', ['selected' => null])
+                        @include('admin.users._hierarchy_fields', ['selected' => null, 'sectionRequired' => true])
                     </div>
                 </section>
 

@@ -15,6 +15,8 @@ class StoreUserRequest extends FormRequest
 
     public function rules(): array
     {
+        $isStudent = $this->role_id && \App\Models\Role::find($this->role_id)?->slug === 'student';
+
         return [
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -25,7 +27,7 @@ class StoreUserRequest extends FormRequest
             'role_id' => ['required', Rule::exists('roles', 'id')],
             'department_id' => ['nullable', Rule::exists('departments', 'id')],
             'program_id' => ['nullable', Rule::exists('programs', 'id')],
-            'section_id' => ['nullable', Rule::exists('sections', 'id')],
+            'section_id' => [$isStudent ? 'required' : 'nullable', Rule::exists('sections', 'id')],
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended', 'pending'])],
             'password' => ['required', 'min:8'],
         ];

@@ -9,11 +9,7 @@
         title="My Enrollments"
         subtitle="Your enrollment history and status."
         icon="fa-user-plus"
-    >
-        <x-slot name="actions">
-            <a href="{{ route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-school"></i> Browse Classes</a>
-        </x-slot>
-    </x-user-page-header>
+    />
 
     @if($enrollments->count() > 0)
         <div class="learning-grid">
@@ -46,12 +42,8 @@
         <x-user-empty-state
             icon="fa-user-plus"
             title="No enrollments yet"
-            description="Browse available classes to enroll in your first course."
-        >
-            <x-slot name="action">
-                <a href="{{ route('student.classes.index') }}" class="btn btn-primary"><i class="fa-solid fa-school"></i> Browse Classes</a>
-            </x-slot>
-        </x-user-empty-state>
+            description="You are not enrolled in any classes yet. Contact your administrator for enrollment."
+        />
     @endif
 </div>
 @endsection
