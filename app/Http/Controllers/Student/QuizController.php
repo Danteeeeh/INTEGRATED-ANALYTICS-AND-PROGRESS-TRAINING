@@ -135,7 +135,18 @@ class QuizController extends Controller
                 }
             }
 
-            return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+            // Check if the in-progress attempt has answers/questions
+            $inProgress->load('answers');
+            if ($inProgress->answers->isEmpty()) {
+                \Log::error('Quiz attempt: In-progress attempt has no answers', [
+                    'attempt_id' => $inProgress->id,
+                    'quiz_id' => $quiz->id,
+                ]);
+                // Delete the invalid attempt and let them start fresh
+                $inProgress->delete();
+            } else {
+                return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+            }
         }
 
         $attemptCount = QuizAttempt::ofQuiz($quiz->id)->ofStudent($studentId)->count();
