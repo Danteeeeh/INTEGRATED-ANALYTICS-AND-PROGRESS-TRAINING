@@ -33,3 +33,6 @@ php artisan session:clear
 
 # Set proper permissions
 chmod -R 775 storage bootstrap/cache
+
+# Clear old build artifacts
+rm -rf public/hot

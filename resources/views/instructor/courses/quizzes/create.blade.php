@@ -170,8 +170,8 @@
                     </div>
 
                     <div class="cc-field">
-                        <label>Class</label>
-                        <select name="class_id">
+                        <label>Class <span class="req">*</span></label>
+                        <select name="class_id" required>
                             <option value="">Select Class</option>
                             @foreach($classes as $class)
                                 <option value="{{ $class->id }}" {{ (string) old('class_id', request('class_id')) === (string) $class->id ? 'selected' : '' }}>{{ $class->code }}</option>
@@ -347,6 +347,16 @@
             questionDiv.style.cssText = 'background: rgba(139,92,246,.08); border: 1px solid rgba(139,92,246,.2); border-radius: 12px; padding: 20px; margin-bottom: 16px;';
             questionDiv.id = 'question-' + questionCount;
 
+            let choicesHtml = '';
+            for (let i = 1; i <= 4; i++) {
+                choicesHtml += `
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <input type="radio" name="questions[${questionCount}][correct_choice]" value="${i}" style="accent-color: #8b5cf6; cursor: pointer;">
+                        <input type="text" name="questions[${questionCount}][choices][${i}]" placeholder="Choice ${i}" required style="flex: 1; min-height: 38px; padding: 8px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 8px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.85rem;">
+                    </div>
+                `;
+            }
+
             questionDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                     <span style="color: #a78bfa; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Question ${questionCount}</span>
@@ -365,12 +375,7 @@
                 <div style="margin-top: 12px;">
                     <label style="color: var(--bcp-muted, #98a7c4); font-size: 0.72rem; font-weight: 750; margin-bottom: 8px; display: block;">Choices (mark the correct answer)</label>
                     <div id="choices-${questionCount}">
-                        ${[1, 2, 3, 4].map(i => `
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <input type="radio" name="questions[${questionCount}][correct_choice]" value="${i}" style="accent-color: #8b5cf6; cursor: pointer;">
-                                <input type="text" name="questions[${questionCount}][choices][${i}]" placeholder="Choice ${i}" required style="flex: 1; min-height: 38px; padding: 8px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 8px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.85rem;">
-                            </div>
-                        `).join('')}
+                        ${choicesHtml}
                     </div>
                 </div>
             `;

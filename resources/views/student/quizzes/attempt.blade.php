@@ -262,7 +262,7 @@
                             <textarea name="answers[{{ $quizAnswer->question->id }}]"
                                       rows="{{ $quizAnswer->question->question_type === 'essay' ? '10' : '5' }}"
                                       placeholder="Enter your answer here..."
-                                      onchange="markAnswered({{ $index }})"
+                                      oninput="markAnswered({{ $index }})"
                                       style="width: 100%; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.2s; line-height: 1.6;">{{ old('answers.'.$quizAnswer->question->id) }}</textarea>
                         </div>
                     @endif
@@ -273,7 +273,7 @@
         <!-- Navigation Buttons -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px; gap: 16px;">
             <button type="button" id="prevBtn" onclick="prevQuestion()"
-                    style="flex: 1; padding: 14px 28px; border-radius: 12px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 600; font-size: 1rem; transition: all 0.2s; disabled: true;">
+                    style="flex: 1; padding: 14px 28px; border-radius: 12px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 600; font-size: 1rem; transition: all 0.2s;">
                 <i class="fa-solid fa-arrow-left"></i> Previous
             </button>
 
@@ -488,7 +488,22 @@
 
         function autoSave() {
             const formData = new FormData(document.getElementById('quizForm'));
-            localStorage.setItem('quizAnswers_' + {{ $inProgress->id }}, JSON.stringify(Object.fromEntries(formData)));
+            const answers = {};
+
+            // Convert FormData to proper object handling arrays
+            for (const [key, value] of formData.entries()) {
+                if (key.endsWith('[]')) {
+                    const cleanKey = key.slice(0, -2);
+                    if (!answers[cleanKey]) {
+                        answers[cleanKey] = [];
+                    }
+                    answers[cleanKey].push(value);
+                } else {
+                    answers[key] = value;
+                }
+            }
+
+            localStorage.setItem('quizAnswers_' + {{ $inProgress->id }}, JSON.stringify(answers));
 
             // Show auto-save notification
             const warning = document.getElementById('autoSaveWarning');
@@ -505,8 +520,10 @@
                 for (const [key, value] of Object.entries(answers)) {
                     const elements = document.querySelectorAll(`[name="${key}"]`);
                     elements.forEach(el => {
-                        if (el.type === 'radio' || el.type === 'checkbox') {
-                            el.checked = el.value == value || (Array.isArray(value) && value.includes(el.value));
+                        if (el.type === 'radio') {
+                            el.checked = el.value == value;
+                        } else if (el.type === 'checkbox') {
+                            el.checked = Array.isArray(value) ? value.includes(el.value) : el.value == value;
                         } else {
                             el.value = value;
                         }
@@ -522,6 +539,12 @@
             }
             return confirm('Are you sure you want to submit your quiz? This action cannot be undone.');
         }
+
+        // Prevent auto-save from interfering with form submission
+        document.getElementById('quizForm').addEventListener('submit', function(e) {
+            // Remove localStorage before submitting to avoid conflicts
+            localStorage.removeItem('quizAnswers_' + {{ $inProgress->id }});
+        });
 
         // Keyboard navigation
         document.addEventListener('keydown', function(e) {

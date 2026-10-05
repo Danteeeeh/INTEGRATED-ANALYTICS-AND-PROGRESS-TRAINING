@@ -95,7 +95,7 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Course::class);
 
-        $query = CourseCompletion::with(['class.course', 'class.academicPeriod', 'student', 'certificate']);
+        $query = CourseCompletion::with(['class', 'class.academicPeriod', 'student', 'certificate']);
 
         if ($request->filled('academic_period_id')) {
             $query->whereHas('class', fn ($q) => $q->where('academic_period_id', $request->academic_period_id));
@@ -181,7 +181,7 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', AttendanceRecord::class);
 
-        $query = AttendanceRecord::with(['class.course', 'class.academicPeriod', 'student', 'virtualClass', 'recordedBy']);
+        $query = AttendanceRecord::with(['class', 'class.academicPeriod', 'student', 'virtualClass', 'recordedBy']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -229,7 +229,7 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Grade::class);
 
-        $query = Grade::with(['item.class.course', 'student', 'gradedBy']);
+        $query = Grade::with(['item.class', 'student', 'gradedBy']);
 
         if ($request->filled('class_id')) {
             $query->whereHas('item', fn ($q) => $q->where('class_id', $request->class_id));
@@ -410,7 +410,7 @@ class ReportController extends Controller
                 case 'student-performance':
                     fputcsv($handle, ['Student ID', 'Name', 'Email', 'Identifier', 'Status', 'Enrollments (Active)', 'Enrollments (Completed)', 'Avg Final Grade']);
                     User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))
-                        ->with(['enrollments.class.course'])
+                        ->with(['enrollments.class'])
                         ->orderBy('first_name')
                         ->orderBy('last_name')
                         ->chunk($chunkSize, function ($chunk) use ($handle) {
@@ -435,7 +435,7 @@ class ReportController extends Controller
                 case 'instructor-performance':
                     fputcsv($handle, ['Instructor ID', 'Name', 'Email', 'Status', 'Classes Taught', 'Total Students', 'Avg Class Enrollment']);
                     User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))
-                        ->with(['classesInstructing.enrollments', 'classesInstructing.course'])
+                        ->with(['classesInstructing.enrollments', 'classesInstructing'])
                         ->orderBy('first_name')
                         ->orderBy('last_name')
                         ->chunk($chunkSize, function ($chunk) use ($handle) {

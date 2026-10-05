@@ -29,7 +29,7 @@ class QuizController extends Controller
             ->orWhere(function ($q) use ($course) {
                 $q->whereHas('lesson.module.course', fn ($q2) => $q2->where('id', $course->id));
             })
-            ->with(['class.course', 'module.course', 'questions', 'attempts'])
+            ->with(['class', 'module', 'questions', 'attempts'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -64,7 +64,7 @@ class QuizController extends Controller
         $isDraft = $request->input('status') === 'draft';
 
         $validated = $request->validate([
-            'class_id' => 'nullable|exists:classes,id',
+            'class_id' => 'required|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
             'title' => 'required|string|max:255',
@@ -197,7 +197,7 @@ class QuizController extends Controller
         $isDraft = $request->input('status') === 'draft';
 
         $validated = $request->validate([
-            'class_id' => 'nullable|exists:classes,id',
+            'class_id' => 'required|exists:classes,id',
             'module_id' => 'nullable|exists:modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
             'title' => 'required|string|max:255',

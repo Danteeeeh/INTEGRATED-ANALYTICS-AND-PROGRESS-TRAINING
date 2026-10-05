@@ -27,7 +27,7 @@ class AssignmentController extends Controller
             ->orWhere(function ($q) use ($course) {
                 $q->whereHas('lesson.module.course', fn ($q2) => $q2->where('id', $course->id));
             })
-            ->with(['class.course', 'module.course', 'lesson.module.course', 'rubric', 'submissions'])
+            ->with(['class', 'module', 'rubric', 'submissions'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 

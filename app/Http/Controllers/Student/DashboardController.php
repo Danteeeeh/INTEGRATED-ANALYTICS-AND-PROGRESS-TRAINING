@@ -79,7 +79,7 @@ class DashboardController extends Controller
 
         // Recent quiz attempts
         $recentQuizAttempts = QuizAttempt::where('student_id', $studentId)
-            ->with(['quiz.class.course'])
+            ->with(['quiz.class'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
@@ -94,7 +94,7 @@ class DashboardController extends Controller
 
         // Recent exam attempts
         $recentExamAttempts = ExamAttempt::where('student_id', $studentId)
-            ->with(['exam.class.course'])
+            ->with(['exam.class'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();

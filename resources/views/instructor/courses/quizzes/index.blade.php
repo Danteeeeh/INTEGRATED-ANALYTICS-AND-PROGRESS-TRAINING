@@ -68,6 +68,13 @@
                             <a href="{{ route('instructor.courses.quizzes.attempts', [$course, $quiz]) }}" class="btn-icon" title="Attempts" style="color:#62c9f5;">
                                 <i class="fa-solid fa-list-check"></i>
                             </a>
+                            <form action="{{ route('instructor.courses.quizzes.destroy', [$course, $quiz]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this quiz?')" style="display:inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-icon btn-delete" title="Delete">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 @empty

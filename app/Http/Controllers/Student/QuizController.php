@@ -170,6 +170,15 @@ class QuizController extends Controller
         }
 
         $answers = $request->input('answers', []);
+
+        // Log for debugging
+        \Log::info('Quiz submission attempt', [
+            'quiz_id' => $quiz->id,
+            'attempt_id' => $attempt->id,
+            'student_id' => $studentId,
+            'answers_received' => $answers,
+            'answers_count' => count($answers),
+        ]);
         $totalScore = 0;
         $totalPoints = 0;
 

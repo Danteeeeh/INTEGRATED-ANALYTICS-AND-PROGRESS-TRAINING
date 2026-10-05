@@ -22,6 +22,14 @@
                 <i class="fa-solid fa-pen-to-square"></i>
                 Edit
             </a>
+            <form action="{{ route('instructor.courses.assignments.destroy', [$course, $assignment]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this assignment?')" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn-delete" style="padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none; background: #ef4444; color: white; border: none; cursor: pointer;">
+                    <i class="fa-solid fa-trash"></i>
+                    Delete
+                </button>
+            </form>
         </div>
     </div>
 @endsection

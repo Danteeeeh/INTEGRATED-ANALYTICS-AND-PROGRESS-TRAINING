@@ -74,7 +74,7 @@ class SearchController extends Controller
 
             $classes = $classQuery->limit(20)->get();
 
-            $lessonQuery = Lesson::with(['module.course', 'creator'])
+            $lessonQuery = Lesson::with(['module', 'creator'])
                 ->where(function ($q) use ($term) {
                     $q->where('title', 'like', $term)
                         ->orWhere('description', 'like', $term)
@@ -94,7 +94,7 @@ class SearchController extends Controller
 
             $lessons = $lessonQuery->limit(20)->get();
 
-            $materialQuery = LessonMaterial::with(['lesson.module.course', 'mediaFile'])
+            $materialQuery = LessonMaterial::with(['lesson.module', 'mediaFile'])
                 ->where(function ($q) use ($term) {
                     $q->where('title', 'like', $term)
                         ->orWhere('description', 'like', $term);

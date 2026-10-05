@@ -24,7 +24,7 @@ class LessonController extends Controller
         // when the module id actually came from the route (not an empty instance).
         $hasRouteModule = $module !== null && $module->exists;
 
-        $query = Lesson::with(['module.course', 'materials'])->withCount('materials');
+        $query = Lesson::with(['module', 'materials'])->withCount('materials');
 
         if ($hasRouteModule) {
             $this->authorize('view', $module);

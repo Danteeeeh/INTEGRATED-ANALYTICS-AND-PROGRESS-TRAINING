@@ -70,6 +70,13 @@
                                     <i class="fa-solid fa-inbox"></i>
                                 </a>
                             @endif
+                            <form action="{{ route('instructor.courses.assignments.destroy', [$course, $assignment]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this assignment?')" style="display:inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-icon btn-delete" title="Delete">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 @empty
