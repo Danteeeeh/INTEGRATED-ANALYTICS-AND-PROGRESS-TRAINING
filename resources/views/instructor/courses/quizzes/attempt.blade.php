@@ -49,7 +49,8 @@
             @if($attempt->answers && $attempt->answers->count() > 0)
                 @foreach($attempt->answers as $index => $answer)
                     <div class="user-toolbar" style="flex-direction:column;align-items:stretch;margin-bottom:12px">
-                        <strong>Q{{ $index + 1 }}: {{ $answer->question?->question_text ?? $answer->question?->text ?? 'Question' }}</strong>
+                        {{-- The frozen copy (§14) — never the live Test Bank question. --}}
+                        <strong>Q{{ $index + 1 }}: {{ $answer->renderedQuestionText() }}</strong>
                         <div class="user-email">
                             Answer:
                             {{-- A multiple-choice answer lives in the quiz_answer_choices pivot,
@@ -58,6 +59,8 @@
                             @php($selectedChoices = $answer->selectedChoices)
                             @if($selectedChoices->isNotEmpty())
                                 {{ $selectedChoices->pluck('choice_text')->join(', ') }}
+                            @elseif($answer->answer_text && is_numeric($answer->answer_text) && $answer->snapshotArray())
+                                {{ $answer->renderedChoices()->firstWhere('id', (int) $answer->answer_text)['text'] ?? $answer->answer_text }}
                             @elseif($answer->answer_text)
                                 {{ $answer->answer_text }}
                             @else

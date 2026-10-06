@@ -22,10 +22,12 @@
 
     <div class="form-field">
         <label>Class <span class="required">*</span></label>
-        <select name="class_id" required>
+        <select name="class_id" required id="examClassId">
             <option value="">Select a class</option>
             @foreach($classes as $class)
-                <option value="{{ $class->id }}" @selected(old('class_id', $exam->class_id) == $class->id)>
+                <option value="{{ $class->id }}" 
+                    data-course-id="{{ $class->course_id }}"
+                    @selected(old('class_id', $exam->class_id) == $class->id)>
                     {{ $class->code }} — {{ $class->course?->title }}
                 </option>
             @endforeach
@@ -35,7 +37,7 @@
 
     <div class="form-field">
         <label>Course</label>
-        <select name="course_id">
+        <select name="course_id" id="examCourseId" disabled>
             <option value="">— Auto from class —</option>
             @foreach($courses as $course)
                 <option value="{{ $course->id }}" @selected(old('course_id', $exam->course_id) == $course->id)>
@@ -44,16 +46,6 @@
             @endforeach
         </select>
         <span class="field-error">{{ $errors->first('course_id') }}</span>
-    </div>
-
-    <div class="form-field">
-        <label>Exam Type <span class="required">*</span></label>
-        <select name="exam_type" required>
-            @foreach(['midterm' => 'Midterm', 'final' => 'Final', 'comprehensive' => 'Comprehensive', 'module' => 'Module', 'other' => 'Other'] as $value => $label)
-                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type ?: 'module') === $value)>{{ $label }}</option>
-            @endforeach
-        </select>
-        <span class="field-error">{{ $errors->first('exam_type') }}</span>
     </div>
 
     <div class="form-field">
@@ -199,3 +191,22 @@
         <span class="field-error">{{ $errors->first('video_duration_minutes') }}</span>
     </div>
 </div>
+
+<script>
+    // Auto-populate course from class selection
+    const classSelect = document.getElementById('examClassId');
+    const courseSelect = document.getElementById('examCourseId');
+
+    if (classSelect && courseSelect) {
+        classSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.dataset) {
+                // The option should have data-course-id attribute
+                const courseId = selectedOption.dataset.courseId;
+                if (courseId) {
+                    courseSelect.value = courseId;
+                }
+            }
+        });
+    }
+</script>

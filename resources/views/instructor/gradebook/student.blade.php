@@ -32,7 +32,16 @@
     </div>
 @endunless
 
+@section('scripts')
+@show
+@push('scripts')
+@show
+
 <section class="dash-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-pen-to-square"></i> Grade Items (Manual)</h3>
+        <span class="dash-section-kicker">{{ $gradeItems->count() }} items</span>
+    </div>
     <table class="dash-table">
         <thead>
             <tr>
@@ -74,4 +83,114 @@
         </tbody>
     </table>
 </section>
+
+@section('scripts')
+@show
+@push('scripts')
+@show
+
+@section('scripts')
+@show
+@push('scripts')
+@show
+
+@if($quizAttempts->count() > 0)
+<section class="dash-panel" style="margin-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-question-circle"></i> Quiz Attempts</h3>
+        <span class="dash-section-kicker">{{ $quizAttempts->count() }} attempts</span>
+    </div>
+    <table class="dash-table">
+        <thead>
+            <tr>
+                <th>Quiz</th>
+                <th>Attempt</th>
+                <th>Score</th>
+                <th>%</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($quizAttempts as $attempt)
+                <tr>
+                    <td>{{ $attempt->quiz->title }}</td>
+                    <td>#{{ $attempt->attempt_number }}</td>
+                    <td>
+                        @if($attempt->status === 'submitted' || $attempt->status === 'auto_submitted' || $attempt->status === 'graded')
+                            {{ $attempt->score }}/{{ $attempt->quiz->questions()->sum('pivot.points') ?? '—' }}
+                        @else
+                            In Progress
+                        @endif
+                    </td>
+                    <td>
+                        @if($attempt->score_percent !== null)
+                            {{ number_format($attempt->score_percent, 1) }}%
+                            <span style="opacity:.6">({{ $attempt->is_passed === true ? 'Pass' : ($attempt->is_passed === false ? 'Fail' : '—') }})</span>
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td>
+                        <span class="gb-status gb-status-{{ match($attempt->status) { 'submitted','auto_submitted','graded' => 'success', 'in_progress' => 'muted', default => 'warning' } }}">
+                            {{ ucfirst(str_replace('_', ' ', $attempt->status)) }}
+                        </span>
+                    </td>
+                    <td>{{ $attempt->created_at->format('M j, Y g:i A') }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</section>
+@endif
+
+@if($examAttempts->count() > 0)
+<section class="dash-panel" style="margin-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-file-signature"></i> Exam Attempts</h3>
+        <span class="dash-section-kicker">{{ $examAttempts->count() }} attempts</span>
+    </div>
+    <table class="dash-table">
+        <thead>
+            <tr>
+                <th>Exam</th>
+                <th>Attempt</th>
+                <th>Score</th>
+                <th>%</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($examAttempts as $attempt)
+                <tr>
+                    <td>{{ $attempt->exam->title }}</td>
+                    <td>#{{ $attempt->attempt_number }}</td>
+                    <td>
+                        @if($attempt->status === 'submitted' || $attempt->status === 'auto_submitted' || $attempt->status === 'graded')
+                            {{ $attempt->score }}/{{ $attempt->exam->questions()->sum('pivot.points') ?? '—' }}
+                        @else
+                            In Progress
+                        @endif
+                    </td>
+                    <td>
+                        @if($attempt->score_percent !== null)
+                            {{ number_format($attempt->score_percent, 1) }}%
+                            <span style="opacity:.6">({{ $attempt->is_passed === true ? 'Pass' : ($attempt->is_passed === false ? 'Fail' : '—') }})</span>
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td>
+                        <span class="gb-status gb-status-{{ match($attempt->status) { 'submitted','auto_submitted','graded' => 'success', 'in_progress' => 'muted', default => 'warning' } }}">
+                            {{ ucfirst(str_replace('_', ' ', $attempt->status)) }}
+                        </span>
+                    </td>
+                    <td>{{ $attempt->created_at->format('M j, Y g:i A') }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</section>
+@endif
 @endsection

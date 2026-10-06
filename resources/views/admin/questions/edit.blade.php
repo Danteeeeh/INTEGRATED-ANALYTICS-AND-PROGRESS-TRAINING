@@ -68,6 +68,27 @@
                         <span class="field-error">{{ $errors->first('status') }}</span>
                     </div>
 
+                    <div class="form-field">
+                        <label>Category</label>
+                        <select name="category_id">
+                            <option value="">Uncategorised</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" @selected((int) old('category_id', $question->category_id) === $category->id)>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        <span class="field-error">{{ $errors->first('category_id') }}</span>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Case Sensitive</label>
+                        <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;min-height:38px;">
+                            <input type="checkbox" name="is_case_sensitive" value="1"
+                                   @checked(old('is_case_sensitive', $question->is_case_sensitive))>
+                            Match “CPU” and “cpu” differently
+                        </label>
+                        <span style="font-size:.78rem;color:#64748b;">Identification / short answer only.</span>
+                    </div>
+
                     <div class="form-field full">
                         <label>Question Text <span class="required">*</span></label>
                         <textarea name="question_text" rows="4" required placeholder="Enter the question">{{ old('question_text', $question->question_text) }}</textarea>

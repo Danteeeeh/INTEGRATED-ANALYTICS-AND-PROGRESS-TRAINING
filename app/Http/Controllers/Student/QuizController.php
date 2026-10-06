@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Services\QuestionGrader;
+use App\Services\QuestionSnapshotService;
+
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Enrollment;
@@ -164,7 +167,7 @@ class QuizController extends Controller
             }
 
             // Check if the in-progress attempt has answers/questions
-            $inProgress->load('answers');
+            $inProgress->load('answers.question', 'answers.selectedChoices');
             if ($inProgress->answers->isEmpty()) {
                 \Log::error('Quiz attempt: In-progress attempt has no answers', [
                     'attempt_id' => $inProgress->id,
@@ -183,7 +186,9 @@ class QuizController extends Controller
                 ->with('error', 'You have reached the maximum number of attempts.');
         }
 
-        $questions = $quiz->questions()->with('choices');
+        // Archived questions are retired from the bank: skip them for new
+        // attempts while leaving existing attempts intact (§3).
+        $questions = $quiz->questions()->with('choices')->availableForAttempts();
         if ($quiz->shuffle_questions) {
             $questions = $questions->inRandomOrder();
         }
@@ -210,10 +215,18 @@ class QuizController extends Controller
             'status' => QuizAttempt::STATUS_IN_PROGRESS,
         ]);
 
+        // Freeze each question as it is being sat (§14): later edits to the Test
+        // Bank question must not alter this attempt.
+        $snapshots = app(QuestionSnapshotService::class)->captureMany(
+            $questions,
+            $quiz->pointsByQuestionId()
+        );
+
         foreach ($questions as $question) {
             QuizAnswer::create([
                 'quiz_attempt_id' => $attempt->id,
                 'question_id' => $question->id,
+                'question_snapshot' => $snapshots[$question->id] ?? null,
             ]);
         }
 
@@ -241,6 +254,7 @@ class QuizController extends Controller
         $attempt = QuizAttempt::ofQuiz($quiz->id)
             ->ofStudent($studentId)
             ->inProgress()
+            ->with(['answers.question', 'answers.selectedChoices'])
             ->firstOrFail();
 
         if ($quiz->time_limit_minutes && $quiz->auto_submit_on_timeout) {
@@ -262,46 +276,58 @@ class QuizController extends Controller
         ]);
         $totalScore = 0;
         $totalPoints = 0;
+        $grader = app(QuestionGrader::class);
 
         foreach ($attempt->answers as $quizAnswer) {
             $question = $quizAnswer->question;
-            $pivotPoints = $question->quizzes->find($quiz->id)?->pivot->points ?? $question->default_points ?? 1;
-            $totalPoints += $pivotPoints;
+            $snapshot = $quizAnswer->snapshotArray();
 
-            $answerData = $answers[$question->id] ?? null;
-            $isCorrect = false;
-            $pointsAwarded = 0;
+            $pivotPoints = $question?->quizzes->find($quiz->id)?->pivot->points
+                ?? $snapshot['points']
+                ?? $question?->default_points
+                ?? 1;
 
-            if ($question->question_type === Question::TYPE_MULTIPLE_CHOICE || $question->question_type === Question::TYPE_TRUE_FALSE) {
-                $correctChoice = $question->choices->where('is_correct', true)->first();
-                if ($answerData && $correctChoice && $answerData == $correctChoice->id) {
-                    $isCorrect = true;
-                    $pointsAwarded = $pivotPoints;
-                }
-                $quizAnswer->answer_text = $answerData;
-            } elseif ($question->question_type === Question::TYPE_MULTIPLE_ANSWER) {
-                $selectedIds = is_array($answerData) ? $answerData : [];
-                $correctIds = $question->choices->where('is_correct', true)->pluck('id')->toArray();
-                sort($selectedIds);
-                sort($correctIds);
-                if ($selectedIds === $correctIds) {
-                    $isCorrect = true;
-                    $pointsAwarded = $pivotPoints;
-                }
-                $quizAnswer->answer_text = json_encode($selectedIds);
-            } else {
-                $quizAnswer->answer_text = is_array($answerData) ? json_encode($answerData) : $answerData;
+            $answerData = $answers[$quizAnswer->question_id] ?? null;
+
+            // Compares against the frozen question (§14), not today's Test Bank.
+            $result = $grader->grade($answerData, $snapshot, $question, (float) $pivotPoints);
+
+            // Keep the student's submission verbatim for the review screen.
+            $quizAnswer->answer_text = is_array($answerData)
+                ? json_encode(array_values($answerData))
+                : $answerData;
+
+            if ($result['manual']) {
+                // Essay / no answer key: leave it for the instructor (§21).
+                // It is also left out of the denominator so an unmarked essay
+                // does not count as a wrong answer.
+                $quizAnswer->is_correct = null;
+                $quizAnswer->points_awarded = null;
+                $quizAnswer->save();
+
+                continue;
             }
 
-            $quizAnswer->is_correct = $isCorrect;
-            $quizAnswer->points_awarded = $pointsAwarded;
+            $quizAnswer->is_correct = $result['is_correct'];
+            $quizAnswer->points_awarded = $result['points'];
             $quizAnswer->save();
 
-            $totalScore += $pointsAwarded;
+            // Persist which choices the student selected for multiple-choice questions
+            // so they are visible in the instructor's review screen (§14).
+            $this->syncSelectedChoices($quizAnswer, $answerData, $question);
+
+            $totalScore += $result['points'];
+            $totalPoints += $pivotPoints;
         }
 
         $scorePercent = $totalPoints > 0 ? ($totalScore / $totalPoints) * 100 : 0;
-        $isPassed = $scorePercent >= $quiz->passing_score_percent;
+        $hasPendingGrades = $this->hasPendingGrades($attempt);
+
+        // Only a pass/fail verdict can be recorded once everything is marked;
+        // otherwise the attempt stays undecided until the instructor grades.
+        $isPassed = $totalPoints > 0 && ! $hasPendingGrades
+            ? $scorePercent >= $quiz->passing_score_percent
+            : null;
         $timeSpent = now()->diffInSeconds($attempt->started_at);
 
         // Ensure time_spent_seconds is never negative
@@ -323,41 +349,116 @@ class QuizController extends Controller
             ->with('status', 'Quiz submitted successfully!');
     }
 
+    /**
+     * Persist the student's chosen choices to the quiz_answer_choices pivot.
+     *
+     * @param  mixed  $answerData  Raw request value (array of choice IDs or single ID)
+     */
+    protected function syncSelectedChoices(QuizAnswer $quizAnswer, mixed $answerData, ?Question $question): void
+    {
+        // Use snapshot's question_type as fallback if question is null (trashed)
+        $snapshot = $quizAnswer->snapshotArray();
+        $qtype = $question?->question_type ?? $snapshot['question_type'] ?? null;
+
+        if (! $qtype || ! in_array($qtype, [Question::TYPE_MULTIPLE_CHOICE, Question::TYPE_MULTIPLE_ANSWER, Question::TYPE_TRUE_FALSE], true)) {
+            return;
+        }
+
+        $selected = [];
+
+        if (is_array($answerData)) {
+            foreach ($answerData as $choiceId) {
+                $selected[] = (int) $choiceId;
+            }
+        } elseif (is_numeric($answerData)) {
+            $selected[] = (int) $answerData;
+        } elseif (is_string($answerData) && str_starts_with($answerData, '[')) {
+            $decoded = json_decode($answerData, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $choiceId) {
+                    $selected[] = (int) $choiceId;
+                }
+            }
+        }
+
+        if ($selected !== []) {
+            $quizAnswer->selectedChoices()->sync($selected);
+        }
+    }
+
+    /**
+     * Has the instructor still got work to do on this attempt?
+     *
+     * A row counts as pending only when the student actually submitted something
+     * and no verdict was recorded — an unanswered row is simply a zero, not an
+     * open question.
+     */
+    protected function hasPendingGrades(QuizAttempt $attempt): bool
+    {
+        return $attempt->answers()
+            ->whereNull('is_correct')
+            ->whereNotNull('answer_text')
+            ->where('answer_text', '!=', '')
+            ->exists();
+    }
+
     protected function autoSubmitAttempt(QuizAttempt $attempt, Course $course, Quiz $quiz): RedirectResponse
     {
+        // Ensure answers and questions are loaded for grading
+        $attempt->loadMissing('answers.question', 'answers.selectedChoices');
+        
         $totalScore = 0;
         $totalPoints = 0;
+        $grader = app(QuestionGrader::class);
 
         foreach ($attempt->answers as $quizAnswer) {
             $question = $quizAnswer->question;
-            $pivotPoints = $question->quizzes->find($quiz->id)?->pivot->points ?? $question->default_points ?? 1;
-            $totalPoints += $pivotPoints;
+            $snapshot = $quizAnswer->snapshotArray();
 
-            if ($quizAnswer->answer_text) {
-                if ($question->question_type === Question::TYPE_MULTIPLE_CHOICE || $question->question_type === Question::TYPE_TRUE_FALSE) {
-                    $correctChoice = $question->choices->where('is_correct', true)->first();
-                    if ($correctChoice && $quizAnswer->answer_text == $correctChoice->id) {
-                        $quizAnswer->is_correct = true;
-                        $quizAnswer->points_awarded = $pivotPoints;
-                        $totalScore += $pivotPoints;
-                    }
-                } elseif ($question->question_type === Question::TYPE_MULTIPLE_ANSWER) {
-                    $selectedIds = json_decode($quizAnswer->answer_text, true) ?: [];
-                    $correctIds = $question->choices->where('is_correct', true)->pluck('id')->toArray();
-                    sort($selectedIds);
-                    sort($correctIds);
-                    if ($selectedIds === $correctIds) {
-                        $quizAnswer->is_correct = true;
-                        $quizAnswer->points_awarded = $pivotPoints;
-                        $totalScore += $pivotPoints;
-                    }
+            $pivotPoints = $question?->quizzes->find($quiz->id)?->pivot->points
+                ?? $snapshot['points']
+                ?? $question?->default_points
+                ?? 1;
+
+            // Stored submissions are scalar for one-answer types and JSON for
+            // multiple answer; undo that before grading.
+            $submitted = $quizAnswer->answer_text;
+
+            if (is_string($submitted) && str_starts_with(ltrim($submitted), '[')) {
+                $decoded = json_decode($submitted, true);
+
+                if (is_array($decoded)) {
+                    $submitted = $decoded;
                 }
             }
+
+            $result = $grader->grade($submitted, $snapshot, $question, (float) $pivotPoints);
+
+            if ($result['manual']) {
+                $quizAnswer->is_correct = null;
+                $quizAnswer->points_awarded = null;
+                $quizAnswer->save();
+
+                continue;
+            }
+
+            $quizAnswer->is_correct = $result['is_correct'];
+            $quizAnswer->points_awarded = $result['points'];
             $quizAnswer->save();
+
+            // Persist which choices the student selected for multiple-choice questions
+            // so they are visible in the instructor's review screen (§14).
+            $this->syncSelectedChoices($quizAnswer, $submitted, $question);
+
+            $totalScore += $result['points'];
+            $totalPoints += $pivotPoints;
         }
 
         $scorePercent = $totalPoints > 0 ? ($totalScore / $totalPoints) * 100 : 0;
-        $isPassed = $scorePercent >= $quiz->passing_score_percent;
+        $hasPendingGrades = $this->hasPendingGrades($attempt);
+        $isPassed = $totalPoints > 0 && ! $hasPendingGrades
+            ? $scorePercent >= $quiz->passing_score_percent
+            : null;
         $timeSpent = $quiz->time_limit_minutes * 60;
 
         // Ensure time_spent_seconds is never negative

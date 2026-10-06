@@ -7,6 +7,7 @@ use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\QuestionCategory;
 use App\Models\QuestionChoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -143,8 +144,10 @@ class QuestionBankController extends Controller
 
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
         $classes = ClassModel::with('course')->orderBy('code')->get(['id', 'code', 'course_id']);
+        // §7 — the category picker on every question form below.
+        $categories = QuestionCategory::orderBy('name')->get(['id', 'name', 'course_id']);
 
-        return view('instructor.question-banks.edit', compact('questionBank', 'courses', 'classes'));
+        return view('instructor.question-banks.edit', compact('questionBank', 'courses', 'classes', 'categories'));
     }
 
     public function update(Request $request, QuestionBank $questionBank): RedirectResponse
@@ -215,6 +218,8 @@ class QuestionBankController extends Controller
                 'default_points' => $payload['default_points'],
                 'tags' => $payload['tags'] ?? null,
                 'status' => $payload['status'],
+                'category_id' => $payload['category_id'] ?? null,
+                'is_case_sensitive' => $payload['is_case_sensitive'] ?? false,
                 'created_by' => auth()->id(),
             ]);
 
@@ -243,6 +248,8 @@ class QuestionBankController extends Controller
                 'default_points' => $payload['default_points'],
                 'tags' => $payload['tags'] ?? null,
                 'status' => $payload['status'],
+                'category_id' => $payload['category_id'] ?? null,
+                'is_case_sensitive' => $payload['is_case_sensitive'] ?? false,
             ]);
 
             $this->syncChoices($question, $payload);
@@ -259,10 +266,11 @@ class QuestionBankController extends Controller
         abort_if($questionBank->created_by !== auth()->id(), 403);
         abort_if($question->question_bank_id !== $questionBank->id, 404);
 
-        $usedInQuizzes = DB::table('quiz_questions')->where('question_id', $question->id)->exists();
-        $usedInExams = DB::table('exam_questions')->where('question_id', $question->id)->exists();
-
-        if ($usedInQuizzes || $usedInExams) {
+        // §5 — deactivate rather than destroy. quiz_questions/exam_questions use
+        // a cascading FK, so a hard delete here would rewrite past attempts.
+        // The question is only trashed (soft delete), and only while nothing
+        // points at it; otherwise the caller is told to archive it first.
+        if ($question->isInUse()) {
             return back()->with(
                 'error',
                 'This question is already used by a quiz or exam. Archive it instead of deleting.'
@@ -296,6 +304,11 @@ class QuestionBankController extends Controller
             'tags' => 'nullable|string|max:255',
             'status' => 'required|string|in:draft,active,archived',
 
+            // §7 — topic grouping, which the quota builder (§9) also reads.
+            'category_id' => 'nullable|integer|exists:question_categories,id',
+            // §2 — only meaningful for free-text types.
+            'is_case_sensitive' => 'nullable',
+
             'choice' => 'nullable|array',
             'choice.*.text' => 'nullable|string|max:1000',
             'choice.*.correct' => 'nullable',
@@ -309,6 +322,8 @@ class QuestionBankController extends Controller
         ]);
 
         $data['tags'] = $this->normaliseTags($data['tags'] ?? null);
+        $data['category_id'] = (int) ($data['category_id'] ?? 0) ?: null;
+        $data['is_case_sensitive'] = $this->isTruthy($data['is_case_sensitive'] ?? null);
 
         // Resolve the final choice set, dropping blank rows.
         $existing = [];

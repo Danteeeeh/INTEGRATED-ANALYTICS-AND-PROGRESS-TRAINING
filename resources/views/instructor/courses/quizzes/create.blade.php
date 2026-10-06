@@ -281,6 +281,8 @@
                 </div>
             </div>
 
+            @include('instructor.courses.quizzes._test-bank-picker')
+
             <div class="cc-section">
                 <div class="cc-section-title"><i class="fa-solid fa-file-import"></i> Import Questions (Optional)</div>
                 <div class="cc-grid">

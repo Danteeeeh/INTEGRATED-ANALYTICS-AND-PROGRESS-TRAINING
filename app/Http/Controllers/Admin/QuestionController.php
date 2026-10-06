@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\QuestionCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,8 +50,9 @@ class QuestionController extends Controller
 
         $questionBanks = QuestionBank::active()->orderBy('title')->get(['id', 'title']);
         $preselectedBankId = $request->get('question_bank_id');
+        $categories = QuestionCategory::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.questions.create', compact('questionBanks', 'preselectedBankId'));
+        return view('admin.questions.create', compact('questionBanks', 'preselectedBankId', 'categories'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -66,10 +68,17 @@ class QuestionController extends Controller
             'default_points' => 'nullable|numeric|min:0',
             'tags' => 'nullable|array',
             'status' => 'required|string|max:50',
+            // §7 / §2 — topic grouping and free-text matching.
+            'category_id' => 'nullable|exists:question_categories,id',
+            'is_case_sensitive' => 'nullable',
         ]);
 
         $validated['created_by'] = $request->user()->id;
         $validated['tags'] = $request->input('tags', []);
+        // An unticked checkbox posts nothing, so it never reaches the validator;
+        // fill both in here rather than letting them default behind our back.
+        $validated['category_id'] = $validated['category_id'] ?? null;
+        $validated['is_case_sensitive'] = filter_var($validated['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $question = Question::create($validated);
 
@@ -92,8 +101,9 @@ class QuestionController extends Controller
         $this->authorize('update', $question);
 
         $questionBanks = QuestionBank::active()->orderBy('title')->get(['id', 'title']);
+        $categories = QuestionCategory::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.questions.edit', compact('question', 'questionBanks'));
+        return view('admin.questions.edit', compact('question', 'questionBanks', 'categories'));
     }
 
     public function update(Request $request, Question $question): RedirectResponse
@@ -109,9 +119,16 @@ class QuestionController extends Controller
             'default_points' => 'nullable|numeric|min:0',
             'tags' => 'nullable|array',
             'status' => 'required|string|max:50',
+            // §7 / §2 — topic grouping and free-text matching.
+            'category_id' => 'nullable|exists:question_categories,id',
+            'is_case_sensitive' => 'nullable',
         ]);
 
         $validated['tags'] = $request->input('tags', $question->tags);
+        // Same as store: without these, a cleared category or unticked case
+        // flag would silently keep its previous value.
+        $validated['category_id'] = $validated['category_id'] ?? null;
+        $validated['is_case_sensitive'] = filter_var($validated['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $question->update($validated);
 
@@ -124,19 +141,32 @@ class QuestionController extends Controller
     {
         $this->authorize('delete', $question);
 
+        // §5 — a question that is part of an assessment cannot be removed: the
+        // pivots cascade, so the deletion would silently rewrite every past
+        // attempt. `isInUse()` covers quizzes *and* exams; answered questions
+        // are guarded separately because their rows point straight here.
+        if ($question->isInUse()) {
+            return back()->with(
+                'error',
+                'Cannot delete a question that is attached to a quiz or exam. Archive it instead.'
+            );
+        }
+
+        if ($question->quizAnswers()->exists() || $question->examAnswers()->exists()) {
+            return back()->with(
+                'error',
+                'Cannot delete a question that students have already answered.'
+            );
+        }
+
         try {
-            if ($question->quizzes()->exists()) {
-                return back()->with('error', 'Cannot delete a question that is attached to quizzes.');
-            }
-            if ($question->quizAnswers()->exists()) {
-                return back()->with('error', 'Cannot delete a question that has been answered.');
-            }
+            // Soft delete: the row survives so history stays resolvable.
             $question->delete();
-            session()->flash('success', 'Question archived successfully.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.questions.index');
+        return redirect()->route('admin.questions.index')
+            ->with('success', 'Question archived successfully.');
     }
 }

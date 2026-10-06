@@ -6,13 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Module;
+use App\Models\Question;
+use App\Models\QuestionBank;
+use App\Models\QuestionChoice;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Services\QuestionQuotaException;
+use App\Services\QuestionQuotaPicker;
 use App\Services\QuizImportService;
 use App\Services\QuizExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -54,7 +60,10 @@ class QuizController extends Controller
             Quiz::VISIBILITY_NEVER => 'Never Visible',
         ];
 
-        return view('instructor.courses.quizzes.create', compact('course', 'classes', 'modules', 'resultVisibilityOptions'));
+        // §8 — what the picker can offer for this course.
+        $testBankQuestions = $this->testBankPool();
+
+        return view('instructor.courses.quizzes.create', compact('course', 'classes', 'modules', 'resultVisibilityOptions', 'testBankQuestions'));
     }
 
     public function store(Request $request, Course $course): RedirectResponse
@@ -98,6 +107,25 @@ class QuizController extends Controller
             'questions.*.choices' => 'required_with:questions|array',
             'questions.*.choices.*' => 'required_with:questions|string',
             'questions.*.correct_choice' => 'required_with:questions|integer',
+
+            // §8 — picking from the Test Bank links the existing row; it never
+            // copies the question, so the original stays the single source.
+            'test_bank_question_ids' => 'nullable|array',
+            'test_bank_question_ids.*' => 'integer|exists:questions,id',
+            'test_bank_points' => 'nullable|array',
+            'test_bank_points.*' => 'integer|min:1|max:1000',
+
+            // §9 — random draw: total + per-category + per-difficulty quotas.
+            // selection_mode defaults to "manual" (tick by tick). When "random",
+            // the draw is resolved by QuestionQuotaPicker before the quiz is
+            // saved so a quota failure leaves no half-built quiz behind.
+            'selection_mode' => 'nullable|string|in:manual,random',
+            'draw_total' => 'nullable|integer|min:1',
+            'draw_category' => 'nullable|array',
+            'draw_category.*' => 'integer|min:0',
+            'draw_difficulty' => 'nullable|array',
+            'draw_difficulty.*' => 'integer|min:0',
+            'test_bank_draw' => 'nullable|string',
         ]);
 
         if ($request->filled('class_id')) {
@@ -114,12 +142,15 @@ class QuizController extends Controller
         $validated['review_allowed'] = $validated['review_allowed'] ?? true;
         $validated['show_correct_answers'] = $validated['show_correct_answers'] ?? false;
 
+        // §8/§9 — resolve the Test Bank selection before anything is written,
+        // so a quota that cannot be met never leaves a half-built quiz behind.
+        $selection = $this->resolveTestBankSelection($request, null);
+
         $quiz = Quiz::create($validated);
 
-        // Add manual questions if provided
-        if ($request->filled('questions')) {
-            $this->addQuestionsToQuiz($quiz, $request->questions, $request->user()->id);
-        }
+        // §8 — inline rows and Test Bank picks resolve together, and the
+        // picker links the original question rather than copying it.
+        $this->syncQuizQuestions($quiz, $request, $selection);
 
         // Import questions if file is provided
         if ($request->hasFile('import_file')) {
@@ -129,7 +160,7 @@ class QuizController extends Controller
                 $extension = strtolower($file->getClientOriginalExtension());
 
                 $questionBank = $request->filled('question_bank_id')
-                    ? \App\Models\QuestionBank::find($request->question_bank_id)
+                    ? QuestionBank::find($request->question_bank_id)
                     : null;
 
                 $importService = new QuizImportService();
@@ -183,7 +214,9 @@ class QuizController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
-        $quiz->load(['questions.choices']);
+        // Load questions with their choices explicitly
+        $quiz->load(['questions']);
+        $quiz->questions->load('choices');
 
         $classes = ClassModel::where('course_id', $course->id)
             ->where('instructor_id', auth()->id())
@@ -195,7 +228,11 @@ class QuizController extends Controller
             Quiz::VISIBILITY_NEVER => 'Never Visible',
         ];
 
-        return view('instructor.courses.quizzes.edit', compact('course', 'quiz', 'classes', 'modules', 'resultVisibilityOptions'));
+        // §8 — already-linked questions are excluded so the picker cannot
+        // silently attach the same row twice.
+        $testBankQuestions = $this->testBankPool($quiz);
+
+        return view('instructor.courses.quizzes.edit', compact('course', 'quiz', 'classes', 'modules', 'resultVisibilityOptions', 'testBankQuestions'));
     }
 
     public function update(Request $request, Course $course, Quiz $quiz): RedirectResponse
@@ -239,6 +276,25 @@ class QuizController extends Controller
             'questions.*.choices' => 'required_with:questions|array',
             'questions.*.choices.*' => 'required_with:questions|string',
             'questions.*.correct_choice' => 'required_with:questions|integer',
+
+            // §8 — picking from the Test Bank links the existing row; it never
+            // copies the question, so the original stays the single source.
+            'test_bank_question_ids' => 'nullable|array',
+            'test_bank_question_ids.*' => 'integer|exists:questions,id',
+            'test_bank_points' => 'nullable|array',
+            'test_bank_points.*' => 'integer|min:1|max:1000',
+
+            // §9 — random draw: total + per-category + per-difficulty quotas.
+            // selection_mode defaults to "manual" (tick by tick). When "random",
+            // the draw is resolved by QuestionQuotaPicker before the quiz is
+            // saved so a quota failure leaves no half-built quiz behind.
+            'selection_mode' => 'nullable|string|in:manual,random',
+            'draw_total' => 'nullable|integer|min:1',
+            'draw_category' => 'nullable|array',
+            'draw_category.*' => 'integer|min:0',
+            'draw_difficulty' => 'nullable|array',
+            'draw_difficulty.*' => 'integer|min:0',
+            'test_bank_draw' => 'nullable|string',
         ]);
 
         if ($request->filled('class_id')) {
@@ -253,16 +309,16 @@ class QuizController extends Controller
         $validated['review_allowed'] = $validated['review_allowed'] ?? true;
         $validated['show_correct_answers'] = $validated['show_correct_answers'] ?? false;
 
+        // §8/§9 — resolve the Test Bank selection before any write, so a quota
+        // that cannot be met never leaves the quiz half-edited.
+        $selection = $this->resolveTestBankSelection($request, $quiz);
+
         $quiz->update($validated);
 
-        // Update questions if provided
-        if ($request->filled('questions')) {
-            // Remove existing quiz-question relationships
-            $quiz->questions()->detach();
-
-            // Add/update questions
-            $this->addQuestionsToQuiz($quiz, $request->questions, $request->user()->id);
-        }
+        // §8 — one sync instead of detach()+re-create. The old version copied
+        // every question on every edit and orphaned the pivots past attempts
+        // were graded against; links that survive are left exactly as they were.
+        $this->syncQuizQuestions($quiz, $request, $selection);
 
         // Import questions if file is provided
         if ($request->hasFile('import_file')) {
@@ -272,7 +328,7 @@ class QuizController extends Controller
                 $extension = strtolower($file->getClientOriginalExtension());
 
                 $questionBank = $request->filled('question_bank_id')
-                    ? \App\Models\QuestionBank::find($request->question_bank_id)
+                    ? QuestionBank::find($request->question_bank_id)
                     : null;
 
                 $importService = new QuizImportService();
@@ -409,7 +465,7 @@ class QuizController extends Controller
 
         try {
             $questionBank = $request->filled('question_bank_id')
-                ? \App\Models\QuestionBank::find($request->question_bank_id)
+                ? QuestionBank::find($request->question_bank_id)
                 : null;
 
             $importService = new QuizImportService();
@@ -436,58 +492,386 @@ class QuizController extends Controller
     }
 
     /**
-     * Add questions to a quiz from form data
+     * Turn the inline question rows into links for the quiz (§8).
+     *
+     * Returns a list of question ids and their per-quiz points, and does *not*
+     * touch the pivot itself — the caller syncs, so a question that is already
+     * linked keeps its row and every past attempt keeps pointing at it.
+     *
+     * A row carrying its original question_id is edited in place rather than
+     * duplicated. Editing a question the instructor does not own forks a copy
+     * into their own bank instead of rewriting the shared original.
+     *
+     * @return list<array{id: int, points: int}>
      */
-    protected function addQuestionsToQuiz(Quiz $quiz, array $questionsData, int $userId): void
+    protected function addQuestionsToQuiz(Quiz $quiz, array $questionsData, int $userId): array
     {
-        $position = 1;
+        $links = [];
 
         foreach ($questionsData as $questionData) {
-            $courseId = $quiz->class?->course_id
-                ?? $quiz->module?->course_id
-                ?? $quiz->lesson?->module?->course_id;
+            $points = (int) ($questionData['points'] ?? 1);
+            $text = trim((string) ($questionData['text'] ?? ''));
 
-            // Create or find a question bank for this quiz
-            $questionBank = \App\Models\QuestionBank::firstOrCreate(
+            if ($text === '') {
+                continue;
+            }
+
+            $original = ! empty($questionData['question_id'])
+                ? Question::find((int) $questionData['question_id'])
+                : null;
+
+            $target = null;
+
+            if ($original) {
+                $originalText = trim((string) $original->question_text);
+                $isMine = (int) ($original->bank?->created_by ?? 0) === $userId;
+
+                if ($isMine) {
+                    $this->updateQuestionFromRow($original, $questionData, $text);
+                    $target = $original;
+                } elseif ($text === $originalText) {
+                    // Untouched shared question: link the original, no copy.
+                    $target = $original;
+                }
+                // Someone else's question, and they changed the wording — fall
+                // through and fork it below so the shared original is untouched.
+            }
+
+            if (! $target) {
+                $target = $this->createQuestionForQuiz($quiz, $questionData, $text, $userId);
+            }
+
+            $links[] = [
+                'id' => $target->id,
+                'points' => $points,
+                // The id the form thought it was editing. When a shared question
+                // was forked this is the original, and the sync must not keep it.
+                'original_id' => $original?->id,
+            ];
+        }
+
+        return $links;
+    }
+
+    /**
+     * Resolve the whole question list for a quiz in one pass (§8).
+     *
+     * Three inputs are merged in order: the inline rows in the form, whatever
+     * is already linked but was *not* re-submitted (so Test Bank links survive
+     * an ordinary edit), and the Test Bank picks. One sync() then replaces the
+     * old detach-and-recreate dance — pivots for surviving questions are never
+     * dropped, so every past attempt still resolves to the question it graded.
+     */
+    protected function syncQuizQuestions(Quiz $quiz, Request $request, array $pickedLinks = []): void
+    {
+        $userId = (int) $request->user()->id;
+
+        // Read current pivots before touching anything: preserved links keep
+        // the exact position and points they already had.
+        $existing = $quiz->questions()->get()->keyBy('id');
+        $currentPoints = $existing->mapWithKeys(
+            fn ($q) => [$q->id => (int) ($q->pivot->points ?? 1)]
+        );
+
+        $links = [];   // question_id => ['position' => int, 'points' => int]
+        $retired = []; // originals that were forked away and must not survive
+
+        $inlineLinks = []; // id => points, in the order the form posted them
+        $inlineOrder = [];
+
+        if ($request->filled('questions')) {
+            foreach ($this->addQuestionsToQuiz($quiz, $request->questions, $userId) as $entry) {
+                $inlineLinks[$entry['id']] = $entry['points'];
+                $inlineOrder[] = $entry['id'];
+
+                if ($entry['original_id'] !== null && $entry['original_id'] !== $entry['id']) {
+                    $retired[] = $entry['original_id'];
+                }
+            }
+        }
+
+        // The edit form flags itself as owning the whole list. When it does not
+        // appear — a picker-only request, or anything that posts nothing about
+        // inline rows — existing links are kept exactly as they are so nothing
+        // is detached behind the caller's back. When it does, an inline row the
+        // instructor removed really is meant to go.
+        $preservedLinks = [];
+
+        if (! $request->boolean('inline_questions_managed')) {
+            foreach ($existing as $id => $question) {
+                if (isset($inlineLinks[$id]) || in_array($id, $retired, true)) {
+                    continue;
+                }
+
+                $preservedLinks[$id] = $currentPoints[$id] ?? 1;
+            }
+        }
+
+        // Newly picked (or drawn, §9) from the Test Bank: link the original
+        // row, never a copy.
+        $picked = [];
+
+        foreach ($pickedLinks as $id => $points) {
+            if (isset($inlineLinks[$id]) || isset($picked[$id])) {
+                continue;
+            }
+
+            $picked[$id] = $points;
+        }
+
+        // Kept links hold their old slots first so appending a pick does not
+        // shuffle the order an attempt was taken in; then the inline rows in
+        // form order, then the new picks.
+        $position = 0;
+
+        foreach ($preservedLinks as $id => $points) {
+            $links[$id] = ['position' => ++$position, 'points' => $points];
+        }
+
+        foreach ($inlineOrder as $id) {
+            $links[$id] = ['position' => ++$position, 'points' => $inlineLinks[$id]];
+        }
+
+        foreach ($picked as $id => $points) {
+            $links[$id] = ['position' => ++$position, 'points' => $points];
+        }
+
+        if ($links === [] && ! $request->boolean('inline_questions_managed')) {
+            return;
+        }
+
+        $quiz->questions()->sync($links);
+    }
+
+    /**
+     * Work out which Test Bank questions this request wants, before anything
+     * is written. Two modes: the individually ticked rows, or a §9 random draw
+     * bounded by the category and difficulty quotas on the form.
+     *
+     * A quota that cannot be met raises a validation error, which is how the
+     * form hears about it — there is no silent fallback to "whatever fits".
+     *
+     * @return array<int, int> question_id => points
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function resolveTestBankSelection(Request $request, ?Quiz $quiz): array
+    {
+        if ($request->input('selection_mode') !== 'random') {
+            return $this->testBankLinks($request, $quiz);
+        }
+
+        $total = (int) $request->input('draw_total', 0);
+
+        if ($total < 1) {
+            throw ValidationException::withMessages([
+                'test_bank_draw' => 'Say how many questions the drawn set should contain.',
+            ]);
+        }
+
+        // A "0" category key means the form posted something unselectable;
+        // uncategorised is posted as an empty string and filtered out with the
+        // rest, since it has no quota of its own.
+        $categoryQuotas = array_filter(
+            (array) $request->input('draw_category', []),
+            fn ($count, $id) => (int) $id > 0 && (int) $count > 0,
+            ARRAY_FILTER_USE_BOTH
+        );
+
+        $difficultyQuotas = array_filter(
+            (array) $request->input('draw_difficulty', []),
+            fn ($count) => (int) $count > 0
+        );
+
+        try {
+            $drawn = app(QuestionQuotaPicker::class)->pick(
+                $this->testBankPool($quiz),
+                $total,
+                $categoryQuotas,
+                $difficultyQuotas
+            );
+        } catch (QuestionQuotaException $e) {
+            throw ValidationException::withMessages(['test_bank_draw' => $e->getMessage()]);
+        }
+
+        $points = (array) $request->input('test_bank_points', []);
+
+        return collect($drawn)->mapWithKeys(fn (Question $question) => [
+            $question->id => (int) ($points[$question->id] ?? $question->default_points ?? 1),
+        ])->all();
+    }
+
+    /**
+     * Question ids ticked in the picker, resolved through the same ownership
+     * rule as the Test Bank tab so the picker can never reach someone else's
+     * private work, even by posting an id directly.
+     *
+     * @return array<int, int> question_id => points
+     */
+    protected function testBankLinks(Request $request, ?Quiz $quiz = null): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map(
+            'intval',
+            (array) $request->input('test_bank_question_ids', [])
+        ))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $points = (array) $request->input('test_bank_points', []);
+
+        $links = [];
+
+        foreach ($this->testBankPool($quiz)->whereIn('id', $ids) as $question) {
+            $links[$question->id] = (int) ($points[$question->id]
+                ?? $question->default_points
+                ?? 1);
+        }
+
+        return $links;
+    }
+
+    /**
+     * Reusable questions: own banks plus shared ones (everything for an admin),
+     * minus what this quiz already uses. Archived questions stay out — §3 keeps
+     * them out of anything newly served.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Question>
+     */
+    protected function testBankPool(?Quiz $quiz = null)
+    {
+        $user = auth()->user();
+
+        $query = Question::query()
+            ->with(['bank:id,title,created_by,is_shared', 'category:id,name'])
+            ->where('status', '!=', Question::STATUS_ARCHIVED)
+            ->whereNotNull('question_bank_id')
+            ->orderBy('id');
+
+        if (! $user->isAdmin()) {
+            $query->whereHas('bank', fn ($q) => $q
+                ->where('created_by', $user->id)
+                ->orWhere('is_shared', true));
+        }
+
+        if ($quiz) {
+            $query->whereDoesntHave('quizzes', fn ($q) => $q->where('quizzes.id', $quiz->id));
+        }
+
+        // Own course first would hide the cross-course pool, so keep every
+        // usable question and let the search box on the form narrow it.
+        return $query->take(300)->get();
+    }
+
+    /**
+     * @param  array<string, mixed>  $questionData
+     */
+    private function updateQuestionFromRow(Question $question, array $questionData, string $text): void
+    {
+        $question->update([
+            'question_text' => $text,
+            'default_points' => (int) ($questionData['points'] ?? $question->default_points),
+        ]);
+
+        $this->syncRowChoices($question, $questionData);
+    }
+
+    /**
+     * Build a brand-new question (or a fork of a shared one) for this quiz.
+     *
+     * It still lands in a bank, so it becomes reusable from the Test Bank the
+     * next time — that is the point of the section (§8).
+     *
+     * @param  array<string, mixed>  $questionData
+     */
+    private function createQuestionForQuiz(Quiz $quiz, array $questionData, string $text, int $userId): Question
+    {
+        $courseId = $quiz->class?->course_id
+            ?? $quiz->module?->course_id
+            ?? $quiz->lesson?->module?->course_id;
+
+        $course = $courseId ? Course::find($courseId) : null;
+
+        // One bank per course, not one per quiz: naming it after the quiz
+        // littered the bank list with "{Quiz Title} Questions" every time.
+        $title = $course
+            ? trim($course->code.' Questions')
+            : trim($quiz->title.' Questions');
+
+        $questionBank = QuestionBank::firstOrCreate(
+            [
+                'course_id' => $courseId,
+                'title' => $title,
+                'created_by' => $userId,
+            ],
+            [
+                'description' => 'Authored while building quizzes for '.($course ? $course->title : $quiz->title),
+                'status' => 'active',
+            ]
+        );
+
+        $question = Question::create([
+            'question_bank_id' => $questionBank->id,
+            'question_type' => 'multiple_choice',
+            'question_text' => $text,
+            'default_points' => $questionData['points'] ?? 1,
+            'difficulty' => 'medium',
+            'created_by' => $userId,
+            'status' => 'active',
+        ]);
+
+        $this->syncRowChoices($question, $questionData);
+
+        return $question;
+    }
+
+    /**
+     * The inline form posts a fixed number of choice slots, some of them blank.
+     *
+     * Slots are keyed exactly as `correct_choice` refers to them (the form posts
+     * `choices[1..4]` and a matching radio value), so the answer key is matched
+     * against the original key rather than the loop position — otherwise the
+     * selected answer lands on the row beside it. Positions are then assigned
+     * 1..n, which also closes the gap the old code left at the head of the list.
+     *
+     * @param  array<string, mixed>  $questionData
+     */
+    private function syncRowChoices(Question $question, array $questionData): void
+    {
+        $slots = [];
+
+        foreach ((array) ($questionData['choices'] ?? []) as $key => $choiceText) {
+            $text = trim((string) $choiceText);
+
+            if ($text !== '') {
+                $slots[] = ['key' => (int) $key, 'text' => $text];
+            }
+        }
+
+        if ($slots === []) {
+            return;
+        }
+
+        $correctKey = (int) ($questionData['correct_choice'] ?? 1);
+        $position = 1;
+
+        foreach ($slots as $slot) {
+            QuestionChoice::updateOrCreate(
+                ['question_id' => $question->id, 'position' => $position],
                 [
-                    'course_id' => $courseId,
-                    'title' => $quiz->title . ' Questions',
-                    'created_by' => $userId,
-                ],
-                [
-                    'description' => 'Questions for quiz: ' . $quiz->title,
-                    'status' => 'active',
+                    'choice_text' => $slot['text'],
+                    'is_correct' => $slot['key'] === $correctKey,
                 ]
             );
 
-            // Create the question
-            $question = \App\Models\Question::create([
-                'question_bank_id' => $questionBank->id,
-                'question_type' => 'multiple_choice',
-                'question_text' => $questionData['text'],
-                'default_points' => $questionData['points'] ?? 1,
-                'difficulty' => 'medium',
-                'created_by' => $userId,
-                'status' => 'active',
-            ]);
-
-            // Create choices
-            $correctChoiceIndex = $questionData['correct_choice'];
-            foreach ($questionData['choices'] as $index => $choiceText) {
-                \App\Models\QuestionChoice::create([
-                    'question_id' => $question->id,
-                    'choice_text' => $choiceText,
-                    'is_correct' => ($index + 1) == $correctChoiceIndex,
-                    'position' => $index + 1,
-                ]);
-            }
-
-            // Attach question to quiz
-            $quiz->questions()->attach($question->id, [
-                'position' => $position++,
-                'points' => $questionData['points'] ?? 1,
-            ]);
+            $position++;
         }
+
+        // Drop leftovers from a previous, longer choice list.
+        QuestionChoice::where('question_id', $question->id)
+            ->where('position', '>=', $position)
+            ->delete();
     }
 
     public function grantExtension(Request $request, Course $course, Quiz $quiz): RedirectResponse

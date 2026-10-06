@@ -47,7 +47,9 @@ class ModuleController extends Controller
             ->byCourse($course->id)
             ->bySection($enrollment->class->section_id)
             ->whereIn('module_id', $allModuleIds)
-            ->pluck('module_id');
+            ->join('modules', 'section_module_assignments.module_id', '=', 'modules.id')
+            ->orderBy('modules.position', 'asc')
+            ->pluck('section_module_assignments.module_id');
 
         if ($sectionModuleIds->isNotEmpty()) {
             $modulesQuery->whereIn('id', $sectionModuleIds);

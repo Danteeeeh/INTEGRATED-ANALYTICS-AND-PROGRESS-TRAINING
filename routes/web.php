@@ -67,6 +67,9 @@ use App\Http\Controllers\Instructor\RubricController as InstructorRubricControll
 use App\Http\Controllers\Instructor\VirtualClassController as InstructorVirtualClassController;
 use App\Http\Controllers\Instructor\LearningPlanController as InstructorLearningPlanController;
 use App\Http\Controllers\Instructor\QuestionBankController as InstructorQuestionBankController;
+use App\Http\Controllers\Instructor\QuestionCategoryController as InstructorQuestionCategoryController;
+use App\Http\Controllers\Instructor\QuestionLibraryController as InstructorQuestionLibraryController;
+use App\Http\Controllers\Instructor\QuestionStatisticsController as InstructorQuestionStatisticsController;
 use App\Http\Controllers\Instructor\StudentModuleAssignmentController;
 use App\Http\Controllers\Instructor\SectionModuleAssignmentController;
 use App\Http\Controllers\Student\AnnouncementController as StudentAnnouncementController;
@@ -245,6 +248,22 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::resource('question_banks', AdminQuestionBankController::class);
         Route::resource('questions', AdminQuestionController::class);
 
+        // Test Bank. Same controllers and same views as the instructor side —
+        // the views pick their layout from the authenticated role, so there is
+        // one copy of the markup rather than two (§1, §16: admin manages all).
+        Route::prefix('test-bank')->name('test_bank.')->group(function () {
+            Route::get('/', [InstructorQuestionLibraryController::class, 'index'])->name('index');
+            Route::get('/questions/{question}/preview', [InstructorQuestionLibraryController::class, 'preview'])->name('questions.preview');
+        });
+
+        Route::prefix('question-banks')->name('question_banks.')->group(function () {
+            Route::get('categories', [InstructorQuestionCategoryController::class, 'index'])->name('categories.index');
+            Route::post('categories', [InstructorQuestionCategoryController::class, 'store'])->name('categories.store');
+            Route::put('categories/{questionCategory}', [InstructorQuestionCategoryController::class, 'update'])->name('categories.update');
+            Route::delete('categories/{questionCategory}', [InstructorQuestionCategoryController::class, 'destroy'])->name('categories.destroy');
+            Route::get('statistics', [InstructorQuestionStatisticsController::class, 'index'])->name('statistics.index');
+        });
+
         Route::prefix('terms_of_service')->name('terms_of_service.')->group(function () {
             Route::get('/', [TermsOfServiceController::class, 'index'])->name('index');
             Route::get('/create', [TermsOfServiceController::class, 'create'])->name('create');
@@ -408,6 +427,13 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::post('/{module}/attachments/reorder', [InstructorModuleController::class, 'reorderAttachments'])->name('attachments.reorder');
 
                     Route::prefix('{module}/lessons')->name('lessons.')->group(function () {
+                        // Bind lesson to this module so route model binding scopes correctly
+                        Route::bind('lesson', function ($value, $route) {
+                            return \App\Models\Lesson::where('id', $value)
+                                ->where('module_id', $route->parameter('module'))
+                                ->firstOrFail();
+                        });
+
                         Route::get('/', [InstructorLessonController::class, 'index'])->name('index');
                         Route::get('/create', [InstructorLessonController::class, 'create'])->name('create');
                         Route::post('/', [InstructorLessonController::class, 'store'])->name('store');
@@ -575,6 +601,20 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/', [InstructorQuestionBankController::class, 'index'])->name('index');
             Route::get('/create', [InstructorQuestionBankController::class, 'create'])->name('create');
             Route::post('/', [InstructorQuestionBankController::class, 'store'])->name('store');
+
+            // Declared ahead of /{questionBank}: otherwise the wildcard swallows
+            // "categories" and the segment never reaches the controller.
+            Route::prefix('categories')->name('categories.')->group(function () {
+                Route::get('/', [InstructorQuestionCategoryController::class, 'index'])->name('index');
+                Route::post('/', [InstructorQuestionCategoryController::class, 'store'])->name('store');
+                Route::put('/{questionCategory}', [InstructorQuestionCategoryController::class, 'update'])->name('update');
+                Route::delete('/{questionCategory}', [InstructorQuestionCategoryController::class, 'destroy'])->name('destroy');
+            });
+
+            Route::prefix('statistics')->name('statistics.')->group(function () {
+                Route::get('/', [InstructorQuestionStatisticsController::class, 'index'])->name('index');
+            });
+
             Route::get('/{questionBank}', [InstructorQuestionBankController::class, 'show'])->name('show');
             Route::get('/{questionBank}/edit', [InstructorQuestionBankController::class, 'edit'])->name('edit');
             Route::put('/{questionBank}', [InstructorQuestionBankController::class, 'update'])->name('update');
@@ -584,6 +624,13 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::post('/{questionBank}/questions', [InstructorQuestionBankController::class, 'storeQuestion'])->name('questions.store');
             Route::put('/{questionBank}/questions/{question}', [InstructorQuestionBankController::class, 'updateQuestion'])->name('questions.update');
             Route::delete('/{questionBank}/questions/{question}', [InstructorQuestionBankController::class, 'destroyQuestion'])->name('questions.destroy');
+        });
+
+        // Test Bank — every question the instructor may use, across their own
+        // and admin-shared banks (§1, §6).
+        Route::prefix('test-bank')->name('test_bank.')->group(function () {
+            Route::get('/', [InstructorQuestionLibraryController::class, 'index'])->name('index');
+            Route::get('/questions/{question}/preview', [InstructorQuestionLibraryController::class, 'preview'])->name('questions.preview');
         });
 
         Route::prefix('submissions')->name('submissions.')->group(function () {

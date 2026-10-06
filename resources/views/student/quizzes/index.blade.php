@@ -18,10 +18,12 @@
         <div class="learning-grid">
             @foreach($quizzes as $quiz)
                 @php
-                    $best = $quiz->attempts->first();
+                    // Get the actual best attempt (highest score_percent), not just the latest
+                    $attempts = $quiz->attempts->whereIn('status', ['submitted', 'auto_submitted', 'graded']);
+                    $best = $attempts->sortByDesc('score_percent')->first();
                     $available = $quiz->available();
                     $attempted = $best !== null;
-                    $isCompleted = $attempted && in_array($best->status, ['submitted', 'auto_submitted', 'graded']);
+                    $isCompleted = $attempted;
                 @endphp
                 <div class="learning-card" style="{{ $isCompleted ? 'opacity: 0.7;' : '' }}">
                     <div>
@@ -43,7 +45,7 @@
                         <div class="user-actions" style="justify-content:space-between">
                             <span class="user-status">
                                 @if($quiz->time_limit_minutes){{ $quiz->time_limit_minutes }} min · @endif
-                                @if($attempted)Best {{ number_format($best->score_percent ?? $best->score ?? 0, 1) }}% @else {{ $quiz->questions->count() }} questions @endif
+                                @if($attempted)Best {{ number_format($best->score_percent ?? 0, 1) }}% @else {{ $quiz->questions->count() }} questions @endif
                             </span>
                             <a href="{{ route('student.courses.quizzes.show', [$course, $quiz]) }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-eye"></i> Open</a>
                         </div>

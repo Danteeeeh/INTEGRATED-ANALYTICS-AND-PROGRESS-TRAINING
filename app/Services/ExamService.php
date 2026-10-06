@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Services\QuestionGrader;
+use App\Services\QuestionSnapshotService;
+
 use App\Models\AuditLog;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
@@ -10,7 +13,6 @@ use App\Models\ExamAnswerChoice;
 use App\Models\ExamQuestion;
 use App\Models\Grade;
 use App\Models\GradeHistory;
-use App\Models\Question;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -210,11 +212,18 @@ class ExamService
                 'confirmed_before_start' => false,
             ]);
 
-            // Create empty answer records for each question
+            // Create empty answer records for each question, each carrying a
+            // frozen copy of the question as it was when the attempt started (§14).
+            $snapshots = app(QuestionSnapshotService::class)->captureMany(
+                $questions,
+                $exam->pointsByQuestionId()
+            );
+
             foreach ($questions as $question) {
                 ExamAnswer::create([
                     'exam_attempt_id' => $attempt->id,
                     'question_id' => $question->id,
+                    'question_snapshot' => $snapshots[$question->id] ?? null,
                 ]);
             }
 
@@ -236,6 +245,9 @@ class ExamService
     protected function getExamQuestions(Exam $exam): Collection
     {
         $query = ExamQuestion::where('exam_id', $exam->id)
+            // Retired (archived) questions are no longer served for new exams;
+            // past attempts keep their snapshot (§3, §14).
+            ->whereHas('question', fn ($q) => $q->availableForAttempts())
             ->with('question.choices')
             ->orderBy('order');
 
@@ -243,7 +255,7 @@ class ExamService
             $query->inRandomOrder();
         }
 
-        return $query->get()->pluck('question');
+        return $query->get()->pluck('question')->filter()->values();
     }
 
     public function confirmStart(ExamAttempt $attempt): ExamAttempt
@@ -287,30 +299,51 @@ class ExamService
             }
 
             // Save answers
+            $grader = app(QuestionGrader::class);
+            $pointsByQuestion = $attempt->exam->pointsByQuestionId();
+
             foreach ($answers as $questionId => $answerData) {
                 $examAnswer = ExamAnswer::where('exam_attempt_id', $attempt->id)
                     ->where('question_id', $questionId)
                     ->first();
 
-                if ($examAnswer) {
-                    $examAnswer->update([
-                        'answer_text' => $answerData['text'] ?? null,
-                        'answer_data' => $answerData['data'] ?? null,
-                        'is_correct' => $this->checkAnswer($examAnswer->question, $answerData),
-                        'answered_at' => now(),
-                    ]);
-
-                    // Save answer choices for multiple choice questions
-                    if (isset($answerData['choices']) && is_array($answerData['choices'])) {
-                        ExamAnswerChoice::where('exam_answer_id', $examAnswer->id)->delete();
-                        foreach ($answerData['choices'] as $choiceId) {
-                            ExamAnswerChoice::create([
-                                'exam_answer_id' => $examAnswer->id,
-                                'question_choice_id' => $choiceId,
-                            ]);
-                        }
-                    }
+                if (! $examAnswer) {
+                    continue;
                 }
+
+                // The exam form posts a scalar id for one-answer questions, an
+                // array of ids for multiple answer, and a plain string for text.
+                $submitted = $this->normalizeSubmitted($answerData);
+
+                // Grade against the frozen question (§14). This also fixes
+                // identification and short answer, which used to read a
+                // `correct_answer` column that does not exist.
+                $result = $grader->grade(
+                    $submitted,
+                    $examAnswer->snapshotArray(),
+                    $examAnswer->question,
+                    $pointsByQuestion[$questionId] ?? null
+                );
+
+                $examAnswer->answer_text = is_array($submitted)
+                    ? json_encode(array_values($submitted))
+                    : $submitted;
+
+                if ($result['manual']) {
+                    // Essay, or an identification question with no answer key
+                    // configured: the instructor decides (§21).
+                    $examAnswer->is_correct = null;
+                    $examAnswer->points_awarded = null;
+                    $examAnswer->answer_data = $examAnswer->answer_data;
+                } else {
+                    $examAnswer->is_correct = $result['is_correct'];
+                    $examAnswer->points_awarded = $result['points'];
+                }
+
+                $examAnswer->answered_at = now();
+                $examAnswer->save();
+
+                $this->syncChoiceSelections($examAnswer, $submitted);
             }
 
             // Calculate score
@@ -331,78 +364,121 @@ class ExamService
         });
     }
 
-    protected function checkAnswer(Question $question, array $answerData): bool
+    /**
+     * Normalises whatever the request carried into one shape per question type.
+     *
+     * @param  mixed  $answerData
+     * @return array<int>|string|null
+     */
+    protected function normalizeSubmitted(mixed $answerData): array|string|null
     {
-        switch ($question->question_type) {
-            case 'multiple_choice':
-            case 'true_false':
-                if (isset($answerData['choices']) && is_array($answerData['choices'])) {
-                    $correctChoices = $question->choices()->where('is_correct', true)->pluck('id')->toArray();
+        if (is_array($answerData)) {
+            // Accepts both the flat array the form posts and the older
+            // ['text' => ..., 'choices' => [...]] envelope.
+            if (array_key_exists('choices', $answerData) || array_key_exists('text', $answerData)) {
+                $choiceIds = $answerData['choices'] ?? null;
+                $text = $answerData['text'] ?? null;
 
-                    return count($answerData['choices']) === count($correctChoices) &&
-                           empty(array_diff($answerData['choices'], $correctChoices));
+                if (is_array($choiceIds) && $choiceIds !== []) {
+                    return array_values(array_map('intval', $choiceIds));
                 }
 
-                return false;
+                return $text === null ? null : (string) $text;
+            }
 
-            case 'multiple_answer':
-                if (isset($answerData['choices']) && is_array($answerData['choices'])) {
-                    $correctChoices = $question->choices()->where('is_correct', true)->pluck('id')->toArray();
-                    $selectedChoices = $answerData['choices'];
-                    $correctSelected = array_intersect($selectedChoices, $correctChoices);
+            return array_values($answerData);
+        }
 
-                    return count($correctSelected) === count($correctChoices);
-                }
+        if ($answerData === null) {
+            return null;
+        }
 
-                return false;
+        if (is_bool($answerData)) {
+            return $answerData ? '1' : '0';
+        }
 
-            case 'short_answer':
-            case 'identification':
-                return isset($answerData['text']) &&
-                       strcasecmp(trim($answerData['text']), trim($question->correct_answer)) === 0;
+        return (string) $answerData;
+    }
 
-            case 'essay':
-                // Essays require manual grading
-                return null;
+    /**
+     * Mirrors the selected choices into exam_answer_choices so review screens
+     * keep working whether the selection arrived as one id or many.
+     *
+     * @param  array<int>|string|null  $submitted
+     */
+    protected function syncChoiceSelections(ExamAnswer $examAnswer, array|string|null $submitted): void
+    {
+        $selected = is_array($submitted)
+            ? $submitted
+            : (is_numeric($submitted) ? [(int) $submitted] : []);
 
-            default:
-                return false;
+        ExamAnswerChoice::where('exam_answer_id', $examAnswer->id)->delete();
+
+        foreach ($selected as $choiceId) {
+            ExamAnswerChoice::create([
+                'exam_answer_id' => $examAnswer->id,
+                'question_choice_id' => (int) $choiceId,
+            ]);
         }
     }
 
+    /**
+     * Sums the attempt from the stored per-answer results.
+     *
+     * Questions still awaiting an instructor (essays, identification with no
+     * answer key) are left out of the denominator: counting them as zero would
+     * mark a student down for work nobody has marked yet.
+     */
     protected function calculateAttemptScore(ExamAttempt $attempt): void
     {
         $examAnswers = ExamAnswer::where('exam_attempt_id', $attempt->id)->get();
-        $totalPoints = 0;
-        $earnedPoints = 0;
+
+        $pointsByQuestion = $attempt->exam->pointsByQuestionId();
+        $totalPoints = 0.0;
+        $earnedPoints = 0.0;
+        $pending = false;
 
         foreach ($examAnswers as $examAnswer) {
-            $examQuestion = ExamQuestion::where('exam_id', $attempt->exam_id)
-                ->where('question_id', $examAnswer->question_id)
-                ->first();
+            $answered = $examAnswer->answer_text !== null
+                && trim((string) $examAnswer->answer_text) !== '';
 
-            if ($examQuestion) {
-                $totalPoints += $examQuestion->points;
-                if ($examAnswer->is_correct === true) {
-                    $earnedPoints += $examQuestion->points;
-                }
+            if ($examAnswer->is_correct === null && $answered) {
+                // Submitted, but nobody has judged it yet (§21). Kept out of the
+                // denominator so unmarked work is not scored as wrong.
+                $pending = true;
+
+                continue;
             }
+
+            // Not attempted at all, or already marked: counts either way, at the
+            // points this exam actually assigns.
+            $points = $pointsByQuestion[$examAnswer->question_id]
+                ?? $examAnswer->snapshotArray()['points']
+                ?? $examAnswer->question?->default_points
+                ?? 1;
+
+            $totalPoints += (float) $points;
+            $earnedPoints += (float) ($examAnswer->points_awarded ?? 0);
         }
 
         $score = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
-        $passed = $score >= $attempt->exam->passing_score_percent;
+
+        // Only a definitive pass/fail once everything is marked.
+        $passed = (! $pending && $totalPoints > 0)
+            ? $score >= $attempt->exam->passing_score_percent
+            : null;
 
         $attempt->update([
             'score' => $earnedPoints,
             'total_points' => $totalPoints,
             'earned_points' => $earnedPoints,
-            'score_percent' => $score,
+            'score_percent' => round($score, 2),
             'is_passed' => $passed,
-            'graded_at' => now(),
+            'graded_at' => $pending ? null : now(),
         ]);
 
         // Create grade record if exam is auto-graded
-        if ($attempt->exam->result_visibility === 'immediately') {
+        if (! $pending && $attempt->exam->result_visibility === 'immediately') {
             Grade::updateOrCreate(
                 [
                     'student_id' => $attempt->student_id,
@@ -424,6 +500,7 @@ class ExamService
     {
         return DB::transaction(function () use ($attempt, $gradingData) {
             $oldScore = $attempt->score_percent;
+            $pointsByQuestion = $attempt->exam->pointsByQuestionId();
 
             // Update specific answers with manual grading
             if (isset($gradingData['answers']) && is_array($gradingData['answers'])) {
@@ -432,14 +509,36 @@ class ExamService
                         ->where('question_id', $questionId)
                         ->first();
 
-                    if ($examAnswer) {
-                        $examAnswer->update([
-                            'is_correct' => $answerGrading['is_correct'] ?? $examAnswer->is_correct,
-                            'points_awarded' => $answerGrading['points_awarded'] ?? null,
-                            'feedback' => $answerGrading['feedback'] ?? null,
-                            'grader_notes' => $answerGrading['grader_notes'] ?? null,
-                        ]);
+                    if (! $examAnswer) {
+                        continue;
                     }
+
+                    $update = [
+                        'feedback' => $answerGrading['feedback'] ?? $examAnswer->feedback,
+                        'grader_notes' => $answerGrading['grader_notes'] ?? $examAnswer->grader_notes,
+                    ];
+
+                    $verdictGiven = array_key_exists('is_correct', $answerGrading);
+
+                    if ($verdictGiven) {
+                        $update['is_correct'] = $answerGrading['is_correct'];
+                    }
+
+                    if (array_key_exists('points_awarded', $answerGrading)) {
+                        $update['points_awarded'] = $answerGrading['points_awarded'];
+                    } elseif ($verdictGiven && $answerGrading['is_correct'] !== null) {
+                        // The form sometimes posts only the right/wrong tick.
+                        // Derive the mark so the answer does not linger as
+                        // "awaiting grading" after the instructor has judged it.
+                        $max = $pointsByQuestion[$examAnswer->question_id]
+                            ?? $examAnswer->snapshotArray()['points']
+                            ?? $examAnswer->question?->default_points
+                            ?? 1;
+
+                        $update['points_awarded'] = $answerGrading['is_correct'] ? (float) $max : 0.0;
+                    }
+
+                    $examAnswer->update($update);
                 }
             }
 

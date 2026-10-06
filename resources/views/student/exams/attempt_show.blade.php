@@ -97,14 +97,25 @@
                                     @endif
                                 </div>
                                 <div class="text-sm text-gray-600">
-                                    {{ $answer->points_awarded }} / {{ $answer->question->default_points ?? 1 }} pts
+                                    {{ $answer->points_awarded }} / {{ rtrim(rtrim(number_format((float) ($answer->snapshotArray()['points'] ?? $answer->question?->default_points ?? 1), 2), '0'), '.') }} pts
                                 </div>
                             </div>
-                            <div class="text-gray-700 mb-2">{{ $answer->question->question_text }}</div>
+                            {{-- Frozen at attempt start (§14) so later Test Bank edits
+                                 cannot rewrite this review. --}}
+                            <div class="text-gray-700 mb-2">{{ $answer->renderedQuestionText() }}</div>
                             @if($answer->answer_text)
+                                @php
+                                    $snap = $answer->snapshotArray();
+                                    $picked = $answer->answer_text;
+                                    // Multiple-choice submissions store the choice id;
+                                    // recover the wording the student actually chose.
+                                    $labelled = is_numeric($picked) && $snap
+                                        ? ($answer->renderedChoices()->firstWhere('id', (int) $picked)['text'] ?? null)
+                                    : null;
+                                @endphp
                                 <div class="text-sm text-gray-600">
                                     <span class="font-medium">Your Answer:</span>
-                                    {{ is_array(json_decode($answer->answer_text)) ? implode(', ', json_decode($answer->answer_text)) : $answer->answer_text }}
+                                    {{ $labelled ?? (is_array(json_decode($answer->answer_text)) ? implode(', ', json_decode($answer->answer_text)) : $answer->answer_text) }}
                                 </div>
                             @endif
                         </div>

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Services\QuestionSnapshotService;
+
 use App\Models\AuditLog;
 use App\Models\Grade;
 use App\Models\GradeHistory;
@@ -179,11 +181,18 @@ class QuizService
                 'time_limit' => $quiz->time_limit,
             ]);
 
-            // Create empty answer records for each question
+            // Create empty answer records for each question, each carrying a
+            // frozen copy of the question as it was when the attempt started (§14).
+            $snapshots = app(QuestionSnapshotService::class)->captureMany(
+                $questions,
+                $quiz->pointsByQuestionId()
+            );
+
             foreach ($questions as $question) {
                 QuizAnswer::create([
                     'attempt_id' => $attempt->id,
                     'question_id' => $question->id,
+                    'question_snapshot' => $snapshots[$question->id] ?? null,
                 ]);
             }
 

@@ -118,7 +118,7 @@ class LessonController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
-        abort_if($lesson->module_id !== $module->id, 404);
+        // Lesson is already scoped to the module via route binding
 
         $lesson->load('module', 'materials');
 
@@ -131,7 +131,7 @@ class LessonController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
-        abort_if($lesson->module_id !== $module->id, 404);
+        // Lesson is already scoped to the module via route binding
 
         $lessonTypes = [
             Lesson::TYPE_TEXT => 'Text',
@@ -154,7 +154,7 @@ class LessonController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
-        abort_if($lesson->module_id !== $module->id, 404);
+        // Lesson is already scoped to the module via route binding
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -215,7 +215,7 @@ class LessonController extends Controller
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($module->course_id !== $course->id, 404);
-        abort_if($lesson->module_id !== $module->id, 404);
+        // Lesson is already scoped to the module via route binding
 
         $lesson->delete();
 

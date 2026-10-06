@@ -8,6 +8,15 @@
     $choiceTypes = ['multiple_choice', 'multiple_answer', 'true_false'];
     $singleAnswerTypes = ['multiple_choice', 'true_false'];
 
+    // Free-text types whose rows in the same block are *accepted answers*
+    // rather than options a student picks (§2). The grader compares the reply
+    // against them, honouring questions.is_case_sensitive.
+    $textKeyTypes = ['identification', 'short_answer'];
+
+    // Everything that renders the block, so identification no longer ships
+    // without a way to say what counts as right.
+    $keyTypes = array_merge($choiceTypes, $textKeyTypes);
+
     $typeLabels = [
         'multiple_choice' => 'Multiple Choice',
         'multiple_answer' => 'Multiple Answer',
@@ -179,13 +188,35 @@
                                 </select>
                             </div>
 
+                            <div class="form-field">
+                                <label>Category</label>
+                                <select name="category_id">
+                                    <option value="">Uncategorised</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" @selected($question->category_id === $category->id)>{{ $category->name }}{{ $category->course?->code ? ' — '.$category->course->code : '' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="form-field">
+                                <label>Case Sensitive</label>
+                                <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;min-height:38px;">
+                                    <input type="checkbox" name="is_case_sensitive" value="1" class="js-case-sensitive"
+                                           @checked($question->is_case_sensitive)>
+                                    <span class="js-case-hint">Match “CPU” and “cpu” differently</span>
+                                </label>
+                                <span class="js-case-note" style="display:none;font-size:.78rem;color:#64748b;">
+                                    Applies when this question is auto-marked.
+                                </span>
+                            </div>
+
                             <div class="form-field full">
                                 <label>Question Text <span class="required">*</span></label>
                                 <textarea name="question_text" rows="3" required>{{ $question->question_text }}</textarea>
                             </div>
 
                             <div class="form-field full">
-                                <label>Choices</label>
+                                <label class="js-key-label">Choices</label>
                                 <div class="js-choices">
                                     @foreach($question->choices->sortBy('position') as $choice)
                                         <div class="js-choice-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
@@ -215,7 +246,7 @@
                                         <i class="fa-solid fa-plus"></i> Add Choice
                                     </button>
                                 </div>
-                                <span style="display:block;margin-top:6px;font-size:.8rem;color:#64748b;">Clear a choice's text and save to remove it.</span>
+                                <span class="js-key-hint" style="display:block;margin-top:6px;font-size:.8rem;color:#64748b;">Clear a choice's text and save to remove it.</span>
                             </div>
 
                             <div class="form-field full">
@@ -290,13 +321,35 @@
                             </select>
                         </div>
 
+                        <div class="form-field">
+                            <label>Category</label>
+                            <select name="category_id">
+                                <option value="">Uncategorised</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}" @selected((int) old('category_id') === $category->id)>{{ $category->name }}{{ $category->course?->code ? ' — '.$category->course->code : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Case Sensitive</label>
+                            <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;min-height:38px;">
+                                <input type="checkbox" name="is_case_sensitive" value="1" class="js-case-sensitive"
+                                       @checked(old('is_case_sensitive'))>
+                                <span class="js-case-hint">Match “CPU” and “cpu” differently</span>
+                            </label>
+                            <span class="js-case-note" style="display:none;font-size:.78rem;color:#64748b;">
+                                Applies when this question is auto-marked.
+                            </span>
+                        </div>
+
                         <div class="form-field full">
                             <label>Question Text <span class="required">*</span></label>
                             <textarea name="question_text" rows="3" required placeholder="Type your question..."></textarea>
                         </div>
 
                         <div class="form-field full">
-                            <label>Choices</label>
+                            <label class="js-key-label">Choices</label>
                             <div class="js-choices">
                                 @for($i = 0; $i < 4; $i++)
                                     <div class="js-choice-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
@@ -312,7 +365,7 @@
                                     <i class="fa-solid fa-plus"></i> Add Choice
                                 </button>
                             </div>
-                            <span style="display:block;margin-top:6px;font-size:.8rem;color:#64748b;">Leave blank for essay, short answer and identification.</span>
+                            <span class="js-key-hint" style="display:block;margin-top:6px;font-size:.8rem;color:#64748b;">Leave blank for essay, short answer and identification.</span>
                         </div>
 
                         <div class="form-field full">
@@ -341,25 +394,71 @@
     (function () {
         var CHOICE_TYPES = @json($choiceTypes);
         var SINGLE_ANSWER_TYPES = @json($singleAnswerTypes);
+        var KEY_TYPES = @json($keyTypes);
+        var TEXT_KEY_TYPES = @json($textKeyTypes);
 
-        // Show the choices block only for question types that need one.
-        function syncChoicesVisibility(form) {
+        var KEY_LABELS = {
+            choice: 'Choices',
+            answer: 'Accepted Answers'
+        };
+
+        var KEY_HINTS = {
+            choice: 'Clear a choice\'s text and save to remove it.',
+            blank: 'Leave blank for essay, short answer and identification.',
+            answer: 'Each accepted answer is one row — check it to accept it. Leave all unchecked to grade by hand.'
+        };
+
+        // The block is the option list for choice types, the answer key for
+        // free-text types (§2), and absent for essays.
+        function syncKeyVisibility(form) {
             var type = form.querySelector('.js-q-type');
             var block = form.querySelector('.js-choices');
+            var label = form.querySelector('.js-key-label');
+            var hint = form.querySelector('.js-key-hint');
+            var caseWrap = form.querySelector('.js-case-sensitive');
+            var caseNote = form.querySelector('.js-case-note');
 
             if (!type || !block) return;
 
-            block.style.display = CHOICE_TYPES.indexOf(type.value) !== -1 ? '' : 'none';
+            var value = type.value;
+            var isChoice = CHOICE_TYPES.indexOf(value) !== -1;
+            var isTextKey = TEXT_KEY_TYPES.indexOf(value) !== -1;
+
+            block.style.display = KEY_TYPES.indexOf(value) !== -1 ? '' : 'none';
+
+            if (label) {
+                label.textContent = isTextKey ? KEY_LABELS.answer : KEY_LABELS.choice;
+            }
+
+            if (hint) {
+                // The blank hint belongs to the add form (no stored rows yet);
+                // the edit form always has rows to talk about.
+                if (!isChoice && !isTextKey) {
+                    hint.textContent = KEY_HINTS.blank;
+                } else {
+                    hint.textContent = isTextKey ? KEY_HINTS.answer : KEY_HINTS.choice;
+                }
+            }
+
+            // Case sensitivity only changes the outcome where a reply is matched
+            // against stored wording; hiding it elsewhere avoids a setting that
+            // silently does nothing.
+            if (caseWrap) {
+                caseWrap.style.display = isTextKey ? '' : 'none';
+            }
+            if (caseNote) {
+                caseNote.style.display = isTextKey ? '' : 'none';
+            }
         }
 
         document.querySelectorAll('.user-panel-body form').forEach(function (form) {
             if (!form.querySelector('.js-q-type')) return;
 
             var typeSelect = form.querySelector('.js-q-type');
-            syncChoicesVisibility(form);
+            syncKeyVisibility(form);
 
             typeSelect.addEventListener('change', function () {
-                syncChoicesVisibility(form);
+                syncKeyVisibility(form);
             });
 
             // Add another choice row to whichever question form was clicked.
@@ -384,7 +483,7 @@
                     }
 
                     block.insertBefore(clone, btn);
-                    syncChoicesVisibility(form);
+                    syncKeyVisibility(form);
                 });
             });
 

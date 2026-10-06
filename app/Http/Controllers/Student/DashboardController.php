@@ -185,10 +185,11 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Recent grades
+        // Recent grades — only for classes the student is enrolled in
         $recentGrades = Grade::where('student_id', $studentId)
             ->with('item.class.course')
-            ->whereHas('item', fn ($q) => $q->where('is_released', true))
+            ->whereHas('item', fn ($q) => $q->where('is_released', true)
+                ->whereIn('class_id', $classIds))
             ->orderBy('graded_at', 'desc')
             ->limit(5)
             ->get();
@@ -333,16 +334,25 @@ class DashboardController extends Controller
 
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
-            'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)->count(),
+            'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)
+                ->where('status', 'published')
+                ->whereDate('meeting_date', '>=', today())
+                ->count(),
 
             // Grades and Feedback
             'recent_grades' => $recentGrades,
             'recent_feedback' => $recentFeedback,
-            'total_grades' => Grade::where('student_id', $studentId)->count(),
+            'total_grades' => Grade::where('student_id', $studentId)
+                ->whereHas('item', fn ($q) => $q->whereIn('class_id', $classIds))
+                ->count(),
 
             // Communication
             'announcements' => $announcements,
-            'total_announcements' => $announcements->count(),
+            'total_announcements' => Announcement::where(function ($q) use ($courseIds, $classIds) {
+                $q->whereIn('course_id', $courseIds)->orWhereIn('class_id', $classIds);
+            })
+                ->where('publish_at', '<=', now())
+                ->count(),
 
             // Engagement
             'learning_streak' => $learningStreak,
@@ -593,8 +603,13 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'grades':
+                $classIds = Enrollment::where('student_id', $studentId)
+                    ->where('status', 'active')
+                    ->pluck('class_id');
+
                 return Grade::where('student_id', $studentId)
                     ->with(['item'])
+                    ->whereHas('item', fn ($q) => $q->whereIn('class_id', $classIds))
                     ->where(function ($q) use ($query) {
                         $q->whereHas('item', fn ($q) => $q->where('title', 'like', "%{$query}%"))
                             ->orWhere('letter_grade', 'like', "%{$query}%")
@@ -633,9 +648,14 @@ class DashboardController extends Controller
 
             switch ($type) {
                 case 'grades':
+                    $classIds = Enrollment::where('student_id', $studentId)
+                        ->where('status', 'active')
+                        ->pluck('class_id');
+
                     $grades = Grade::where('student_id', $studentId)
                         ->with('item.class.course')
-                        ->whereHas('item', fn ($q) => $q->where('is_released', true))
+                        ->whereHas('item', fn ($q) => $q->where('is_released', true)
+                            ->whereIn('class_id', $classIds))
                         ->orderBy('graded_at')
                         ->get()
                         ->map(fn ($g) => [
@@ -745,7 +765,8 @@ class DashboardController extends Controller
 
         $recentGrades = Grade::where('student_id', $studentId)
             ->with('item.class.course')
-            ->whereHas('item', fn ($q) => $q->where('is_released', true))
+            ->whereHas('item', fn ($q) => $q->where('is_released', true)
+                ->whereIn('class_id', $classIds))
             ->orderBy('graded_at', 'desc')->limit(5)->get();
 
         $overallProgress = 0;

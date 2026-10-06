@@ -21,8 +21,14 @@ class StudentRiskService
     /** Attendance below this is a warning when attendance is graded. */
     public const ATTENDANCE_FLOOR = 75.0;
 
+    /** Attendance below this is a CRITICAL warning (triggers risk even for high final grades). */
+    public const ATTENDANCE_CRITICAL_FLOOR = 50.0;
+
     /** Lesson progress below this is a warning. */
     public const PROGRESS_FLOOR = 50.0;
+
+    /** Students with final grade above this are "safe" unless attendance is critical. */
+    public const SAFE_FINAL_FLOOR = 75.0;
 
     public function __construct(
         private GradeBreakdownService $breakdown,
@@ -51,20 +57,27 @@ class StudentRiskService
 
         $reasons = [];
         $final = (float) $summary['final_grade'];
+        $isHighPerformer = $final >= self::SAFE_FINAL_FLOOR;
 
-        // 1. Any weighted component below half its scale.
+        // 1. Any weighted component below half its scale — but don't flag for
+        //    high performers unless the component is critically low.
         foreach (($summary['components'] ?? []) as $type => $component) {
             if (! ($component['is_graded'] ?? false) || $component['percent'] === null) {
                 continue;
             }
 
-            if ((float) $component['percent'] < self::COMPONENT_FLOOR && ($component['weight'] ?? 0) > 0) {
-                $reasons[] = sprintf(
-                    '%s is at %s%% (below %s%%).',
-                    $component['label'],
-                    number_format((float) $component['percent'], 1),
-                    number_format(self::COMPONENT_FLOOR, 0)
-                );
+            $componentPercent = (float) $component['percent'];
+            $isCritical = $componentPercent < (self::COMPONENT_FLOOR / 2); // below 25%
+
+            if ($componentPercent < self::COMPONENT_FLOOR && ($component['weight'] ?? 0) > 0) {
+                if (! $isHighPerformer || $isCritical) {
+                    $reasons[] = sprintf(
+                        '%s is at %s%% (below %s%%).',
+                        $component['label'],
+                        number_format($componentPercent, 1),
+                        number_format(self::COMPONENT_FLOOR, 0)
+                    );
+                }
             }
         }
 
@@ -73,12 +86,17 @@ class StudentRiskService
         $attendance = ($summary['components'][GradeItem::TYPE_ATTENDANCE] ?? null);
 
         if ($attendance && ($attendance['is_graded'] ?? false) && $attendance['percent'] !== null) {
-            if ((float) $attendance['percent'] < self::ATTENDANCE_FLOOR) {
-                $reasons[] = sprintf(
-                    'Attendance is at %s%% (below %s%%).',
-                    number_format((float) $attendance['percent'], 1),
-                    number_format(self::ATTENDANCE_FLOOR, 0)
-                );
+            $attendancePercent = (float) $attendance['percent'];
+            $isCriticalAttendance = $attendancePercent < self::ATTENDANCE_CRITICAL_FLOOR;
+
+            if ($attendancePercent < self::ATTENDANCE_FLOOR) {
+                if (! $isHighPerformer || $isCriticalAttendance) {
+                    $reasons[] = sprintf(
+                        'Attendance is at %s%% (below %s%%).',
+                        number_format($attendancePercent, 1),
+                        number_format(self::ATTENDANCE_FLOOR, 0)
+                    );
+                }
             }
         }
 

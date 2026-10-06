@@ -53,7 +53,10 @@
             @if($attempt->answers && $attempt->answers->count() > 0)
                 @foreach($attempt->answers as $index => $answer)
                     <div class="user-toolbar" style="flex-direction:column;align-items:stretch;margin-bottom:12px">
-                        <strong>Q{{ $index + 1 }}: {{ $answer->question?->question_text ?? $answer->question?->text ?? 'Question' }}</strong>
+                        {{-- renderedQuestionText() reads the frozen copy taken when the
+                             attempt began (§14), so editing or trashing the Test Bank
+                             question cannot rewrite this review. --}}
+                        <strong>Q{{ $index + 1 }}: {{ $answer->renderedQuestionText() }}</strong>
                         <div class="user-email" style="margin-top:6px">
                             Your answer:
                             {{-- Multiple-choice answers are stored in quiz_answer_choices and read
@@ -61,6 +64,10 @@
                             @php($selectedChoices = $answer->selectedChoices)
                             @if($selectedChoices->isNotEmpty())
                                 {{ $selectedChoices->pluck('choice_text')->join(', ') }}
+                            @elseif($answer->answer_text && is_numeric($answer->answer_text) && $answer->snapshotArray())
+                                {{-- The choice rows can outlive nothing: if they were removed,
+                                     recover the wording the student actually picked. --}}
+                                {{ $answer->renderedChoices()->firstWhere('id', (int) $answer->answer_text)['text'] ?? $answer->answer_text }}
                             @elseif($answer->answer_text)
                                 {{ $answer->answer_text }}
                             @else

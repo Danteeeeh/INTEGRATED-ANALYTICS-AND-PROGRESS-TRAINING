@@ -21,20 +21,22 @@ class QuestionBankPolicy
             return false;
         }
 
+        // The Test Bank is authoring tooling; students have no route to it and
+        // no ability to see a bank through a policy either (§17).
+        if ($user->isStudent()) {
+            return false;
+        }
+
         if ($user->isAdmin()) {
             return true;
         }
 
-        if ($user->isInstructor()) {
-            return true;
+        if (! $user->isInstructor()) {
+            return false;
         }
 
-        if ($user->isStudent()) {
-            return $user->enrolledClasses()->where('course_id', $bank->course_id)->exists()
-                || $user->enrolledClasses()->where('classes.id', $bank->class_id)->exists();
-        }
-
-        return false;
+        // Own banks plus anything an admin flagged as shared.
+        return $bank->created_by === $user->id || (bool) $bank->is_shared;
     }
 
     public function create(User $user): bool
@@ -73,7 +75,13 @@ class QuestionBankPolicy
             return false;
         }
 
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        // The controller still refuses while the bank holds questions, so this
+        // cannot cascade questions away from an assessment (§5).
+        return $user->isInstructor() && $bank->created_by === $user->id;
     }
 
     public function import(User $user): bool
@@ -99,17 +107,16 @@ class QuestionBankPolicy
             return false;
         }
 
+        if ($user->isStudent()) {
+            return false;
+        }
+
         if ($user->isAdmin()) {
             return true;
         }
 
         if ($user->isInstructor()) {
-            return true;
-        }
-
-        if ($user->isStudent()) {
-            return $user->enrolledClasses()->where('course_id', $bank->course_id)->exists()
-                || $user->enrolledClasses()->where('classes.id', $bank->class_id)->exists();
+            return $bank->created_by === $user->id || (bool) $bank->is_shared;
         }
 
         return false;

@@ -245,6 +245,25 @@ class Quiz extends Model
             ->withTimestamps();
     }
 
+    /**
+     * This assessment's own weighting per question, keyed by question id.
+     *
+     * The pivot `points` may differ from the bank's default_points, so a frozen
+     * question snapshot (§14) must record the assessment's value rather than the
+     * bank's — otherwise re-weighting the quiz would rescore old attempts.
+     *
+     * @return array<int, float|null>
+     */
+    public function pointsByQuestionId(): array
+    {
+        return $this->questions()
+            ->newPivotQuery()
+            ->get(['question_id', 'points'])
+            ->pluck('points', 'question_id')
+            ->map(fn ($points) => $points === null ? null : (float) $points)
+            ->all();
+    }
+
     public function attempts(): HasMany
     {
         return $this->hasMany(QuizAttempt::class);

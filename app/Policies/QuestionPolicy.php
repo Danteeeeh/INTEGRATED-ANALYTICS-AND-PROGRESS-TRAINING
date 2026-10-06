@@ -21,22 +21,29 @@ class QuestionPolicy
             return false;
         }
 
-        $bank = $question->bank;
+        // Students never see Test Bank questions through an application route —
+        // they meet questions only inside an attempt, which renders the frozen
+        // snapshot and never the bank row (§13, §17).
+        if ($user->isStudent()) {
+            return false;
+        }
 
         if ($user->isAdmin()) {
             return true;
         }
 
-        if ($user->isInstructor()) {
-            return true;
+        if (! $user->isInstructor()) {
+            return false;
         }
 
-        if ($user->isStudent()) {
-            return $user->enrolledClasses()->where('course_id', $bank->course_id)->exists()
-                || $user->enrolledClasses()->where('classes.id', $bank->class_id)->exists();
+        $bank = $question->bank;
+
+        if (! $bank) {
+            return false;
         }
 
-        return false;
+        // Instructors see their own banks plus whatever an admin has shared.
+        return $bank->created_by === $user->id || (bool) $bank->is_shared;
     }
 
     public function create(User $user): bool

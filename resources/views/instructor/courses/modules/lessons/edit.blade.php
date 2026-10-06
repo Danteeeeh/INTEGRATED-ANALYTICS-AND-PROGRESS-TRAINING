@@ -41,7 +41,7 @@
 
                     <div class="modal-row">
                         <label>Lesson Type <span style="color:#dc2626;">*</span></label>
-                        <select name="lesson_type" required class="form-input">
+                        <select name="lesson_type" required class="form-input" id="lessonTypeSelect">
                             @foreach($lessonTypes as $key => $label)
                                 <option value="{{ $key }}" {{ old('lesson_type', $lesson->lesson_type) == $key ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
@@ -66,9 +66,9 @@
                     </div>
                 </div>
 
-                <div class="modal-row" style="margin-top:14px;">
-                    <label>Video Reference / External URL</label>
-                    <input type="url" name="external_url" value="{{ old('external_url', $lesson->external_url) }}" class="form-input" placeholder="https://youtube.com/watch?v=...">
+                <div class="modal-row" style="margin-top:14px;" id="externalUrlRow">
+                    <label>Video Reference / External URL <span id="externalUrlRequired" style="color:#dc2626;display:none;">*</span></label>
+                    <input type="url" name="external_url" id="externalUrlInput" value="{{ old('external_url', $lesson->external_url) }}" class="form-input" placeholder="https://youtube.com/watch?v=...">
                     <span style="display:block;color:var(--dash-muted,#9eafca);font-size:.75rem;margin-top:4px;">
                         Add a video link (YouTube, Vimeo, etc.) or external resource for students. Use this for video lessons or supplementary materials.
                     </span>
@@ -248,6 +248,58 @@
             } else {
                 fileList.style.display = 'none';
             }
+        }
+
+        // Handle lesson_type change to show/hide external_url field
+        const lessonTypeSelect = document.getElementById('lessonTypeSelect');
+        const externalUrlRow = document.getElementById('externalUrlRow');
+        const externalUrlInput = document.getElementById('externalUrlInput');
+        const externalUrlRequired = document.getElementById('externalUrlRequired');
+
+        if (lessonTypeSelect && externalUrlRow && externalUrlInput) {
+            function toggleExternalUrl() {
+                const isExternal = lessonTypeSelect.value === 'external';
+                externalUrlRow.style.display = isExternal ? 'block' : 'none';
+                externalUrlInput.required = isExternal;
+                if (externalUrlRequired) {
+                    externalUrlRequired.style.display = isExternal ? 'inline' : 'none';
+                }
+            }
+
+            // Initial check
+            toggleExternalUrl();
+
+            // Listen for changes
+            lessonTypeSelect.addEventListener('change', toggleExternalUrl);
+        }
+
+        // Prevent double-submit and ensure button is re-enabled on validation error
+        const lessonForm = document.querySelector('form[action*="lessons.update"]');
+        if (lessonForm) {
+            lessonForm.addEventListener('submit', function() {
+                const submitBtn = lessonForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span> Updating...</span>';
+                    
+                    // Re-enable after 5 seconds as fallback (in case validation fails)
+                    setTimeout(() => {
+                        if (submitBtn.disabled) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fa-solid fa-save"></i> Update Lesson';
+                        }
+                    }, 5000);
+                }
+            });
+
+            // Re-enable button on form reset or validation error display
+            lessonForm.addEventListener('invalid', function(e) {
+                const submitBtn = lessonForm.querySelector('button[type="submit"]');
+                if (submitBtn && submitBtn.disabled) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-save"></i> Update Lesson';
+                }
+            }, true);
         }
     </script>
 @endsection

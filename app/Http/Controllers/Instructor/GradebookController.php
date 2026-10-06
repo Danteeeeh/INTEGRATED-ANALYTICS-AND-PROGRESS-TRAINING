@@ -357,6 +357,24 @@ class GradebookController extends Controller
             ->orderBy('position', 'asc')
             ->get();
 
+        // Quiz attempts for this student in this class
+        $quizAttempts = QuizAttempt::where('student_id', $student->id)
+            ->whereHas('quiz', function ($q) use ($class) {
+                $q->where('class_id', $class->id);
+            })
+            ->with(['quiz', 'answers.question'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Exam attempts for this student in this class
+        $examAttempts = ExamAttempt::where('student_id', $student->id)
+            ->whereHas('exam', function ($q) use ($class) {
+                $q->where('class_id', $class->id);
+            })
+            ->with(['exam', 'answers.question'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $summary = $this->grades->computeStudentClassGrade($student->id, $class->id);
 
         return view('instructor.gradebook.student', compact(
@@ -364,7 +382,9 @@ class GradebookController extends Controller
             'student',
             'enrollment',
             'gradeItems',
-            'summary'
+            'summary',
+            'quizAttempts',
+            'examAttempts'
         ));
     }
 }

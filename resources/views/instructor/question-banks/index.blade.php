@@ -1,19 +1,21 @@
 @extends('layouts.instructor')
 
-@section('title', 'Question Banks')
+@section('title', 'Test Bank')
 @php $activeNav = 'question_banks'; @endphp
 
 @section('content')
 <div class="user-page">
     <x-user-page-header
-        title="Question Banks"
-        subtitle="Reusable question sets for your quizzes and assessments."
+        title="Test Bank"
+        subtitle="Reusable question banks for your quizzes, assignments and exams."
         icon="fa-database"
     >
         <x-slot name="actions">
             <a href="{{ route('instructor.question_banks.create') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Bank</a>
         </x-slot>
     </x-user-page-header>
+
+    @include('instructor.question-banks._tabs', ['activeTab' => 'banks'])
 
     <div class="user-panel">
         <form class="user-toolbar" method="GET" action="{{ route('instructor.question_banks.index') }}">

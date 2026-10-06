@@ -249,6 +249,27 @@
         @csrf
 
         @foreach($inProgress->answers as $index => $examAnswer)
+            @php
+                // Prefer the frozen copy taken when the exam started (§14). Falls
+                // back to the live question for attempts predating snapshots, and
+                // keeps working if the original was later trashed.
+                $snap = $examAnswer->snapshotArray();
+                $qid = $examAnswer->question_id;
+                $qtype = $snap['question_type'] ?? $examAnswer->question?->question_type;
+                $qpoints = $snap['points'] ?? ($examAnswer->question?->default_points ?? 1);
+                $qtext = $examAnswer->renderedQuestionText();
+                $qchoices = $examAnswer->renderedChoices();
+
+                $typeLabel = match ($qtype) {
+                    'multiple_choice' => 'Multiple Choice',
+                    'true_false' => 'True/False',
+                    'multiple_answer' => 'Multiple Answer',
+                    'identification' => 'Identification',
+                    'short_answer' => 'Short Answer',
+                    'essay' => 'Essay',
+                    default => 'Question',
+                };
+            @endphp
             <div class="question-card" id="question-{{ $index }}"
                  style="display: {{ $index === 0 ? 'block' : 'none' }}; margin-bottom: 24px;">
 
@@ -259,62 +280,61 @@
                                 Question {{ $index + 1 }}
                             </span>
                             <span style="background: #f1f5f9; color: #64748b; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; border: 1px solid #e2e8f0;">
-                                {{ ($examAnswer->question->question_type === 'multiple_choice' ? 'Multiple Choice' :
-                               ($examAnswer->question->question_type === 'true_false' ? 'True/False' :
-                               ($examAnswer->question->question_type === 'multiple_answer' ? 'Multiple Answer' :
-                               ($examAnswer->question->question_type === 'short_answer' ? 'Short Answer' :
-                               ($examAnswer->question->question_type === 'essay' ? 'Essay' : 'Question'))))) }}
+                                {{ $typeLabel }}
                             </span>
                         </h3>
                         <span style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.2);">
                             <i class="fa-solid fa-star" style="margin-right: 6px;"></i>
-                            {{ $examAnswer->question->default_points ?? 1 }} pts
+                            {{ rtrim(rtrim(number_format((float) $qpoints, 2), '0'), '.') }} pts
                         </span>
                     </div>
 
                     <div style="font-size: 1.25rem; color: #1e293b; margin-bottom: 28px; line-height: 1.8; font-weight: 600; padding: 20px; background: #f8fafc; border-radius: 16px; border-left: 4px solid #3b82f6;">
-                        {!! $examAnswer->question->question_text !!}
+                        {!! $qtext !!}
                     </div>
 
-                    @if($examAnswer->question->question_type === 'multiple_choice' || $examAnswer->question->question_type === 'true_false')
+                    @if($qtype === 'multiple_choice' || $qtype === 'true_false')
                         <div style="display: flex; flex-direction: column; gap: 16px;">
-                            @foreach($examAnswer->question->choices as $choice)
+                            @foreach($qchoices as $choice)
                                 <label class="choice-label"
                                        style="display: flex; align-items: center; padding: 20px 24px; border: 2px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.3s ease; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                                     <input type="radio"
-                                           name="answers[{{ $examAnswer->question->id }}]"
-                                           value="{{ $choice->id }}"
-                                           {{ old('answers.'.$examAnswer->question->id) == $choice->id ? 'checked' : '' }}
+                                           name="answers[{{ $qid }}]"
+                                           value="{{ $choice['id'] }}"
+                                           {{ old('answers.'.$qid) == $choice['id'] ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
-                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice->choice_text !!}</span>
+                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;"><strong>{{ $choice['key'] }}.</strong> {!! $choice['text'] !!}</span>
                                 </label>
                             @endforeach
                         </div>
 
-                    @elseif($examAnswer->question->question_type === 'multiple_answer')
+                    @elseif($qtype === 'multiple_answer')
                         <div style="display: flex; flex-direction: column; gap: 16px;">
-                            @foreach($examAnswer->question->choices as $choice)
+                            @foreach($qchoices as $choice)
                                 <label class="choice-label"
                                        style="display: flex; align-items: center; padding: 20px 24px; border: 2px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.3s ease; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                                     <input type="checkbox"
-                                           name="answers[{{ $examAnswer->question->id }}][]"
-                                           value="{{ $choice->id }}"
-                                           {{ in_array($choice->id, old('answers.'.$examAnswer->question->id, [])) ? 'checked' : '' }}
+                                           name="answers[{{ $qid }}][]"
+                                           value="{{ $choice['id'] }}"
+                                           {{ in_array($choice['id'], old('answers.'.$qid, [])) ? 'checked' : '' }}
                                            onchange="markAnswered({{ $index }})"
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
-                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice->choice_text !!}</span>
+                                    <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;"><strong>{{ $choice['key'] }}.</strong> {!! $choice['text'] !!}</span>
                                 </label>
                             @endforeach
                         </div>
 
-                    @elseif($examAnswer->question->question_type === 'short_answer' || $examAnswer->question->question_type === 'essay')
+                    @elseif($qtype === 'short_answer' || $qtype === 'essay' || $qtype === 'identification')
+                        {{-- Identification gets the same free-text field as short
+                             answer: the accepted answer and its case-sensitivity
+                             are grading concerns, not rendering ones. --}}
                         <div>
-                            <textarea name="answers[{{ $examAnswer->question->id }}]"
-                                      rows="{{ $examAnswer->question->question_type === 'essay' ? '12' : '6' }}"
-                                      placeholder="Enter your answer here..."
+                            <textarea name="answers[{{ $qid }}]"
+                                      rows="{{ $qtype === 'essay' ? '12' : '6' }}"
+                                      placeholder="{{ $qtype === 'identification' ? 'Type your answer...' : 'Enter your answer here...' }}"
                                       oninput="markAnswered({{ $index }})"
-                                      style="width: 100%; padding: 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; font-size: 1.05rem; resize: vertical; transition: all 0.2s; line-height: 1.7; background: #f8fafc;">{{ old('answers.'.$examAnswer->question->id) }}</textarea>
+                                      style="width: 100%; padding: 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; font-size: 1.05rem; resize: vertical; transition: all 0.2s; line-height: 1.7; background: #f8fafc;">{{ old('answers.'.$qid) }}</textarea>
                         </div>
                     @endif
                 </div>

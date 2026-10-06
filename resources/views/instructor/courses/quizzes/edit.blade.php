@@ -270,6 +270,9 @@
 
             <div class="cc-section">
                 <div class="cc-section-title"><i class="fa-solid fa-list-check"></i> Questions</div>
+                {{-- §8 — tells the controller this form owns the whole question
+                     list, so a row removed here really is meant to be unlinked. --}}
+                <input type="hidden" name="inline_questions_managed" value="1">
                 <div class="cc-grid">
                     <div class="cc-field full">
                         <div id="questionsContainer">
@@ -282,6 +285,8 @@
                     </div>
                 </div>
             </div>
+
+            @include('instructor.courses.quizzes._test-bank-picker')
 
             <div class="cc-section">
                 <div class="cc-section-title"><i class="fa-solid fa-file-import"></i> Import Questions (Optional)</div>
@@ -381,6 +386,9 @@
                 $correctIndex = $correctIndex === false ? 1 : $correctIndex + 1;
 
                 $existingQuestions[] = [
+                    // §8 — remember which row this came from, so saving edits
+                    // the original instead of cloning it into the bank again.
+                    'question_id' => $q->id,
                     'text' => $q->question_text,
                     'points' => $q->pivot->points ?? 1,
                     'choices' => $choiceTexts,
@@ -394,7 +402,7 @@
         // Initialize with existing questions
         function loadExistingQuestions() {
             existingQuestions.forEach(q => {
-                addQuestion(q.text, q.points, q.choices, q.correct_choice);
+                addQuestion(q.text, q.points, q.choices, q.correct_choice, q.question_id);
             });
         }
 
@@ -407,7 +415,7 @@
                 .replace(/"/g, '&quot;');
         }
 
-        function addQuestion(text = '', points = 1, choices = ['', '', '', ''], correctChoice = 1) {
+        function addQuestion(text = '', points = 1, choices = ['', '', '', ''], correctChoice = 1, questionId = null) {
             questionCount++;
             text = escapeAttr(text);
             const questionsList = document.getElementById('questionsList');
@@ -433,6 +441,7 @@
             }
 
             questionDiv.innerHTML = `
+                ${questionId ? `<input type="hidden" name="questions[${questionCount}][question_id]" value="${Number(questionId)}">` : ''}
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                     <span style="color: #a78bfa; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">Question ${questionCount}</span>
                     <button type="button" onclick="removeQuestion(${questionCount})" style="background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">

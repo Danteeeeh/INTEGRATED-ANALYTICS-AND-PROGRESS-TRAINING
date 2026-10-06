@@ -14,13 +14,20 @@
             @if($quiz->time_limit_minutes)<span class="user-status">{{ $quiz->time_limit_minutes }} min</span>@endif
             <span class="user-status">{{ $quiz->questions->count() }} questions</span>
         </x-slot>
+        @php
+        $attemptCount = $myAttempts->total();
+        $attemptsExhausted = $quiz->attempt_limit && $attemptCount >= $quiz->attempt_limit;
+        $canStartNew = $quiz->available() && $quiz->questions->count() > 0 && !$attemptsExhausted;
+    @endphp
         <x-slot name="actions">
             @if($inProgressAttempt)
                 <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-play"></i> Resume Attempt</a>
-            @elseif($quiz->available() && $quiz->questions->count() > 0)
+            @elseif($canStartNew)
                 <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Attempt</a>
             @elseif($quiz->available() && $quiz->questions->count() === 0)
                 <span class="user-status" style="background:#fef3c7;color:#92400e;">No questions available</span>
+            @elseif($attemptsExhausted)
+                <span class="user-status" style="background:#fee2e2;color:#991b1b;">Attempt limit reached ({{ $attemptCount }}/{{ $quiz->attempt_limit }})</span>
             @endif
             <a href="{{ route('student.courses.quizzes.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>
         </x-slot>
@@ -119,13 +126,23 @@
         </div>
     </div>
 
-    @if($quiz->available() && !$inProgressAttempt && $quiz->questions->count() > 0)
+    @php
+        $attemptCount = $myAttempts->total();
+        $attemptsExhausted = $quiz->attempt_limit && $attemptCount >= $quiz->attempt_limit;
+    @endphp
+
+    @if($quiz->available() && !$inProgressAttempt && $quiz->questions->count() > 0 && !$attemptsExhausted)
         <div class="learning-next-action">
             <div>
                 <strong>Ready to take this quiz?</strong>
                 <span>You have {{ $quiz->time_limit_minutes ? $quiz->time_limit_minutes.' minutes' : 'unlimited time' }} once you start.</span>
             </div>
             <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-play"></i> Start Attempt</a>
+        </div>
+    @elseif($quiz->available() && !$inProgressAttempt && $quiz->questions->count() > 0 && $attemptsExhausted)
+        <div class="alert alert-warning" style="margin-top: 16px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>Attempt limit reached.</strong> This quiz allows only {{ $quiz->attempt_limit }} attempt{{ $quiz->attempt_limit > 1 ? 's' : '' }} and you have used all {{ $attemptCount }}.
         </div>
     @endif
 </div>

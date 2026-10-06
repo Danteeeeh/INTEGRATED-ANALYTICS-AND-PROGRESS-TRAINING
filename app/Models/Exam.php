@@ -138,6 +138,24 @@ class Exam extends Model
             ->orderBy('pivot_order');
     }
 
+    /**
+     * This exam's own weighting per question, keyed by question id.
+     *
+     * See Quiz::pointsByQuestionId() — the pivot value must be what a frozen
+     * snapshot (§14) records, not the bank's default.
+     *
+     * @return array<int, float|null>
+     */
+    public function pointsByQuestionId(): array
+    {
+        return $this->questions()
+            ->newPivotQuery()
+            ->get(['question_id', 'points'])
+            ->pluck('points', 'question_id')
+            ->map(fn ($points) => $points === null ? null : (float) $points)
+            ->all();
+    }
+
     public function attempts(): HasMany
     {
         return $this->hasMany(ExamAttempt::class);
@@ -262,7 +280,7 @@ class Exam extends Model
 
     public function getTotalPoints(): float
     {
-        return $this->questions()->sum('pivot_points') ?: $this->total_points;
+        return $this->questions()->sum('points') ?: $this->total_points;
     }
 
     public function getTypeLabel(): string
