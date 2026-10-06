@@ -253,6 +253,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
         // one copy of the markup rather than two (§1, §16: admin manages all).
         Route::prefix('test-bank')->name('test_bank.')->group(function () {
             Route::get('/', [InstructorQuestionLibraryController::class, 'index'])->name('index');
+            // Create a question (and its answer key) without first walking into a
+            // bank's long edit page. The question still lands in a chosen bank.
+            Route::post('/questions', [InstructorQuestionLibraryController::class, 'store'])->name('questions.store');
             Route::get('/questions/{question}/preview', [InstructorQuestionLibraryController::class, 'preview'])->name('questions.preview');
         });
 
@@ -630,6 +633,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
         // and admin-shared banks (§1, §6).
         Route::prefix('test-bank')->name('test_bank.')->group(function () {
             Route::get('/', [InstructorQuestionLibraryController::class, 'index'])->name('index');
+            // Create a question (and its answer key) without first walking into a
+            // bank's long edit page. The question still lands in a chosen bank.
+            Route::post('/questions', [InstructorQuestionLibraryController::class, 'store'])->name('questions.store');
             Route::get('/questions/{question}/preview', [InstructorQuestionLibraryController::class, 'preview'])->name('questions.preview');
         });
 

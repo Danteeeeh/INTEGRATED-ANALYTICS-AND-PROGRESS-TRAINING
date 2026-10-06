@@ -39,7 +39,7 @@ class SectionModuleAssignment extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where('section_module_assignments.status', 'active');
     }
 
     public function scopeBySection($query, $sectionId)

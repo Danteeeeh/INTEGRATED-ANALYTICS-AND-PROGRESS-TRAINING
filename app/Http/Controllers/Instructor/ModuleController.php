@@ -223,7 +223,7 @@ class ModuleController extends Controller
         abort_if($module->course_id !== $course->id, 404);
 
         $request->validate([
-            'file' => 'required|file|max:10240', // 10MB max
+            'file' => 'required|file|max:204800', // 200MB max
             'title' => 'nullable|string|max:255',
         ]);
 
@@ -254,10 +254,21 @@ class ModuleController extends Controller
         abort_if($module->course_id !== $course->id, 404);
         abort_if($attachment->module_id !== $module->id, 404);
 
+        // Remove only the attachment row. The stored file is deleted just as
+        // well, but only when no other attachment still points at the same
+        // MediaFile, so a file reused elsewhere is never destroyed by mistake.
+        // Nothing here touches the module or its lessons.
+        $mediaFile = $attachment->mediaFile;
+        $label = $attachment->title ?? $mediaFile?->file_name;
+
         $attachment->delete();
 
+        if ($mediaFile && ! ModuleAttachment::where('media_file_id', $mediaFile->id)->exists()) {
+            app(FileUploadService::class)->deleteFile($mediaFile);
+        }
+
         return redirect()->route('instructor.courses.modules.show', [$course, $module])
-            ->with('success', 'Attachment deleted successfully.');
+            ->with('success', "Attachment \"{$label}\" deleted. The module and its lessons are untouched.");
     }
 
     public function reorderAttachments(Request $request, Course $course, Module $module): RedirectResponse

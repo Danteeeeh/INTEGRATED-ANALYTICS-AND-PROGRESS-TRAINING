@@ -74,7 +74,7 @@ class LessonController extends Controller
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
             'materials' => 'nullable|array',
-            'materials.*' => 'file|max:10240', // 10MB max per file
+            'materials.*' => 'file|max:204800', // 200MB max per file
         ]);
 
         $validated['module_id'] = $module->id;
@@ -173,7 +173,7 @@ class LessonController extends Controller
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
             'materials' => 'nullable|array',
-            'materials.*' => 'file|max:10240', // 10MB max per file
+            'materials.*' => 'file|max:204800', // 200MB max per file
         ]);
 
         $validated['is_required'] = $validated['is_required'] ?? false;
@@ -269,7 +269,7 @@ class LessonController extends Controller
 
             $request->validate([
                 'files' => 'required|array',
-                'files.*' => 'file|max:10240',
+                'files.*' => 'file|max:204800',
                 'title' => 'nullable|string|max:255',
                 'description' => 'nullable|string',
                 'is_required' => 'boolean',

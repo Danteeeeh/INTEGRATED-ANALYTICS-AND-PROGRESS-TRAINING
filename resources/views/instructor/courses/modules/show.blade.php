@@ -123,10 +123,10 @@
                                     </div>
                                     <div class="user-actions">
                                         <a href="{{ $attachment->mediaFile->url }}" target="_blank" class="btn btn-icon" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></a>
-                                        <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete this attachment?');">
+                                        <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete only the attachment &quot;{{ addslashes($attachment->title ?? $attachment->mediaFile->file_name) }}&quot;?\n\nThe module, its lessons and its other attachments are NOT affected.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-icon btn-danger" title="Delete"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                                            <button type="submit" class="btn btn-icon btn-danger" title="Delete this attachment only"><i class="fa-solid fa-paperclip" aria-hidden="true"></i></button>
                                         </form>
                                     </div>
                                 </article>
@@ -178,10 +178,10 @@
                                     <div class="user-actions">
                                         <a href="{{ route('instructor.courses.modules.lessons.show', [$course, $module, $lesson]) }}" class="btn btn-icon" title="View lesson"><i class="fa-solid fa-eye" aria-hidden="true"></i></a>
                                         <a href="{{ route('instructor.courses.modules.lessons.edit', [$course, $module, $lesson]) }}" class="btn btn-icon" title="Edit lesson"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>
-                                        <form method="POST" action="{{ route('instructor.courses.modules.lessons.destroy', [$course, $module, $lesson]) }}" onsubmit="return confirm('Delete this lesson?');">
+                                        <form method="POST" action="{{ route('instructor.courses.modules.lessons.destroy', [$course, $module, $lesson]) }}" onsubmit="return confirm('Delete the lesson &quot;{{ $lesson->title }}&quot;?\n\nThis deletes the lesson and its content. The module itself is NOT deleted.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-icon btn-danger" title="Delete lesson"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                                            <button type="submit" class="btn btn-icon btn-danger" title="Delete this lesson only"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                                         </form>
                                     </div>
                                 </article>

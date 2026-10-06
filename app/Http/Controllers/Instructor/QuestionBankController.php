@@ -208,7 +208,30 @@ class QuestionBankController extends Controller
 
         $payload = $this->validateQuestionPayload($request);
 
-        DB::transaction(function () use ($questionBank, $payload) {
+        self::persistQuestion($questionBank, $payload, (int) auth()->id());
+
+        return redirect()->route('instructor.question_banks.edit', $questionBank)
+            ->with('success', 'Question added.');
+    }
+
+    /**
+     * Validate a question form submission without persisting it.
+     *
+     * Shared with the Test Bank library so its "add question" modal accepts and
+     * rejects exactly what the bank's own form does — answer key included —
+     * rather than a second, drifting copy of those rules.
+     */
+    public function buildQuestionPayload(Request $request): array
+    {
+        return $this->validateQuestionPayload($request);
+    }
+
+    /**
+     * Write a validated question, with its choices / answer key, into a bank.
+     */
+    public static function persistQuestion(QuestionBank $questionBank, array $payload, int $userId): Question
+    {
+        return DB::transaction(function () use ($questionBank, $payload, $userId) {
             $question = Question::create([
                 'question_bank_id' => $questionBank->id,
                 'question_type' => $payload['question_type'],
@@ -220,14 +243,51 @@ class QuestionBankController extends Controller
                 'status' => $payload['status'],
                 'category_id' => $payload['category_id'] ?? null,
                 'is_case_sensitive' => $payload['is_case_sensitive'] ?? false,
-                'created_by' => auth()->id(),
+                'created_by' => $userId,
             ]);
 
-            $this->syncChoices($question, $payload);
-        });
+            self::syncChoicesFor($question, $payload);
 
-        return redirect()->route('instructor.question_banks.edit', $questionBank)
-            ->with('success', 'Question added.');
+            return $question;
+        });
+    }
+
+    /**
+     * Create/update/delete choices so the stored set matches what was submitted.
+     */
+    protected static function syncChoicesFor(Question $question, array $payload): void
+    {
+        $position = 0;
+
+        foreach ($payload['existing_choices'] as $choice) {
+            if ($choice['text'] === '') {
+                // Blanking a row out removes that choice.
+                QuestionChoice::where('question_id', $question->id)
+                    ->where('id', $choice['id'])
+                    ->delete();
+                continue;
+            }
+
+            QuestionChoice::where('question_id', $question->id)
+                ->where('id', $choice['id'])
+                ->update([
+                    'choice_text' => $choice['text'],
+                    'is_correct' => $choice['correct'],
+                    'position' => $position++,
+                ]);
+        }
+
+        foreach ($payload['new_choices'] as $choice) {
+            QuestionChoice::create([
+                'question_id' => $question->id,
+                'choice_text' => $choice['text'],
+                'is_correct' => $choice['correct'],
+                'position' => $position++,
+                'points' => 0,
+            ]);
+        }
+
+        $question->unsetRelation('choices');
     }
 
     public function updateQuestion(Request $request, QuestionBank $questionBank, Question $question): RedirectResponse
@@ -395,41 +455,12 @@ class QuestionBankController extends Controller
     }
 
     /**
-     * Create/update/delete choices so the stored set matches what was submitted.
+     * Backwards-compatible alias so the update path and the create path share
+     * exactly one implementation of the choice syncing rules.
      */
     protected function syncChoices(Question $question, array $payload): void
     {
-        $position = 0;
-
-        foreach ($payload['existing_choices'] as $choice) {
-            if ($choice['text'] === '') {
-                // Blanking a row out removes that choice.
-                QuestionChoice::where('question_id', $question->id)
-                    ->where('id', $choice['id'])
-                    ->delete();
-                continue;
-            }
-
-            QuestionChoice::where('question_id', $question->id)
-                ->where('id', $choice['id'])
-                ->update([
-                    'choice_text' => $choice['text'],
-                    'is_correct' => $choice['correct'],
-                    'position' => $position++,
-                ]);
-        }
-
-        foreach ($payload['new_choices'] as $choice) {
-            QuestionChoice::create([
-                'question_id' => $question->id,
-                'choice_text' => $choice['text'],
-                'is_correct' => $choice['correct'],
-                'position' => $position++,
-                'points' => 0,
-            ]);
-        }
-
-        $question->unsetRelation('choices');
+        self::syncChoicesFor($question, $payload);
     }
 
     protected function normaliseTags(?string $tags): ?array

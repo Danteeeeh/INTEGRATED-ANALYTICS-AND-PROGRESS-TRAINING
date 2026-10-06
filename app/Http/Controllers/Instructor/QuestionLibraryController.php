@@ -8,6 +8,7 @@ use App\Models\Question;
 use App\Models\QuestionBank;
 use App\Models\QuestionCategory;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,12 +19,60 @@ use Illuminate\View\View;
  * banks plus anything an admin shared — instead of having to open each bank in
  * turn to find a topic.
  *
- * There is no store/update/delete here on purpose: questions keep living in
- * their bank (Instructor\QuestionBankController) so a question always has an
- * owner and a subject. This controller only reads and previews.
+ * Editing and deleting stay with each bank (Instructor\QuestionBankController) so
+ * a question always has an owner and a subject. Creating is offered here too, so
+ * a new question with its answer key can be written without first walking
+ * through a bank's long edit page — but it is written straight into the chosen
+ * bank, which is the single place a question lives.
  */
 class QuestionLibraryController extends Controller
 {
+    /**
+     * Create a question (and its answer key) straight from the Test Bank list.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'question_bank_id' => 'required|integer|exists:question_banks,id',
+            'question_type' => 'required|string',
+            'question_text' => 'required|string|max:5000',
+            'explanation' => 'nullable|string|max:5000',
+            'difficulty' => 'required|string|in:easy,medium,hard',
+            'default_points' => 'required|numeric|min:0|max:1000',
+            'tags' => 'nullable|string|max:255',
+            'status' => 'required|string|in:draft,active,archived',
+            'category_id' => 'nullable|integer|exists:question_categories,id',
+            'is_case_sensitive' => 'nullable',
+            'new' => 'nullable|array',
+            'new.*.text' => 'nullable|string|max:1000',
+            'new.*.correct' => 'nullable',
+        ]);
+
+        $bank = QuestionBank::findOrFail($data['question_bank_id']);
+
+        // Only banks this user may write to. Shared banks owned by somebody
+        // else stay read-only, so a question can never be parked in a bank the
+        // author cannot maintain.
+        $writable = $bank->created_by === $user->id
+            || ($user->isAdmin() && $bank->is_shared);
+
+        abort_unless($writable, 403, 'You can only add questions to a bank you own.');
+
+        // Reuse the bank's own rules so the library form and the bank form
+        // accept and reject exactly the same questions.
+        $payload = app(QuestionBankController::class)->buildQuestionPayload($request);
+
+        QuestionBankController::persistQuestion($bank, $payload, $user->id);
+
+        return redirect()
+            ->route(
+                $user->isAdmin() ? 'admin.test_bank.index' : 'instructor.test_bank.index',
+                array_filter(['bank_id' => $bank->id])
+            )
+            ->with('success', "Question added to \"{$bank->title}\".");
+    }
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Question::class);

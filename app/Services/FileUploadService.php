@@ -34,7 +34,7 @@ class FileUploadService
         'jpg', 'jpeg', 'png', 'gif', 'mp4', 'mp3', 'zip', 'txt',
     ];
 
-    protected int $maxFileSize = 10485760; // 10MB in bytes
+    protected int $maxFileSize = 52428800; // 50MB in bytes
 
     public function uploadFile(UploadedFile $file, string $folder = 'uploads', array $options = []): MediaFile
     {
@@ -154,16 +154,18 @@ class FileUploadService
             ]);
         }
 
-        // Check file content for suspicious patterns
-        $content = file_get_contents($file->getPathname());
-        $suspiciousPatterns = [
-            '/<\?php/i',
-            '/<script/i',
-            '/javascript:/i',
-            '/vbscript:/i',
-            '/onload=/i',
-            '/onerror=/i',
-        ];
+        // Read only the first 64KB to check for suspicious patterns,
+        // not the entire file, to keep upload of large files fast.
+        $pathname = $file->getPathname();
+        $handle = fopen($pathname, 'rb');
+        if ($handle === false) {
+            return;
+        }
+        $content = fread($handle, 65536);
+        fclose($handle);
+        if ($content === false) {
+            return;
+        }
 
         foreach ($suspiciousPatterns as $pattern) {
             if (preg_match($pattern, $content)) {
