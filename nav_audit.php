@@ -1,13 +1,16 @@
 <?php
 /**
- * Audits every Blade view against its sidebar: the $activeNav a view sets must
- * match a key the corresponding sidebar actually watches for, otherwise the nav
- * item never lights up.
+ * Audits every Blade view against its sidebar.
  *
+ * Works on both:
+ * - Local Windows/XAMPP
+ * - HostForge/Linux
+ *
+ * Run:
  *   php nav_audit.php
  */
 
-$root = 'C:/xampp/htdocs/INTEGRATED-ANALYTICS-AND-PROGRESS-TRAINING/lms';
+$root = __DIR__;
 
 $sets = [
     'admin' => [
@@ -27,15 +30,44 @@ $sets = [
 $failed = false;
 
 foreach ($sets as $label => $set) {
-    $sidebarSrc = file_get_contents($root.$set['sidebar']);
-    preg_match_all("/activeNav\s*===?\s*'([a-z_]+)'/", $sidebarSrc, $m);
+    $sidebarPath = $root . $set['sidebar'];
+    $viewsPath = $root . $set['views'];
+
+    if (!is_file($sidebarPath)) {
+        echo strtoupper($label) . " — ERROR: sidebar not found:\n";
+        echo "  {$sidebarPath}\n\n";
+        $failed = true;
+        continue;
+    }
+
+    if (!is_dir($viewsPath)) {
+        echo strtoupper($label) . " — ERROR: views directory not found:\n";
+        echo "  {$viewsPath}\n\n";
+        $failed = true;
+        continue;
+    }
+
+    $sidebarSrc = file_get_contents($sidebarPath);
+
+    preg_match_all(
+        "/activeNav\s*===?\s*'([a-z_]+)'/",
+        $sidebarSrc,
+        $m
+    );
+
     $valid = array_unique($m[1]);
     sort($valid);
 
-    echo strtoupper($label).' — sidebar watches '.count($valid)." keys\n";
+    echo strtoupper($label) .
+        ' — sidebar watches ' .
+        count($valid) .
+        " keys\n";
 
     $it = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($root.$set['views'], FilesystemIterator::SKIP_DOTS)
+        new RecursiveDirectoryIterator(
+            $viewsPath,
+            FilesystemIterator::SKIP_DOTS
+        )
     );
 
     $bad = [];
@@ -47,18 +79,30 @@ foreach ($sets as $label => $set) {
 
         $src = file_get_contents($file->getPathname());
 
-        if (! preg_match("/activeNav\s*=\s*'([a-z_]+)'/", $src, $am)) {
+        if (!preg_match(
+            "/activeNav\s*=\s*'([a-z_]+)'/",
+            $src,
+            $am
+        )) {
             continue;
         }
 
-        if (! in_array($am[1], $valid, true)) {
-            $bad[] = [str_replace($root.'/', '', $file->getPathname()), $am[1]];
+        if (!in_array($am[1], $valid, true)) {
+            $relativePath = str_replace(
+                $root . '/',
+                '',
+                str_replace('\\', '/', $file->getPathname())
+            );
+
+            $bad[] = [$relativePath, $am[1]];
         }
     }
 
     if ($bad) {
         $failed = true;
-        echo '  MISMATCHED ('.count($bad)."):\n";
+
+        echo '  MISMATCHED (' . count($bad) . "):\n";
+
         foreach ($bad as [$path, $value]) {
             echo "    - {$path} sets '{$value}'\n";
         }
