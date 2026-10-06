@@ -147,12 +147,18 @@
                         <li class="perf-item">
                             <div class="perf-top">
                                 <p class="perf-name">{{ $pClass->code ?? '' }} — {{ $pClass->course?->title ?? 'Class' }}</p>
-                                <span class="perf-score">{{ number_format($perf['average_grade'] ?? 0, 1) }}%</span>
+                                @if($perf['active_students'] ?? 0)
+                                    <span class="perf-score">{{ number_format($perf['average_grade'] ?? 0, 1) }}%</span>
+                                @else
+                                    <span class="perf-score" style="opacity:.6">No students</span>
+                                @endif
                             </div>
-                            <div class="perf-bar"><span style="width: {{ min(($perf['average_grade'] ?? 0), 100) }}%"></span></div>
+                            <div class="perf-bar">
+                                <span style="width: {{ ($perf['active_students'] ?? 0) ? min(($perf['average_grade'] ?? 0), 100) : 0 }}%"></span>
+                            </div>
                             <div class="perf-meta">
-                                <span>{{ $pClass->enrollments->where('status', 'active')->count() }} students</span>
-                                <span>{{ round($perf['completion_rate'] ?? 0) }}% completion</span>
+                                <span>{{ $perf['active_students'] ?? 0 }} students</span>
+                                <span>{{ round($perf['completion_rate'] ?? 0) }}&percnt; completion</span>
                                 <a href="{{ route('instructor.classes.learning-plans.index', $pClass) }}" style="font-size:0.8rem"><i class="fa-solid fa-route"></i> Learning plans</a>
                             </div>
                         </li>
@@ -281,47 +287,30 @@
                     <option value="attendance">Attendance</option>
                     <option value="engagement">Engagement</option>
                 </select>
-                <button onclick="loadAnalytics()" class="analytics-btn"><i class="fa-solid fa-sync-alt"></i> Load</button>
+                <button onclick="loadAnalytics(false)" class="analytics-btn"><i class="fa-solid fa-sync-alt"></i> Load</button>
             </div>
         </div>
         <div class="analytics-content">
             <div id="analytics-toast" class="analytics-toast"></div>
+            <p class="analytics-hint" style="margin:0 0 12px;font-size:.72rem;color:var(--dash-muted,#98a7c4);">
+                Pick a metric above and press <strong>Load</strong>. Only the selected card renders data.
+            </p>
             <div class="analytics-grid">
-                <div class="analytics-card">
+                <div class="analytics-card" data-analytics-type="performance">
                     <h5><i class="fa-solid fa-chart-line"></i> Grade Distribution</h5>
-                    <div id="gradeDistributionChart" class="chart-container">
-                        <div class="chart-placeholder">
-                            <i class="fa-solid fa-chart-bar"></i>
-                            <p>Loading analytics…</p>
-                        </div>
-                    </div>
+                    <div id="gradeDistributionChart" class="chart-container"></div>
                 </div>
-                <div class="analytics-card">
+                <div class="analytics-card" data-analytics-type="enrollment">
                     <h5><i class="fa-solid fa-users"></i> Enrollment Trends</h5>
-                    <div id="enrollmentTrendsChart" class="chart-container">
-                        <div class="chart-placeholder">
-                            <i class="fa-solid fa-chart-area"></i>
-                            <p>Loading analytics…</p>
-                        </div>
-                    </div>
+                    <div id="enrollmentTrendsChart" class="chart-container"></div>
                 </div>
-                <div class="analytics-card">
+                <div class="analytics-card" data-analytics-type="attendance">
                     <h5><i class="fa-solid fa-clipboard-check"></i> Attendance Overview</h5>
-                    <div id="attendanceOverviewChart" class="chart-container">
-                        <div class="chart-placeholder">
-                            <i class="fa-solid fa-chart-pie"></i>
-                            <p>Loading analytics…</p>
-                        </div>
-                    </div>
+                    <div id="attendanceOverviewChart" class="chart-container"></div>
                 </div>
-                <div class="analytics-card">
+                <div class="analytics-card" data-analytics-type="engagement">
                     <h5><i class="fa-solid fa-comments"></i> Engagement Metrics</h5>
-                    <div id="engagementMetricsChart" class="chart-container">
-                        <div class="chart-placeholder">
-                            <i class="fa-solid fa-chart-line"></i>
-                            <p>Loading analytics…</p>
-                        </div>
-                    </div>
+                    <div id="engagementMetricsChart" class="chart-container"></div>
                 </div>
             </div>
         </div>
@@ -536,14 +525,60 @@
             }
         }
 
-        async function loadAnalytics() {
+        // Each analytics card maps to the dropdown option that renders it.
+        const ANALYTICS_CARD = {
+            performance: 'gradeDistributionChart',
+            enrollment: 'enrollmentTrendsChart',
+            attendance: 'attendanceOverviewChart',
+            engagement: 'engagementMetricsChart',
+        };
+
+        const ANALYTICS_LABEL = {
+            performance: 'Grade Distribution',
+            enrollment: 'Enrollment Trends',
+            attendance: 'Attendance Overview',
+            engagement: 'Engagement Metrics',
+        };
+
+        function idlePlaceholder(cardId, message, icon) {
+            const container = document.getElementById(cardId);
+            if (!container) return;
+
+            destroyChart(cardId);
+
+            container.innerHTML = `
+                <div class="chart-placeholder">
+                    <i class="fa-solid ${icon || 'fa-chart-simple'}"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        /**
+         * Only the selected metric renders. The rest show an honest idle state
+         * instead of a permanent "Loading analytics…" which read as no data.
+         */
+        function resetAnalyticsCards(activeType) {
+            Object.entries(ANALYTICS_CARD).forEach(([type, cardId]) => {
+                if (type === activeType) return;
+
+                idlePlaceholder(cardId, 'Not selected — pick this metric above and press Load.');
+            });
+        }
+
+        async function loadAnalytics(silent = false) {
             const period = document.getElementById('analyticsPeriod').value;
             const type = document.getElementById('analyticsType').value;
             const button = document.querySelector('.analytics-btn');
+            const cardId = ANALYTICS_CARD[type];
 
             // Show loading state
             button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
             button.disabled = true;
+
+            if (cardId) {
+                idlePlaceholder(cardId, 'Loading analytics…', 'fa-spinner fa-spin');
+            }
 
             try {
                 const response = await fetch(`{{ route('instructor.dashboard.analytics') }}?period=${period}&type=${type}`);
@@ -551,9 +586,11 @@
 
                 if (data.success) {
                     displayAnalytics(data.data, type);
+                    resetAnalyticsCards(type);
+
                     const toast = document.getElementById('analytics-toast');
-                    if (toast) {
-                        toast.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} analytics loaded for ${period === 'week' ? 'this week' : period === 'month' ? 'this month' : period === 'semester' ? 'this semester' : 'this year'}`;
+                    if (toast && !silent) {
+                        toast.textContent = `${ANALYTICS_LABEL[type] || type} loaded for ${period === 'week' ? 'this week' : period === 'month' ? 'this month' : period === 'semester' ? 'this semester' : 'this year'}`;
                         toast.classList.add('show');
                         setTimeout(() => toast.classList.remove('show'), 3000);
                     }
@@ -562,10 +599,17 @@
                 }
             } catch (error) {
                 console.error('Analytics error:', error);
-                if (typeof LMS !== 'undefined' && LMS.toast) {
-                    LMS.toast('Error loading analytics: ' + error.message, 'error');
-                } else {
-                    alert('Error loading analytics: ' + error.message);
+
+                if (cardId) {
+                    idlePlaceholder(cardId, 'Could not load this metric. Press Load to retry.', 'fa-triangle-exclamation');
+                }
+
+                if (!silent) {
+                    if (typeof LMS !== 'undefined' && LMS.toast) {
+                        LMS.toast('Error loading analytics: ' + error.message, 'error');
+                    } else {
+                        alert('Error loading analytics: ' + error.message);
+                    }
                 }
             } finally {
                 // Reset button state
@@ -677,12 +721,17 @@
             container.innerHTML = '<canvas id="gradeChartCanvas"></canvas>';
             const ctx = document.getElementById('gradeChartCanvas');
 
+            const buckets = ['A', 'B', 'C', 'D', 'F'];
+            const ranges = ['A (90-100)', 'B (80-89)', 'C (70-79)', 'D (60-69)', 'F (0-59)'];
+            const bucketTotal = buckets.reduce((sum, k) => sum + (Number(distribution[k]) || 0), 0);
+
             chartInstances['gradeDistributionChart'] = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['A (90-100)', 'B (80-89)', 'C (70-79)', 'D (60-69)', 'F (0-59)'],
+                    // Show the actual headcount in each band, not just the range.
+                    labels: buckets.map((k, i) => `${ranges[i]} — ${Number(distribution[k]) || 0}`),
                     datasets: [{
-                        data: [distribution.A, distribution.B, distribution.C, distribution.D, distribution.F],
+                        data: buckets.map(k => Number(distribution[k]) || 0),
                         backgroundColor: ['#34d399', '#62c9f5', '#fbbf24', '#fb923c', '#fb7185'],
                         borderColor: '#151c2c',
                         borderWidth: 2
@@ -699,9 +748,8 @@
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
-                                    const total = Object.values(distribution).reduce((a, b) => a + b, 0);
-                                    const pct = total > 0 ? (context.parsed / total * 100).toFixed(1) : 0;
-                                    return ` ${context.parsed} students (${pct}%)`;
+                                    const pct = bucketTotal > 0 ? (context.parsed / bucketTotal * 100).toFixed(1) : 0;
+                                    return ` ${context.parsed} student${context.parsed === 1 ? '' : 's'} (${pct}%)`;
                                 }
                             }
                         }
@@ -712,10 +760,19 @@
             // Average grade line
             const avgWrap = document.createElement('div');
             avgWrap.className = 'average-grade';
-            avgWrap.innerHTML = `
-                <span class="avg-label"><i class="fa-solid fa-chart-simple"></i> Class Average: ${analytics.average_grade.toFixed(1)}%</span>
-                <span class="avg-sub">Across ${analytics.graded_enrollments} graded enrollments</span>
-            `;
+
+            const gradedCount = Number(analytics.graded_enrollments) || 0;
+
+            avgWrap.innerHTML = gradedCount > 0
+                ? `
+                    <span class="avg-label"><i class="fa-solid fa-chart-simple"></i> Class Average: ${Number(analytics.average_grade || 0).toFixed(1)}%</span>
+                    <span class="avg-sub">Across ${gradedCount} graded student${gradedCount === 1 ? '' : 's'}</span>
+                `
+                : `
+                    <span class="avg-label"><i class="fa-solid fa-circle-info"></i> No graded results yet</span>
+                    <span class="avg-sub">Release and grade items to build the distribution</span>
+                `;
+
             container.appendChild(avgWrap);
         }
 
@@ -807,31 +864,25 @@
             `;
         }
 
-        // Auto-load performance analytics on page load (silent — no toast on first load)
+        // Auto-load the selected metric on page load. Reuses loadAnalytics() so the
+// idle state is applied to the other cards too — the previous inline copy of
+        // this logic skipped resetAnalyticsCards(), which left three cards stuck
+        // on "Loading analytics…" forever.
         document.addEventListener('DOMContentLoaded', function() {
-            const button = document.querySelector('.analytics-btn');
-            if (button) {
-                button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
-                button.disabled = true;
+            const selectedType = document.getElementById('analyticsType').value;
+
+            // Paint the idle state immediately so nothing looks like it is
+            // loading before the request comes back.
+            resetAnalyticsCards(selectedType);
+
+            if (typeof loadAnalytics === 'function') {
+                loadAnalytics(true);
             }
-            const period = document.getElementById('analyticsPeriod').value;
-            const type = document.getElementById('analyticsType').value;
-            fetch(`{{ route('instructor.dashboard.analytics') }}?period=${period}&type=${type}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        displayAnalytics(data.data, type);
-                    } else {
-                        console.error('Failed to load initial analytics:', data.error);
-                    }
-                })
-                .catch(err => console.error('Initial analytics error:', err))
-                .finally(() => {
-                    if (button) {
-                        button.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Load';
-                        button.disabled = false;
-                    }
-                });
+        });
+
+        // Switching metric should refresh without an extra click.
+        document.getElementById('analyticsType')?.addEventListener('change', function() {
+            resetAnalyticsCards(this.value);
         });
     </script>
 

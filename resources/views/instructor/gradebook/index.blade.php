@@ -37,7 +37,60 @@
 
     <!-- Gradebook Table -->
     <div class="user-panel gradebook-panel">
-        <div class="user-panel-head"><h3><i class="fa-solid fa-table"></i> Student Grades</h3></div>
+        <div class="user-panel-head">
+            <h3><i class="fa-solid fa-table"></i> Student Grades</h3>
+
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                @if (! empty($riskTally['at_risk']))
+                    <span class="gb-chip gb-chip-danger">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        {{ $riskTally['at_risk'] }} at risk
+                    </span>
+                @endif
+
+                @if (! empty($riskTally['pending']))
+                    <span class="gb-chip gb-chip-muted">{{ $riskTally['pending'] }} pending</span>
+                @endif
+
+                <a href="{{ route('instructor.classes.gradebook.grading-config.edit', $class) }}" class="btn btn-secondary"
+                   style="padding:7px 13px;font-size:.8rem;">
+                    <i class="fa-solid fa-sliders"></i>
+                    Grading Configuration
+                </a>
+            </div>
+        </div>
+
+        @if ($configuration && ! $configuration->isValid())
+            <div class="gb-notice">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div>
+                    <strong>Grading configuration is not in use.</strong>
+                    {{ $configuration->validationMessage() }}
+                    <a href="{{ route('instructor.classes.gradebook.grading-config.edit', $class) }}">Fix it</a>
+                </div>
+            </div>
+        @elseif ($configuration && $configuration->isValid())
+            @php
+                // Built as a string first. Emitting the labels inline with
+                // @foreach and a trailing @if on the same line compiled to
+                // broken PHP.
+                $weightSummary = collect($configuration->enabledWeights())
+                    ->map(function ($weight, $type) {
+                        $label = \App\Models\GradeConfiguration::COMPONENTS[$type]['label'] ?? ucfirst($type);
+                        $formatted = rtrim(rtrim(number_format((float) $weight, 2), '0'), '.');
+
+                        return $label.' '.$formatted.'%';
+                    })
+                    ->implode(', ');
+            @endphp
+            <div class="gb-notice gb-notice-ok">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                    <strong>Weighted configuration active.</strong>
+                    {{ $weightSummary }} — totalling {{ number_format($configuration->totalWeight(), 0) }}%.
+                </div>
+            </div>
+        @endif
 
         <!-- Filters -->
         <div class="user-toolbar">
@@ -69,9 +122,26 @@
                             Total
                             <div class="user-email">released &amp; graded only</div>
                         </th>
-                        <th title="Points-weighted class grade">
-                            Grade
-                            <div class="user-email">{{ config('lms.passing_grade', 60) }}% to pass</div>
+
+                        @foreach ($componentColumns as $column)
+                            <th title="{{ $column['label'] }}{{ $column['weight'] > 0 ? ' — '.$column['weight'].'% of the final grade' : '' }}">
+                                {{ $column['label'] }}
+                                <div class="user-email">
+                                    @if ($column['weight'] > 0)
+                                        {{ rtrim(rtrim(number_format($column['weight'], 2), '0'), '.') }}&percnt; weight
+                                    @else
+                                        component
+                                    @endif
+                                </div>
+                            </th>
+                        @endforeach
+
+                        <th title="{{ $configuration && $configuration->isValid() ? 'Weighted final grade from the grading configuration' : 'Points-weighted class grade' }}">
+                            Final Grade
+                            <div class="user-email">{{ config('lms.passing_grade', 60) }}&percnt; to pass</div>
+                        </th>
+                        <th title="Deterministic signals: component floor, attendance, lesson progress and final grade">
+                            Status
                         </th>
                         <th>Actions</th>
                     </tr>
@@ -124,12 +194,56 @@
                                     <span style="color: #94a3b8; font-weight: 500;">—</span>
                                 @endif
                             </td>
-                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ (($summary['percent'] ?? 0) >= 70 ? '#16a34a' : (($summary['percent'] ?? 0) >= 50 ? '#d97706' : '#dc2626')) }};">
-                                @if($summary['is_graded'] ?? false)
-                                    {{ number_format($summary['percent'], 1) }}%
-                                    <div style="font-size: 0.7rem; color: #64748b;">{{ $summary['letter_grade'] }}</div>
+
+                            @php
+                                $breakdown = $breakdowns[$enrollment->student_id] ?? null;
+                                $rowRisk = $risk[$enrollment->student_id] ?? null;
+                            @endphp
+
+                            @foreach ($componentColumns as $column)
+                                @php $component = $breakdown['components'][$column['type']] ?? null; @endphp
+                                <td style="padding: 12px; text-align: center;">
+                                    @if (! $component || ! ($component['is_graded'] ?? false))
+                                        <span style="color: #cbd5e1;">—</span>
+                                    @else
+                                        @php $pct = (float) $component['percent']; @endphp
+                                        <div style="font-weight: 600; color: {{ $pct >= 70 ? '#16a34a' : ($pct >= 50 ? '#d97706' : '#dc2626') }};">
+                                            {{ number_format($pct, 1) }}%
+                                        </div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8;">
+                                            {{ $component['earned'] }}/{{ $component['possible'] }}
+                                        </div>
+                                    @endif
+                                </td>
+                            @endforeach
+
+                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ (($breakdown['final_grade'] ?? 0) >= 70 ? '#16a34a' : (($breakdown['final_grade'] ?? 0) >= 50 ? '#d97706' : '#dc2626')) }};">
+                                @if ($breakdown['is_graded'] ?? false)
+                                    {{ number_format((float) $breakdown['final_grade'], 2) }}%
+                                    <div style="font-size: 0.7rem; color: #64748b;">{{ $breakdown['letter_grade'] }}</div>
                                 @else
                                     <span style="color: #94a3b8; font-weight: 500;">Not graded</span>
+                                @endif
+                            </td>
+
+                            <td style="padding: 12px; text-align: center;">
+                                @if ($rowRisk)
+                                    <span class="gb-status gb-status-{{ $rowRisk['tone'] }}"
+                                          @if ($rowRisk['reasons'])
+                                          title="{{ implode(' ', $rowRisk['reasons']) }}"
+                                          @endif>
+                                        {{ $rowRisk['label'] }}
+                                    </span>
+
+                                    @if ($rowRisk['reasons'] && $rowRisk['status'] === 'at_risk')
+                                        <ul class="gb-reasons">
+                                            @foreach (array_slice($rowRisk['reasons'], 0, 3) as $reason)
+                                                <li>{{ $reason }}</li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+                                @else
+                                    <span style="color: #94a3b8;">—</span>
                                 @endif
                             </td>
                             <td style="padding: 12px; text-align: center;">
@@ -452,3 +566,20 @@
         }
     </script>
 @endsection
+<style>
+    .gb-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:.7rem;font-weight:700}
+    .gb-chip-danger{background:#fee2e2;color:#b91c1c}
+    .gb-chip-muted{background:#f1f5f9;color:#64748b}
+    .gb-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin:0 0 16px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:.8rem;color:#92400e}
+    .gb-notice-ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+    .gb-notice i{margin-top:2px}
+    .gb-notice a{color:inherit;font-weight:700;text-decoration:underline}
+    .gb-status{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.68rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+    .gb-status-success{background:#dcfce7;color:#15803d}
+    .gb-status-danger{background:#fee2e2;color:#b91c1c}
+    .gb-status-warning{background:#fef3c7;color:#b45309}
+    .gb-status-muted{background:#f1f5f9;color:#64748b}
+    .gb-reasons{margin:6px 0 0;padding:0;list-style:none;text-align:left;font-size:.68rem;color:#b91c1c;line-height:1.35}
+    .gb-reasons li{padding-left:10px;position:relative;margin-bottom:2px}
+    .gb-reasons li::before{content:"•";position:absolute;left:0}
+</style>

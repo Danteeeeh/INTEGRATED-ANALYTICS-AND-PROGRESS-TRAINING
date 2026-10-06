@@ -127,7 +127,7 @@
 
                 @if($isEnrolled && $enrollment?->status === 'active')
                     <section class="portal-card" aria-labelledby="progress-title">
-                        <div class="portal-card-head"><h3 id="progress-title"><i class="fa-solid fa-chart-line"></i> Your progress</h3><span>{{ number_format($progress['overall'] ?? 0, 1) }}% overall</span></div>
+                        <div class="portal-card-head"><h3 id="progress-title"><i class="fa-solid fa-chart-line"></i> Your progress</h3><span>{{ number_format($progress['overall'] ?? 0, 1) }}&percnt; overall</span></div>
                         <div class="portal-card-body">
                             <div class="progress-grid">
                                 @foreach([
@@ -215,12 +215,7 @@
         </div>
 
         <div class="action-row">
-            @if($isEnrolled && $enrollment?->status === 'active')
-                <form action="{{ route('student.classes.drop', $class) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to drop this class?');"><i class="fa-solid fa-user-minus"></i> Drop class</button>
-                </form>
-            @elseif(!$isEnrolled && $class->is_active && !$isFull)
+            @if(!$isEnrolled && $class->is_active && !$isFull)
                 <form action="{{ route('student.classes.enroll', $class) }}" method="POST">
                     @csrf
                     <button type="submit" class="btn btn-success"><i class="fa-solid fa-user-plus"></i> Enroll in class</button>

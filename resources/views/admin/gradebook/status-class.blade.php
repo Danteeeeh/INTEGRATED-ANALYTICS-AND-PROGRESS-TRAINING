@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 @section('title', 'Grade Status — ' . $class->code)
-@php($activeNav = 'grades')
+@php($activeNav = 'gradebook')
 
 @section('page-title-bar')
 <div class="page-title-bar">

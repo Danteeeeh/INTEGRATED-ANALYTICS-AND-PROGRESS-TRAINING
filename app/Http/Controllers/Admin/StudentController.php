@@ -35,7 +35,7 @@ class StudentController extends Controller
 
     public function create(): View
     {
-        $roles = Role::all();
+        $roles = Role::assignable()->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -109,7 +109,7 @@ class StudentController extends Controller
 
     public function edit(User $student): View
     {
-        $roles = Role::all();
+        $roles = Role::assignable()->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -179,6 +179,8 @@ class StudentController extends Controller
 
     public function destroy(User $student)
     {
+        $this->authorize('delete', $student);
+
         if ($student->enrollments()->exists()) {
             return back()->with('error', 'Cannot delete student with active enrollments.');
         }

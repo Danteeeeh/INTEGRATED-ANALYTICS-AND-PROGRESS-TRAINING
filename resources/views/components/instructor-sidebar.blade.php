@@ -26,6 +26,12 @@
                         <span>Courses</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'subjects' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.subjects.index') }}" class="nav-link" @if($activeNav === 'subjects') aria-current="page" @endif>
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>LMS Subjects</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'classes' ? 'active' : '' }}">
                     <a href="{{ route('instructor.classes.index') }}" class="nav-link" @if($activeNav === 'classes') aria-current="page" @endif>
                         <i class="fa-solid fa-school"></i>

@@ -52,8 +52,12 @@
                         <strong>Q{{ $index + 1 }}: {{ $answer->question?->question_text ?? $answer->question?->text ?? 'Question' }}</strong>
                         <div class="user-email">
                             Answer:
-                            @if($answer->choice)
-                                {{ $answer->choice->choice_text ?? $answer->choice->text ?? 'Choice' }}
+                            {{-- A multiple-choice answer lives in the quiz_answer_choices pivot,
+                                 reached through selectedChoices(). There is no
+                                 `choice` relation on QuizAnswer. --}}
+                            @php($selectedChoices = $answer->selectedChoices)
+                            @if($selectedChoices->isNotEmpty())
+                                {{ $selectedChoices->pluck('choice_text')->join(', ') }}
                             @elseif($answer->answer_text)
                                 {{ $answer->answer_text }}
                             @else

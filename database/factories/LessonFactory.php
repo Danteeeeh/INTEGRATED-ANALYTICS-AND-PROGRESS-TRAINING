@@ -29,7 +29,7 @@ class LessonFactory extends Factory
             'lesson_type' => 'text',
             'is_required' => true,
             'status' => 'published',
-            'created_by' => User::factory(),
+            'created_by' => User::factory()->instructor(),
         ];
     }
 }

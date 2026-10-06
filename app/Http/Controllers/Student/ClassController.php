@@ -266,27 +266,6 @@ class ClassController extends Controller
             ->with('status', 'Successfully enrolled in the class!');
     }
 
-    public function drop(ClassModel $class)
-    {
-        $this->authorize('drop', $class);
-
-        $studentId = auth()->id();
-
-        $enrollment = Enrollment::where('student_id', $studentId)
-            ->where('class_id', $class->id)
-            ->where('status', '!=', 'dropped')
-            ->first();
-
-        if (! $enrollment) {
-            return back()->with('error', 'You are not enrolled in this class.');
-        }
-
-        $enrollment->drop();
-
-        return redirect()->route('student.classes.index')
-            ->with('status', 'You have dropped the class.');
-    }
-
     public function calendar(): View
     {
         $studentId = auth()->id();

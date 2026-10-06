@@ -24,7 +24,7 @@ class QuestionFactory extends Factory
             'difficulty' => Question::DIFFICULTY_MEDIUM,
             'default_points' => 1,
             'tags' => null,
-            'created_by' => User::factory(),
+            'created_by' => User::factory()->instructor(),
             'status' => 'active',
         ];
     }

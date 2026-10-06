@@ -2,7 +2,7 @@
 
 @section('title', 'Enroll Student')
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $pageTitle = 'Enroll Student';
     $pageIcon = '<i class="fa-solid fa-graduation-cap"></i>';
     $formAction = route('instructor.enrollments.store');

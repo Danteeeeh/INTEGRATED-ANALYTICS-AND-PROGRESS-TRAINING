@@ -29,7 +29,7 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $users = $this->users->getAllUsers($request->only(['search', 'status', 'role_slug', 'role_id', 'sort']));
-        $roles = Role::orderBy('name')->get();
+        $roles = Role::assignable()->orderBy('name')->get();
 
         return view('admin.users.index', compact('users', 'roles'));
     }
@@ -38,7 +38,7 @@ class UserController extends Controller
     {
         $this->authorize('create', User::class);
 
-        $roles = Role::orderBy('name')->get();
+        $roles = Role::assignable()->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -71,7 +71,7 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
-        $roles = Role::orderBy('name')->get();
+        $roles = Role::assignable()->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -162,6 +162,7 @@ class UserController extends Controller
             fputcsv($handle, ['ID', 'Name', 'Email', 'Identifier', 'Role', 'Status', 'Last Login']);
 
             User::with('role')
+                ->withoutRegistrar()
                 ->when($request->filled('role_slug'), fn ($q) => $q->whereHas('role', fn ($r) => $r->where('slug', $request->string('role_slug'))))
                 ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
                 ->when($request->filled('search'), function ($q) use ($request) {

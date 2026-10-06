@@ -148,14 +148,14 @@
                         <p class="perf-name">Draft</p>
                         <span class="perf-score">{{ $coursesByStatus['draft'] ?? 0 }}</span>
                     </div>
-                    <div class="perf-bar"><span style="width: {{ (($coursesByStatus['draft'] ?? 0) / $totalCoursesStat) * 100 }}%;background:linear-gradient(90deg,#d97706,#fbbf24)"></span></div>
+                    <div class="perf-bar"><span style="width: {{ (($coursesByStatus['draft'] ?? 0) / $totalCoursesStat) * 100 }}&percnt;;background:linear-gradient(90deg,#d97706,#fbbf24)"></span></div>
                 </li>
                 <li class="perf-item">
                     <div class="perf-top">
                         <p class="perf-name">Archived</p>
                         <span class="perf-score">{{ $coursesByStatus['archived'] ?? 0 }}</span>
                     </div>
-                    <div class="perf-bar"><span style="width: {{ (($coursesByStatus['archived'] ?? 0) / $totalCoursesStat) * 100 }}%;background:linear-gradient(90deg,#64748b,#94a3b8)"></span></div>
+                    <div class="perf-bar"><span style="width: {{ (($coursesByStatus['archived'] ?? 0) / $totalCoursesStat) * 100 }}&percnt;;background:linear-gradient(90deg,#64748b,#94a3b8)"></span></div>
                 </li>
             </ul>
         </section>

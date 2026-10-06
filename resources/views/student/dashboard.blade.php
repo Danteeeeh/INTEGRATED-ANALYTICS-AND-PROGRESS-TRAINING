@@ -154,7 +154,7 @@
                 </div>
                 <div class="student-assessment-status" aria-label="Assessment status: {{ $assessment['label'] }}">
                     <strong>{{ $assessment['label'] }}</strong>
-                    <span>{{ $assessment['confidence'] }}% data coverage</span>
+                    <span>{{ $assessment['confidence'] }}&percnt; data coverage</span>
                 </div>
             </div>
 
@@ -267,7 +267,7 @@
                 </div>
                 <div class="cc-progress">
                     <div class="dash-progress"><span style="width: {{ $continue['progress'] ?? 0 }}%"></span></div>
-                    <div class="dash-progress-label">{{ round($continue['progress'] ?? 0) }}% complete</div>
+                    <div class="dash-progress-label">{{ round($continue['progress'] ?? 0) }}&percnt; complete</div>
                 </div>
             </div>
         </div>

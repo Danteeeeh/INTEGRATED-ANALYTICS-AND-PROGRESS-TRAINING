@@ -22,6 +22,29 @@ class LessonController extends Controller
     ) {
     }
 
+    public function indexAll(): View
+    {
+        $studentId = auth()->id();
+
+        $enrollments = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->with('class.course')
+            ->get();
+
+        $classIds = $enrollments->pluck('class_id');
+
+        $lessons = Lesson::published()
+            ->whereHas('module.course.classes', function ($q) use ($classIds) {
+                $q->whereIn('id', $classIds);
+            })
+            ->with(['module.course', 'module'])
+            ->orderBy('module_id')
+            ->orderBy('position')
+            ->paginate(20);
+
+        return view('student.lessons.index', compact('lessons', 'enrollments'));
+    }
+
     public function show(Course $course, Module $module, Lesson $lesson): View
     {
         $studentId = auth()->id();

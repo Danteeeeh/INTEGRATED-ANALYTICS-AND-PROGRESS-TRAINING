@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 @section('title', 'Grade Status')
-@php($activeNav = 'grades')
+@php($activeNav = 'gradebook')
 
 @section('page-title-bar')
 <div class="page-title-bar">
@@ -54,7 +54,7 @@
                     <td>
                         <div style="display:flex;align-items:center;gap:8px">
                             <div style="flex:1;min-width:90px;height:8px;border-radius:99px;background:rgba(153,174,214,.16);overflow:hidden">
-                                <div style="height:100%;width:{{ $pct }}%;border-radius:99px;background:linear-gradient(90deg,#4d8ff0,#62c9f5)"></div>
+                                <div style="height:100%;width:{{ $pct }}&percnt;;border-radius:99px;background:linear-gradient(90deg,#4d8ff0,#62c9f5)"></div>
                             </div>
                             <span style="font-size:.72rem;font-weight:700;color:var(--bcp-muted)">{{ $pct }}%</span>
                         </div>

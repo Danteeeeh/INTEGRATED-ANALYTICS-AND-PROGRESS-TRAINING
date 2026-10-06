@@ -17,7 +17,10 @@ class ClassModelFactory extends Factory
         return [
             'code' => strtoupper(fake()->lexify('???????')),
             'course_id' => Course::factory(),
-            'instructor_id' => User::factory(),
+            // An instructor, not the default student. ClassModelFactory previously used
+            // a bare User::factory(), so every test class had a "student"
+            // teaching it.
+            'instructor_id' => User::factory()->instructor(),
             'academic_period_id' => AcademicPeriod::factory(),
             'schedule' => fake()->optional()->sentence(),
             'room' => fake()->optional()->word(),

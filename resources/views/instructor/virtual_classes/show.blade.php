@@ -21,7 +21,7 @@
         <h3>Virtual Class Details</h3>
 
         <div style="margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
-            @if($virtualClass->status === 'scheduled')
+            @if($virtualClass->canStart())
                 <form method="POST" action="{{ route('instructor.classes.virtual_classes.start', [$class, $virtualClass]) }}" onsubmit="return confirm('Start this virtual class now? This will change status to Ongoing.');">
                     @csrf
                     <button type="submit" class="btn-submit" style="display: inline-flex; align-items: center; gap: 8px;">
@@ -31,17 +31,29 @@
                 </form>
             @endif
 
-            @if($virtualClass->meeting_url)
-                <a href="{{ $virtualClass->meeting_url }}" target="_blank" class="btn-add" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            @if($virtualClass->canEnd())
+                <form method="POST" action="{{ route('instructor.classes.virtual_classes.end', [$class, $virtualClass]) }}" onsubmit="return confirm('Close this virtual class now? Students will no longer be able to join.');">
+                    @csrf
+                    <button type="submit" class="btn-submit" style="display: inline-flex; align-items: center; gap: 8px; background:#dc2626; border-color:#dc2626;">
+                        <i class="fa-solid fa-stop"></i>
+                        End Class Now
+                    </button>
+                </form>
+            @endif
+
+            @if($virtualClass->meeting_url && ! $virtualClass->hasEnded())
+                <a href="{{ $virtualClass->meeting_url }}" target="_blank" rel="noopener" class="btn-add" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     Open Meeting
                 </a>
             @endif
 
-            <span class="btn btn-secondary" aria-disabled="true" title="Virtual class editing is not available from this view">
-                <i class="fa-solid fa-lock"></i>
-                Edit unavailable
-            </span>
+            @if($virtualClass->hasEnded() && $virtualClass->status !== 'completed')
+                <span class="btn btn-secondary" aria-disabled="true">
+                    <i class="fa-solid fa-clock"></i>
+                    Auto-closed at {{ $virtualClass->endsAt()?->format('g:i A') }}
+                </span>
+            @endif
         </div>
 
         <div class="modal-section-title"><i class="fa-solid fa-info-circle"></i> Basic Information</div>
@@ -65,6 +77,17 @@
         <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-calendar-clock"></i> Schedule</div>
         <div class="modal-row"><span>Date:</span><span>{{ $virtualClass->meeting_date->format('l, F j, Y') }}</span></div>
         <div class="modal-row"><span>Time:</span><span>{{ \Carbon\Carbon::parse($virtualClass->start_time)->format('g:i A') }} &ndash; {{ \Carbon\Carbon::parse($virtualClass->end_time)->format('g:i A') }}</span></div>
+        <div class="modal-row">
+            <span>Auto-close:</span>
+            <span>
+                @if($virtualClass->status === 'completed')
+                    Closed automatically
+                @else
+                    Closes automatically {{ $virtualClass->endsAt()?->format('g:i A') }}
+                    ({{ $virtualClass->endsAt()?->diffForHumans() }})
+                @endif
+            </span>
+        </div>
 
         <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-plug"></i> Meeting Details</div>
         <div class="modal-row">

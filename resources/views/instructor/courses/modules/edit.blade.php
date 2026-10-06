@@ -2,7 +2,7 @@
 
 @section('title', 'Edit Module')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'modules';
     $pageTitle = 'Edit Module';
     $pageIcon = '<i class="fa-solid fa-pen-to-square"></i>';
     $module->load('attachments.mediaFile');

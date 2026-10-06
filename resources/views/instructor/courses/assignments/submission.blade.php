@@ -52,8 +52,10 @@
                     <div class="modal-section-title"><i class="fa-solid fa-paperclip"></i> Attached Files</div>
                     <div class="user-actions" style="justify-content:flex-start">
                         @foreach($submission->files as $file)
-                            <a href="{{ $file->url ?? $file->path ?? '#' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
-                                <i class="fa-solid fa-file"></i> {{ $file->original_name ?? $file->name ?? 'File' }}
+                            {{-- SubmissionFile only stores media_file_id + original_name.
+                                 The real download link lives on the MediaFile relation. --}}
+                            <a href="{{ $file->mediaFile?->url ?? '#' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-file"></i> {{ $file->original_name ?? $file->mediaFile?->original_name ?? 'File' }}
                             </a>
                         @endforeach
                     </div>

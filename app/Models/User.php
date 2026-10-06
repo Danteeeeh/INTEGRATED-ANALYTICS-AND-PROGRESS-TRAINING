@@ -180,4 +180,21 @@ class User extends Authenticatable
     {
         return $query->where('users.status', 'pending');
     }
+
+    /**
+     * Exclude the retired registrar role from listings.
+     *
+     * The registrar role was removed as an active part of the system (see the
+     * remove_registrar_role migration and the admin analytics charts), but any
+     * leftover registrar account kept surfacing in "Recent Users" widgets and
+     * user listings. Those queries use User::with('role') with no role filter,
+     * so the account leaked through. Apply this scope to keep them clean.
+     */
+    public function scopeWithoutRegistrar($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereDoesntHave('role')
+                ->orWhereHas('role', fn ($r) => $r->where('slug', '!=', Role::REGISTRAR));
+        });
+    }
 }

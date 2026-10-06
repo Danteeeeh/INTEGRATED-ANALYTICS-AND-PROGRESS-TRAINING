@@ -398,7 +398,7 @@ class QuizController extends Controller
             abort(403);
         }
 
-        $attempt->load('answers.question.choices');
+        $attempt->load('answers.question.choices', 'answers.selectedChoices');
 
         return view('student.quizzes.attempt_show', compact('course', 'quiz', 'attempt', 'enrollment'));
     }

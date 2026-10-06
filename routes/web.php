@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AcademicPeriodController;
+use App\Http\Controllers\Admin\AcademicRecordController;
+use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\Admin\AnnouncementController as AdminAnnouncementController;
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
@@ -56,6 +58,7 @@ use App\Http\Controllers\Instructor\CourseController as InstructorCourseControll
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboard;
 use App\Http\Controllers\Instructor\EnrollmentController as InstructorEnrollmentController;
 use App\Http\Controllers\Instructor\GradebookController as InstructorGradebookController;
+use App\Http\Controllers\Instructor\GradingConfigurationController as InstructorGradingConfigController;
 use App\Http\Controllers\Instructor\LessonController as InstructorLessonController;
 use App\Http\Controllers\Instructor\ModuleController as InstructorModuleController;
 use App\Http\Controllers\Instructor\QuizController as InstructorQuizController;
@@ -312,6 +315,21 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::put('/preferences', [AdminNotificationController::class, 'updatePreferences'])->name('preferences.update');
         });
 
+        // ── Subjects (shared controller, per-role scope) ───────────────
+        Route::get('subjects', [SubjectController::class, 'index'])->name('subjects.index');
+        Route::get('subjects/{class}/scores', [SubjectController::class, 'scores'])->name('subjects.scores');
+        Route::post('subjects/{class}/verify', [SubjectController::class, 'verify'])->name('subjects.verify');
+        Route::post('subjects/{class}/unverify', [SubjectController::class, 'unverify'])->name('subjects.unverify');
+
+        // Academic record handed to the registrar's office.
+        Route::prefix('academic-records')->name('academic-records.')->group(function () {
+            Route::get('/', [AcademicRecordController::class, 'index'])->name('index');
+            // export must be declared before the {student} wildcard, otherwise
+            // "5/export" is swallowed by the show route.
+            Route::get('/{student}/export', [AcademicRecordController::class, 'export'])->name('export');
+            Route::get('/{student}', [AcademicRecordController::class, 'show'])->name('show');
+        });
+
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('/enrollment', [ReportController::class, 'enrollment'])->name('enrollment');
@@ -344,11 +362,23 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
     Route::middleware('role:'.Role::INSTRUCTOR)->prefix('instructor')->name('instructor.')->group(function () {
         Route::get('/dashboard', InstructorDashboard::class)->name('dashboard');
+        // Same controller as admin, scoped to this instructor's own subjects.
+        Route::get('subjects', [SubjectController::class, 'index'])->name('subjects.index');
+        Route::get('subjects/{class}/scores', [SubjectController::class, 'scores'])->name('subjects.scores');
+        Route::post('subjects/{class}/verify', [SubjectController::class, 'verify'])->name('subjects.verify');
         Route::post('/dashboard/clear-cache', [InstructorDashboard::class, 'clearCache'])->name('dashboard.clear-cache');
         Route::get('/dashboard/export', [InstructorDashboard::class, 'exportData'])->name('dashboard.export');
         Route::get('/dashboard/real-time-stats', [InstructorDashboard::class, 'getRealTimeStats'])->name('dashboard.real-time-stats');
         Route::get('/dashboard/search', [InstructorDashboard::class, 'search'])->name('dashboard.search');
         Route::get('/dashboard/analytics', [InstructorDashboard::class, 'getAnalytics'])->name('dashboard.analytics');
+
+        // Course-agnostic exam listing/creation. ExamController@index and @create
+        // do not depend on a course, so these avoid a dummy course segment.
+        Route::prefix('exams')->name('exams.')->group(function () {
+            Route::get('/', [InstructorExamController::class, 'index'])->name('index');
+            Route::get('/create', [InstructorExamController::class, 'create'])->name('create');
+            Route::post('/', [InstructorExamController::class, 'store'])->name('store');
+        });
 
         Route::prefix('courses')->name('courses.')->group(function () {
             Route::get('/', [InstructorCourseController::class, 'index'])->name('index');
@@ -495,6 +525,11 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::post('/grades/release', [InstructorGradebookController::class, 'releaseGrades'])->name('grades.release');
                 Route::get('/export', [InstructorGradebookController::class, 'export'])->name('export');
                 Route::get('/students/{student}', [InstructorGradebookController::class, 'studentGrades'])->name('student');
+
+                // Instructor-defined grading configuration (weights must total 100%).
+                Route::get('/grading-config', [InstructorGradingConfigController::class, 'edit'])->name('grading-config.edit');
+                Route::post('/grading-config', [InstructorGradingConfigController::class, 'update'])->name('grading-config.update');
+                Route::delete('/grading-config', [InstructorGradingConfigController::class, 'destroy'])->name('grading-config.destroy');
             });
 
             Route::prefix('{class}/calendar')->name('calendar.')->group(function () {
@@ -509,6 +544,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::post('/', [InstructorVirtualClassController::class, 'store'])->name('store');
                 Route::get('/{virtualClass}', [InstructorVirtualClassController::class, 'show'])->name('show');
                 Route::post('/{virtualClass}/start', [InstructorVirtualClassController::class, 'start'])->name('start');
+                Route::post('/{virtualClass}/end', [InstructorVirtualClassController::class, 'end'])->name('end');
             });
 
             Route::prefix('{class}/learning-plans')->name('learning-plans.')->group(function () {
@@ -576,6 +612,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/dashboard/analytics', [StudentDashboard::class, 'getAnalytics'])->name('dashboard.analytics');
         Route::get('/incomplete', [StudentDashboard::class, 'incomplete'])->name('incomplete');
         Route::get('courses', [StudentCourseController::class, 'index'])->name('courses.index');
+        // Read-only: shows the subjects this student is actually enrolled in.
+        Route::get('subjects', [SubjectController::class, 'index'])->name('subjects.index');
+        Route::get('subjects/{class}/scores', [SubjectController::class, 'scores'])->name('subjects.scores');
+        Route::get('lessons', [StudentLessonController::class, 'indexAll'])->name('lessons.index');
         Route::get('enrollments', [StudentEnrollmentController::class, 'index'])->name('enrollments.index');
         Route::get('enrollments/{enrollment}', [StudentEnrollmentController::class, 'show'])->name('enrollments.show');
 
@@ -597,6 +637,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::prefix('courses')->name('courses.')->group(function () {
             Route::get('/', [StudentCourseController::class, 'index'])->name('index');
             Route::get('/{course}', [StudentCourseController::class, 'show'])->name('show');
+            Route::get('/lessons/all', [StudentLessonController::class, 'indexAll'])->name('lessons.all');
 
             Route::prefix('{course}')->group(function () {
                 Route::prefix('modules')->name('modules.')->group(function () {
@@ -647,7 +688,6 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/', [StudentClassController::class, 'index'])->name('index');
             Route::get('/{class}', [StudentClassController::class, 'show'])->name('show');
             Route::post('/{class}/enroll', [StudentClassController::class, 'enroll'])->name('enroll');
-            Route::post('/{class}/drop', [StudentClassController::class, 'drop'])->name('drop');
 
             Route::prefix('{class}/gradebook')->name('gradebook.')->group(function () {
                 Route::get('/', [StudentGradebookController::class, 'index'])->name('index');

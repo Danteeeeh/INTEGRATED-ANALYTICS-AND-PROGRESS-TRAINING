@@ -23,6 +23,9 @@ class VirtualClassController extends Controller
             ->orderBy('start_time', 'asc')
             ->paginate(15);
 
+        // Meetings whose end time has passed close themselves on view.
+        $virtualClasses->getCollection()->each->syncStatus();
+
         return view('instructor.virtual_classes.index', compact('class', 'virtualClasses'));
     }
 
@@ -88,6 +91,9 @@ class VirtualClassController extends Controller
 
         $virtualClass->load(['course', 'class', 'instructor', 'attendees.student']);
 
+        // Auto-close the meeting once its scheduled end time has passed.
+        $virtualClass->syncStatus();
+
         return view('instructor.virtual_classes.show', compact('class', 'virtualClass'));
     }
 
@@ -102,5 +108,27 @@ class VirtualClassController extends Controller
 
         return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
             ->with('success', 'Virtual class started successfully.');
+    }
+
+    /**
+     * Manually close the meeting (the instructor-driven equivalent of the
+     * automatic close that fires once the end time passes).
+     */
+    public function end(ClassModel $class, VirtualClass $virtualClass): RedirectResponse
+    {
+        $this->authorize('update', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+
+        if (! $virtualClass->canEnd()) {
+            return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
+                ->with('error', 'This virtual class is already closed.');
+        }
+
+        $virtualClass->update(['status' => VirtualClass::STATUS_COMPLETED]);
+
+        return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
+            ->with('success', 'Virtual class ended and closed.');
     }
 }

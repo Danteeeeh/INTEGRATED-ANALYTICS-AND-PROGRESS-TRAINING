@@ -26,7 +26,7 @@ class ModuleFactory extends Factory
             'position' => 1,
             'is_required' => true,
             'status' => 'published',
-            'created_by' => User::factory(),
+            'created_by' => User::factory()->instructor(),
         ];
     }
 }

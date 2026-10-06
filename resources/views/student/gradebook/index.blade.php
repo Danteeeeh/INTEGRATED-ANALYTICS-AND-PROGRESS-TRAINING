@@ -11,7 +11,7 @@
         icon="fa-graduation-cap"
     >
         <x-slot name="meta">
-            <span class="user-status active">{{ number_format($overallPercent, 1) }}% overall</span>
+            <span class="user-status active">{{ number_format($overallPercent, 1) }}&percnt; overall</span>
         </x-slot>
         <x-slot name="actions">
             <a href="{{ route('student.classes.show', $class) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>

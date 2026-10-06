@@ -2,7 +2,7 @@
 
 @section('title', 'My Enrollments')
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $pageTitle = 'Student Enrollments';
     $pageIcon = '<i class="fa-solid fa-graduation-cap"></i>';
 @endphp

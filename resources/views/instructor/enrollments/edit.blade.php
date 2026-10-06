@@ -2,7 +2,7 @@
 
 @section('title', 'Edit Enrollment')
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $pageTitle = 'Edit Enrollment';
     $pageIcon = '<i class="fa-solid fa-graduation-cap"></i>';
     $formAction = route('instructor.enrollments.update', $enrollment);

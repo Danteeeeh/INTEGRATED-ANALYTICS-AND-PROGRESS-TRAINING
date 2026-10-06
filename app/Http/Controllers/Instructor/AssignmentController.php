@@ -227,7 +227,7 @@ class AssignmentController extends Controller
         abort_if($submission->assignment_id !== $assignment->id, 404);
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
-        $submission->load('student', 'files', 'rubricAssessments.criterion');
+        $submission->load('student', 'files.mediaFile', 'rubricAssessments.criterion');
 
         return view('instructor.courses.assignments.submission', compact('course', 'assignment', 'submission'));
     }

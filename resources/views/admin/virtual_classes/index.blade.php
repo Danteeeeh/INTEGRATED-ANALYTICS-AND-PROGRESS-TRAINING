@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Virtual Classes')
-@php($activeNav = 'courses')
+@php($activeNav = 'virtual_classes')
 
 @section('content')
 <div class="user-page">

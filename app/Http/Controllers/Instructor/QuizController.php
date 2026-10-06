@@ -362,7 +362,7 @@ class QuizController extends Controller
         abort_if(! $course->isManagedBy(auth()->user()), 403);
         abort_if($attempt->quiz_id !== $quiz->id, 404);
 
-        $attempt->load('student', 'answers.question.choices', 'answers.choice');
+        $attempt->load('student', 'answers.question.choices', 'answers.selectedChoices');
 
         return view('instructor.courses.quizzes.attempt', compact('course', 'quiz', 'attempt'));
     }

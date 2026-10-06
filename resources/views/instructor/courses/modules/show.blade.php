@@ -2,7 +2,7 @@
 
 @section('title', $module->title)
 @php 
-    $activeNav = 'courses'; 
+    $activeNav = 'modules'; 
     $module->load('attachments.mediaFile');
 @endphp
 

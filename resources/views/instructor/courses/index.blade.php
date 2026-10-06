@@ -3,8 +3,12 @@
 @php
     $feature = request('feature');
     $featureMeta = [
+        'modules' => ['label' => 'Modules', 'icon' => 'fa-layer-group', 'hint' => 'Organise your course content', 'route' => 'instructor.courses.modules.index', 'color' => 'cyan'],
+        'lessons' => ['label' => 'Lessons', 'icon' => 'fa-book-open-reader', 'hint' => 'Write and publish lessons', 'route' => 'instructor.courses.lessons.index', 'color' => 'emerald'],
         'assignments' => ['label' => 'Assignments', 'icon' => 'fa-tasks', 'hint' => 'Manage tasks and submissions', 'route' => 'instructor.courses.assignments.index', 'color' => 'amber'],
         'quizzes' => ['label' => 'Quizzes', 'icon' => 'fa-question-circle', 'hint' => 'Manage quizzes and attempts', 'route' => 'instructor.courses.quizzes.index', 'color' => 'violet'],
+        'exams' => ['label' => 'Exams', 'icon' => 'fa-file-signature', 'hint' => 'Create and manage exams', 'route' => 'instructor.exams.index', 'color' => 'rose'],
+        'rubrics' => ['label' => 'Rubrics', 'icon' => 'fa-list-check', 'hint' => 'Build grading rubrics', 'route' => 'instructor.courses.rubrics.index', 'color' => 'violet'],
         'announcements' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'hint' => 'Post course updates', 'route' => 'instructor.courses.announcements.index', 'color' => 'rose'],
     ];
     $activeNav = ($feature && isset($featureMeta[$feature])) ? $feature : 'courses';

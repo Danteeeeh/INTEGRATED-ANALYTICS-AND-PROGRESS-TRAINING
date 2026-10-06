@@ -24,7 +24,7 @@ class CourseFactory extends Factory
             'academic_period_id' => AcademicPeriod::factory(),
             'thumbnail' => fake()->optional()->imageUrl(),
             'status' => fake()->randomElement(['draft', 'published', 'archived']),
-            'created_by' => User::factory(),
+            'created_by' => User::factory()->instructor(),
         ];
     }
 }

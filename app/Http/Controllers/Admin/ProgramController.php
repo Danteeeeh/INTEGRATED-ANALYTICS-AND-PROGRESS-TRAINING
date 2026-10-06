@@ -13,6 +13,7 @@ class ProgramController extends Controller
 {
     public function index(): View
     {
+        $this->authorize('viewAny', Program::class);
         $programs = Program::with('department')->withCount('sections')->orderBy('code')->paginate(15);
 
         return view('admin.programs.index', compact('programs'));
@@ -20,6 +21,7 @@ class ProgramController extends Controller
 
     public function create(): View
     {
+        $this->authorize('create', Program::class);
         $departments = Department::orderBy('name')->get();
 
         return view('admin.programs.create', compact('departments'));
@@ -42,6 +44,8 @@ class ProgramController extends Controller
 
     public function show(Program $program): View
     {
+        $this->authorize('view', $program);
+
         $program->load(['department', 'sections']);
 
         $courses = $program->courses()->orderBy('code')->get();
@@ -53,6 +57,8 @@ class ProgramController extends Controller
 
     public function edit(Program $program): View
     {
+        $this->authorize('update', $program);
+
         $departments = Department::orderBy('name')->get();
 
         return view('admin.programs.edit', compact('program', 'departments'));
@@ -60,6 +66,8 @@ class ProgramController extends Controller
 
     public function update(Request $request, Program $program): RedirectResponse
     {
+        $this->authorize('update', $program);
+
         $validated = $request->validate([
             'department_id' => ['nullable', 'exists:departments,id'],
             'name' => ['required', 'string', 'max:255'],
@@ -75,6 +83,9 @@ class ProgramController extends Controller
 
     public function destroy(Program $program): RedirectResponse
     {
+        // Refuses when sections, courses or students still hang off it.
+        $this->authorize('delete', $program);
+
         $program->delete();
 
         return redirect()->route('admin.programs.index')

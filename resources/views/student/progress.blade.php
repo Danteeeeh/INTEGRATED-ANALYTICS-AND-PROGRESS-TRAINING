@@ -19,7 +19,7 @@
         <x-slot name="meta">
             <span><i class="fa-solid fa-fire"></i> {{ $learningStreak }} day streak</span>
             <span>·</span>
-            <span>{{ $overallProgress }}% overall progress</span>
+            <span>{{ $overallProgress }}&percnt; overall progress</span>
         </x-slot>
     </x-user-page-header>
 
@@ -35,7 +35,7 @@
             label="Active Courses"
             value="{{ $totalCourses }}"
             icon="fa-book"
-            trend="{{ round($overallProgress) }}% complete"
+            trend="{{ round($overallProgress) }}&percnt; complete"
             footer="{{ $completedEnrollments->count() }} completed"
         />
         <x-user-stat-card
@@ -164,7 +164,7 @@
                             <span class="student-timeline-date">{{ $completion['completed_at'] }}</span>
                             <h4>{{ $completion['course'] }}</h4>
                         </div>
-                        <span class="user-status completed">{{ $completion['completion_percent'] }}% complete</span>
+                        <span class="user-status completed">{{ $completion['completion_percent'] }}&percnt; complete</span>
                     </article>
                 @endforeach
             </div>

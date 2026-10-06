@@ -22,7 +22,7 @@ class QuestionBankFactory extends Factory
             'category' => fake()->randomElement(['Biology', 'Mathematics', 'History', 'Computer Science']),
             'course_id' => null,
             'class_id' => null,
-            'created_by' => User::factory(),
+            'created_by' => User::factory()->instructor(),
             'is_shared' => false,
             'status' => 'active',
         ];

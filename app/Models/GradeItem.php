@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -57,6 +58,28 @@ class GradeItem extends Model
     public function class(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function configuration(): HasOne
+    {
+        return $this->hasOne(GradeConfiguration::class, 'class_id', 'class_id');
+    }
+
+    /**
+     * Weight of the component this item belongs to, taken from the class's
+     * grading configuration. Zero when the component is not weighted.
+     */
+    public function componentWeight(): float
+    {
+        $configuration = $this->relationLoaded('configuration')
+            ? $this->configuration
+            : $this->configuration()->first();
+
+        if (! $configuration) {
+            return 0.0;
+        }
+
+        return $configuration->weights()[$this->item_type] ?? 0.0;
     }
 
     public function related(): MorphTo

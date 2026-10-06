@@ -56,7 +56,7 @@
                             @if($exam->passing_score_percent)
                                 <div>
                                     <i class="fa-solid fa-check-circle mr-1"></i>
-                                    {{ $exam->passing_score_percent }}% to pass
+                                    {{ $exam->passing_score_percent }}&percnt; to pass
                                 </div>
                             @endif
                         </div>

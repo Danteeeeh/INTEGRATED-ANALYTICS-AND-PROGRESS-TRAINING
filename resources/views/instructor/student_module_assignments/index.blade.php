@@ -2,7 +2,7 @@
 
 @section('title', 'Student Module Assignments')
 @php
-    $activeNav = 'classes';
+    $activeNav = 'modules';
     $pageTitle = 'Student Module Assignments';
     $pageIcon = '<i class="fa-solid fa-users-gear"></i>';
 @endphp

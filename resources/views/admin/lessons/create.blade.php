@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'New Lesson')
-@php $activeNav = 'modules'; @endphp
+@php $activeNav = 'lessons'; @endphp
 
 @section('content')
 <div class="user-page">

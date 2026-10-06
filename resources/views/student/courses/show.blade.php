@@ -69,7 +69,7 @@
                 <span class="course-section-eyebrow">Keep moving</span>
                 <h3 id="course-progress-title"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Your Progress</h3>
             </div>
-            <span class="course-progress-total">{{ $overallProgress }}% overall</span>
+            <span class="course-progress-total">{{ $overallProgress }}&percnt; overall</span>
         </div>
         <div class="user-panel-body">
             <div class="course-progress-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
@@ -110,25 +110,25 @@
         <a href="{{ route('student.courses.modules.index', $course) }}" class="course-content-card course-content-card-green" aria-label="Open modules, {{ $modulesProgress }} percent complete">
             <span class="course-content-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Content</span><strong>Modules</strong><small>{{ $modulesCount }} modules to work through.</small></span>
-            <span class="course-content-footer"><span>{{ $modulesProgress }}% done</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
+            <span class="course-content-footer"><span>{{ $modulesProgress }}&percnt; done</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
 
         <a href="{{ route('student.courses.assignments.index', $course) }}" class="course-content-card course-content-card-amber" aria-label="Open assignments, {{ $assignmentsProgress }} percent submitted">
             <span class="course-content-icon"><i class="fa-solid fa-file-pen" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Tasks</span><strong>Assignments</strong><small>{{ $assignmentsCount }} assignments with due dates.</small></span>
-            <span class="course-content-footer"><span>{{ $assignmentsProgress }}% submitted</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
+            <span class="course-content-footer"><span>{{ $assignmentsProgress }}&percnt; submitted</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
 
         <a href="{{ route('student.courses.quizzes.index', $course) }}" class="course-content-card course-content-card-violet" aria-label="Open quizzes, {{ $quizzesProgress }} percent attempted">
             <span class="course-content-icon"><i class="fa-solid fa-circle-question" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Practice</span><strong>Quizzes</strong><small>{{ $quizzesCount }} quizzes to test your knowledge.</small></span>
-            <span class="course-content-footer"><span>{{ $quizzesProgress }}% attempted</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
+            <span class="course-content-footer"><span>{{ $quizzesProgress }}&percnt; attempted</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
 
         <a href="{{ route('student.courses.exams.index', $course) }}" class="course-content-card course-content-card-rose" aria-label="Open exams, {{ $examsProgress }} percent completed">
             <span class="course-content-icon"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i></span>
             <span class="course-content-copy"><span class="course-content-label">Major</span><strong>Exams</strong><small>{{ $examsCount }} exams - midterm, final, etc.</small></span>
-            <span class="course-content-footer"><span>{{ $examsProgress }}% completed</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
+            <span class="course-content-footer"><span>{{ $examsProgress }}&percnt; completed</span><span class="course-content-arrow"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span></span>
         </a>
     </div>
 

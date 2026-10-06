@@ -3,8 +3,11 @@
 @php
     $feature = request('feature');
     $featureMeta = [
+        'modules' => ['label' => 'Modules', 'icon' => 'fa-layer-group', 'hint' => 'Review course modules', 'route' => 'student.courses.modules.index', 'color' => 'cyan'],
+        'lessons' => ['label' => 'Lessons', 'icon' => 'fa-book-open-reader', 'hint' => 'Read course lessons', 'route' => 'student.lessons.index', 'color' => 'emerald'],
         'assignments' => ['label' => 'Assignments', 'icon' => 'fa-tasks', 'hint' => 'Review and submit course tasks', 'route' => 'student.courses.assignments.index', 'color' => 'amber'],
         'quizzes' => ['label' => 'Quizzes', 'icon' => 'fa-question-circle', 'hint' => 'Take quizzes and review attempts', 'route' => 'student.courses.quizzes.index', 'color' => 'violet'],
+        'exams' => ['label' => 'Exams', 'icon' => 'fa-file-signature', 'hint' => 'Take exams and review results', 'route' => 'student.courses.exams.index', 'color' => 'rose'],
         'announcements' => ['label' => 'Announcements', 'icon' => 'fa-bullhorn', 'hint' => 'Read course announcements', 'route' => 'student.courses.announcements.index', 'color' => 'rose'],
     ];
     $activeNav = ($feature && isset($featureMeta[$feature])) ? $feature : 'courses';

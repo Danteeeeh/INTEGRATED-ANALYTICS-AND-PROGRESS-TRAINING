@@ -27,23 +27,33 @@ class ModuleController extends Controller
             abort(403);
         }
 
-        // Get modules assigned to this student's section
-        $assignedModuleIds = SectionModuleAssignment::active()
-            ->byCourse($course->id)
-            ->bySection($enrollment->class->section_id)
-            ->pluck('module_id');
-
-        $modules = Module::published()
+        $modulesQuery = Module::published()
             ->ofCourse($course->id)
-            ->whereIn('id', $assignedModuleIds)
             ->with(['lessons' => function ($q) {
                 $q->published()->orderBy('position', 'asc');
             }])
             ->with(['studentAssignments' => function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             }])
-            ->orderBy('position', 'asc')
-            ->paginate(10);
+            ->orderBy('position', 'asc');
+
+        $allModuleIds = (clone $modulesQuery)->pluck('id');
+
+        // Prefer modules assigned to this student's section, but only when that
+        // actually yields results. Stale section assignments (deleted modules,
+        // another course) previously filtered everything out and the page
+        // rendered empty even though the course had published modules.
+        $sectionModuleIds = SectionModuleAssignment::active()
+            ->byCourse($course->id)
+            ->bySection($enrollment->class->section_id)
+            ->whereIn('module_id', $allModuleIds)
+            ->pluck('module_id');
+
+        if ($sectionModuleIds->isNotEmpty()) {
+            $modulesQuery->whereIn('id', $sectionModuleIds);
+        }
+
+        $modules = $modulesQuery->paginate(10)->withQueryString();
 
         return view('student.modules.index', compact('course', 'modules', 'enrollment'));
     }
@@ -61,17 +71,6 @@ class ModuleController extends Controller
 
         if (! $enrollment) {
             abort(403);
-        }
-
-        // Check if module is assigned to this student's section
-        $sectionAssignment = SectionModuleAssignment::active()
-            ->byCourse($course->id)
-            ->bySection($enrollment->class->section_id)
-            ->where('module_id', $module->id)
-            ->first();
-
-        if (! $sectionAssignment) {
-            abort(403, 'This module is not assigned to your section.');
         }
 
         // Create or get student-specific assignment for progress tracking

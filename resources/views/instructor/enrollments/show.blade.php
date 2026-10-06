@@ -2,7 +2,7 @@
 
 @section('title', 'Enrollment Details')
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $pageTitle = 'Enrollment Details';
     $pageIcon = '<i class="fa-solid fa-graduation-cap"></i>';
     $statusMeta = [
@@ -527,7 +527,7 @@
                 <h4><i class="fa-solid fa-clipboard-check"></i> Attendance ({{ $attendanceSummary['total'] }})</h4>
                 @if($attendanceRate !== null)
                     <span class="enr-head-badge {{ ($attendanceRate >= 75 ? 'bh-green' : ($attendanceRate >= 50 ? 'bh-amber' : 'bh-rose')) }}">
-                        {{ $attendanceRate }}% rate
+                        {{ $attendanceRate }}&percnt; rate
                     </span>
                 @endif
             </div>

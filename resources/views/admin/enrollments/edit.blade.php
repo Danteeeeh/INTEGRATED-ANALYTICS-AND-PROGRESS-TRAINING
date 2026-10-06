@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Edit Enrollment')
-@php $activeNav = 'enrollment'; @endphp
+@php $activeNav = 'enrollments'; @endphp
 
 @section('content')
 <div class="user-page enrollment-edit-page">

@@ -1,25 +1,30 @@
 @extends('layouts.instructor')
 
-@section('title', 'My Classes')
 @php
-    $activeNav = 'classes';
-    $pageTitle = 'My Classes';
-    $pageIcon = '<i class="fa-solid fa-school"></i>';
     $feature = request('feature');
     $featureMeta = [
         'gradebook' => ['label' => 'Gradebook', 'icon' => 'fa-graduation-cap', 'hint' => 'Enter grades and review student performance', 'route' => 'instructor.classes.gradebook.index', 'color' => 'violet'],
         'attendance' => ['label' => 'Attendance', 'icon' => 'fa-clipboard-user', 'hint' => 'Record and review attendance', 'route' => 'instructor.classes.attendance.index', 'color' => 'green'],
         'virtual_classes' => ['label' => 'Virtual Classes', 'icon' => 'fa-video', 'hint' => 'Manage online class sessions', 'route' => 'instructor.classes.virtual_classes.index', 'color' => 'cyan'],
         'calendar' => ['label' => 'Calendar', 'icon' => 'fa-calendar', 'hint' => 'View class events and schedule', 'route' => 'instructor.classes.calendar.index', 'color' => 'amber'],
+        // Route name is hyphenated: instructor.classes.learning-plans.index
+        'learning_plans' => ['label' => 'Learning Plans', 'icon' => 'fa-route', 'hint' => 'Build and track student learning plans', 'route' => 'instructor.classes.learning-plans.index', 'color' => 'emerald'],
     ];
+
+    // Highlight the feature in the sidebar instead of always "Classes".
+    $activeNav = ($feature && isset($featureMeta[$feature])) ? $feature : 'classes';
+    $pageTitle = ($feature && isset($featureMeta[$feature])) ? $featureMeta[$feature]['label'] : 'My Classes';
+    $pageIcon = '<i class="fa-solid fa-school"></i>';
 @endphp
+
+@section('title', $pageTitle)
 
 @section('content')
 <div class="user-page">
     <x-user-page-header
-        title="My Classes"
-        subtitle="Manage the classes assigned to you."
-        icon="fa-school"
+        title="{{ $pageTitle }}"
+        subtitle="{{ ($feature && isset($featureMeta[$feature])) ? $featureMeta[$feature]['hint'].'. Piliin ang class na gusto mong buksan.' : 'Manage the classes assigned to you.' }}"
+        icon="{{ $feature && isset($featureMeta[$feature]) ? $featureMeta[$feature]['icon'] : 'fa-school' }}"
     />
 
     <form class="user-toolbar" method="GET" action="{{ route('instructor.classes.index') }}" style="margin-bottom:16px">

@@ -79,6 +79,10 @@ class AcademicPeriodController extends Controller
 
     public function destroy(AcademicPeriod $academicPeriod)
     {
+        // The policy already refuses when courses or classes still reference
+        // the period; the check below only adds a readable message.
+        $this->authorize('delete', $academicPeriod);
+
         if ($academicPeriod->classes()->exists()) {
             return back()->with('error', 'Cannot delete academic period with associated classes.');
         }

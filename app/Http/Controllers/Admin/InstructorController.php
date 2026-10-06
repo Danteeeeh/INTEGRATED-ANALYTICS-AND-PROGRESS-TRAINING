@@ -71,7 +71,7 @@ class InstructorController extends Controller
     {
         $this->authorize('update', $instructor);
 
-        $roles = Role::orderBy('name')->get();
+        $roles = Role::assignable()->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();

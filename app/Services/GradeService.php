@@ -273,6 +273,11 @@ class GradeService
      * Computed grades for an arbitrary set of enrollments (which may span
      * several classes), batched to avoid one query per row.
      *
+     * A student can hold several of the passed enrollments at once, so each
+     * student's grades are merged across *all* of their classes by summing
+     * earned and possible points. Using array union here would silently keep
+     * only the first class and drop the rest.
+     *
      * @param  iterable<int, Enrollment>  $enrollments
      * @return array<int, array<string, mixed>>  Keyed by student id.
      */
@@ -284,13 +289,73 @@ class GradeService
             $byClass[$enrollment->class_id][] = $enrollment->student_id;
         }
 
-        $summaries = [];
+        $perClass = [];
 
         foreach ($byClass as $classId => $studentIds) {
-            $summaries += $this->computeClassGradeSummaries($classId, array_values(array_unique($studentIds)));
+            $perClass[$classId] = $this->computeClassGradeSummaries(
+                $classId,
+                array_values(array_unique($studentIds))
+            );
         }
 
-        return $summaries;
+        // Merge every class a student appears in.
+        $merged = [];
+
+        foreach ($perClass as $classSummaries) {
+            foreach ($classSummaries as $studentId => $summary) {
+                if (! isset($merged[$studentId])) {
+                    $merged[$studentId] = $summary;
+
+                    continue;
+                }
+
+                $earned = $merged[$studentId]['earned_points'] + $summary['earned_points'];
+                $possible = $merged[$studentId]['max_points'] + $summary['max_points'];
+
+                $percent = $possible > 0 ? round(($earned / $possible) * 100, 2) : 0.0;
+
+                $merged[$studentId] = [
+                    'earned_points' => round($earned, 2),
+                    'max_points' => round($possible, 2),
+                    'percent' => $percent,
+                    'letter_grade' => $this->percentageToLetter($percent),
+                    'graded_items' => $merged[$studentId]['graded_items'] + $summary['graded_items'],
+                    'is_graded' => $merged[$studentId]['is_graded'] || $summary['is_graded'],
+                ];
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Per-class summaries for a set of enrollments.
+     *
+     * Unlike {@see computeSummariesForEnrollments()} nothing is merged across
+     * classes, so a caller that needs one line per subject — a transcript, for
+     * example — gets a distinct grade for each.
+     *
+     * @param  iterable<int, Enrollment>  $enrollments
+     * @return array<int, array<int, array<string, mixed>>>  [classId => [studentId => summary]]
+     */
+    public function computeSummariesByClass(iterable $enrollments): array
+    {
+        $byClass = [];
+
+        foreach ($enrollments as $enrollment) {
+            $byClass[$enrollment->class_id][] = $enrollment->student_id;
+        }
+
+        $perClass = [];
+
+        foreach ($byClass as $classId => $studentIds) {
+            $perClass[$classId] = $this->computeClassGradeSummaries(
+                $classId,
+                array_values(array_unique($studentIds))
+            );
+        }
+
+        return $perClass;
     }
 
     /**

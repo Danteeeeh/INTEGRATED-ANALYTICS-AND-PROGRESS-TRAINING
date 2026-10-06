@@ -3,7 +3,7 @@
 @section('title', 'Enrollment Details')
 
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $statusClass = match ($enrollment->status) {
         'active', 'completed' => 'status-active',
         'dropped' => 'status-cancelled',

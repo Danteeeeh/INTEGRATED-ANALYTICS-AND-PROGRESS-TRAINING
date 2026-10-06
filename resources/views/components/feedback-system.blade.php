@@ -30,7 +30,7 @@
                                     $feedbacks->whereNotNull('rating')->count() > 0 
                                         ? ($feedbacks->whereNotNull('rating')->where('rating', '>=', $i)->count() / $feedbacks->whereNotNull('rating')->count()) * 100 
                                         : 0 
-                                }}%;"></div>
+                                }}&percnt;;"></div>
                             </div>
                             <span style="width: 40px; font-size: 0.85rem; text-align: right;">
                                 {{ $feedbacks->whereNotNull('rating')->count() > 0 

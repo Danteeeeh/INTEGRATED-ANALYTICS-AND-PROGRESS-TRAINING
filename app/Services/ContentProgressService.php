@@ -344,8 +344,30 @@ class ContentProgressService
             : 0;
         $quizzesPct = $totalQuizzes > 0 ? ($completedQuizzes / $totalQuizzes) * 100 : 0;
 
-        $hasAny = $totalModules > 0 || $totalLessons > 0 || $totalAssignments > 0 || $totalQuizzes > 0;
-        $overall = $hasAny ? ($modulesPct + $lessonsPct + $assignmentsPct + $quizzesPct) / 4 : 0;
+        // Only average the categories that actually have content. Dividing by a
+        // fixed 4 punished courses that have no assignments or no quizzes —
+// a course with only modules and lessons could never exceed 50%.
+        $components = [];
+
+        if ($totalModules > 0) {
+            $components[] = $modulesPct;
+        }
+
+        if ($totalLessons > 0) {
+            $components[] = $lessonsPct;
+        }
+
+        if ($totalAssignments > 0) {
+            $components[] = $assignmentsPct;
+        }
+
+        if ($totalQuizzes > 0) {
+            $components[] = $quizzesPct;
+        }
+
+        $overall = $components
+            ? array_sum($components) / count($components)
+            : 0;
 
         return [
             'overall' => (float) round($overall, 2),

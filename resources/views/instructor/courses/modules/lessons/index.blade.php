@@ -2,7 +2,7 @@
 
 @section('title', 'Lessons — ' . $module->title)
 @php
-    $activeNav = 'courses';
+    $activeNav = 'lessons';
     $pageTitle = 'Lessons';
     $pageIcon = '<i class="fa-solid fa-book-open"></i>';
 @endphp

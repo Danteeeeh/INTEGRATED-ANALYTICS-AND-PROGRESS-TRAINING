@@ -2,7 +2,7 @@
 
 @section('title', 'Create Module')
 @php
-    $activeNav = 'courses';
+    $activeNav = 'modules';
     $pageTitle = 'Create Module';
     $pageIcon = '<i class="fa-solid fa-layer-plus"></i>';
     $formAction = route('instructor.courses.modules.store', $course);

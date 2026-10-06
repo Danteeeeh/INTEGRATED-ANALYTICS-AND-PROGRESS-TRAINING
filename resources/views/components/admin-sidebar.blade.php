@@ -116,6 +116,18 @@
                         <span>Gradebook</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'subjects' ? 'active' : '' }}">
+                    <a href="{{ route('admin.subjects.index') }}" class="nav-link" @if($activeNav === 'subjects') aria-current="page" @endif>
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>LMS Subjects</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ $activeNav === 'academic_records' ? 'active' : '' }}">
+                    <a href="{{ route('admin.academic-records.index') }}" class="nav-link" @if($activeNav === 'academic_records') aria-current="page" @endif>
+                        <i class="fa-solid fa-file-lines"></i>
+                        <span>Academic Records</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'analytics' ? 'active' : '' }}">
                     <a href="{{ route('admin.analytics') }}" class="nav-link" @if($activeNav === 'analytics') aria-current="page" @endif>
                         <i class="fa-solid fa-chart-pie"></i>

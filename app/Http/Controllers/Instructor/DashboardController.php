@@ -74,10 +74,23 @@ class DashboardController extends Controller
         // Real grades per class, computed from released + graded grade items.
         // `enrollments.final_grade` is only populated when an instructor manually
         // completes an enrollment, so it cannot be used as a grade source.
+        //
+        // Scope to ACTIVE students only. Previously every enrollment was
+        // summarised regardless of status, so a class whose students had all
+        // been dropped still showed an average grade while the row reported
+        // "0 students".
         $classSummaries = [];
 
         foreach ($myClasses as $class) {
-            $classSummaries[$class->id] = $this->grades->computeClassGradeSummaries($class->id);
+            $activeStudentIds = $class->enrollments
+                ->where('status', 'active')
+                ->pluck('student_id')
+                ->all();
+
+            $classSummaries[$class->id] = $this->grades->computeClassGradeSummaries(
+                $class->id,
+                $activeStudentIds
+            );
 
             $gradedEnrollments += collect($classSummaries[$class->id])->where('is_graded', true)->count();
         }
@@ -241,8 +254,10 @@ class DashboardController extends Controller
             $classPerformance[] = [
                 'class' => $class,
                 'average_grade' => $classGraded->isNotEmpty() ? (float) $classGraded->avg('percent') : 0,
-                'completion_rate' => $classLiveCount > 0 ? $classLiveAvg / $classLiveCount : 0,
+                'completion_rate' => $classLiveCount > 0 ? round($classLiveAvg / $classLiveCount, 1) : 0,
                 'graded_students' => $classGraded->count(),
+                'active_students' => $class->enrollments->where('status', 'active')->count(),
+                'has_students' => $classLiveCount > 0,
             ];
         }
 
@@ -731,6 +746,7 @@ class DashboardController extends Controller
                             'average_grade' => (float) $p['average_grade'],
                             'completion_rate' => (float) $p['completion_rate'],
                             'graded_students' => $p['graded_students'],
+                            'active_students' => $p['active_students'],
                         ])->all(),
                         'graded_enrollments' => $stats['graded_enrollments'],
                         'grade_distribution' => $this->calculateGradeDistribution($stats['class_summaries']),

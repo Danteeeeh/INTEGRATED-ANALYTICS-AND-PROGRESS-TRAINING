@@ -18,8 +18,17 @@ class EnrollmentController extends Controller
     {
         $query = Enrollment::with(['student', 'class.course', 'class.academicPeriod']);
 
+        $includeDropped = $request->boolean('include_dropped');
+
         if ($request->filled('status')) {
+            // An explicit status filter always wins, so ?status=dropped still
+            // reaches the archived rows.
             $query->where('status', $request->status);
+        } elseif (! $includeDropped) {
+            // Dropped students were removed from the class on purpose, so they
+            // should not dominate the default list. They stay in the database
+            // and are reachable via the status filter or "Show Dropped".
+            $query->where('enrollments.status', '!=', Enrollment::STATUS_DROPPED);
         }
 
         if ($request->filled('student_id')) {
@@ -40,12 +49,17 @@ class EnrollmentController extends Controller
             });
         }
 
-        $enrollments = $query->orderBy('enrolled_at', 'desc')->paginate(20);
+        $enrollments = $query->orderBy('enrolled_at', 'desc')->paginate(20)->withQueryString();
+
+        // Let the page say how many rows are being hidden, so a short list never
+        // looks like data was lost.
+        $droppedCount = Enrollment::where('status', Enrollment::STATUS_DROPPED)->count();
+
         $students = User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))
             ->orderBy('last_name')->orderBy('first_name')->get(['id', 'first_name', 'last_name', 'email']);
         $classes = ClassModel::with('course')->orderBy('code')->get(['id', 'code', 'course_id']);
 
-        return view('admin.enrollments.index', compact('enrollments', 'students', 'classes'));
+        return view('admin.enrollments.index', compact('enrollments', 'students', 'classes', 'includeDropped', 'droppedCount'));
     }
 
     public function create(): View
@@ -71,6 +85,7 @@ class EnrollmentController extends Controller
         ]);
 
         $created = 0;
+        $revivedCount = 0;
         $errors = [];
 
         foreach ($validated['class_ids'] as $classId) {
@@ -93,21 +108,37 @@ class EnrollmentController extends Controller
                 continue;
             }
 
-            Enrollment::create([
-                'student_id' => $validated['student_id'],
-                'class_id' => $classId,
-                'status' => $validated['status'],
-                'notes' => $validated['notes'] ?? null,
-            ]);
+            // A dropped row for the same student+class is revived rather than
+            // inserted: enrollments is UNIQUE(student_id, class_id).
+            [$enrollment, $revived] = Enrollment::enroll(
+                (int) $validated['student_id'],
+                (int) $classId,
+                $validated['status'],
+                $validated['notes'] ?? null,
+            );
+
+            if ($enrollment === null) {
+                $errors[] = "Student is already enrolled in class #{$classId}.";
+
+                continue;
+            }
 
             $created++;
+            $revivedCount += $revived ? 1 : 0;
         }
 
         $message = $created > 0 ? "{$created} enrollment(s) created successfully." : 'No enrollments were created.';
 
+        if ($revivedCount > 0) {
+            $message .= " {$revivedCount} previous drop(s) were reactivated.";
+        }
+
+        // 'errors' is reserved by Laravel for the ViewErrorBag. Flashing a plain array
+        // under that key shadows real validation errors and makes $errors->any()
+        // fatal wherever a layout reads it, so use a distinct name.
         return redirect()->route('admin.enrollments.index')
             ->with('status', $message)
-            ->with('errors', $errors);
+            ->with('enrollment_errors', $errors);
     }
 
     public function show(Enrollment $enrollment): View
@@ -150,6 +181,12 @@ class EnrollmentController extends Controller
 
     public function destroy(Enrollment $enrollment)
     {
+        $this->authorize('delete', $enrollment);
+
+        // Enrollment is a hard delete — there are no SoftDeletes on the model.
+        // Grades, lesson progress and attendance are keyed on
+        // (student_id, class_id) rather than enrollment_id, so they survive on
+        // purpose: the history stays, only the roster entry goes.
         $enrollment->delete();
 
         return redirect()->route('admin.enrollments.index')
@@ -166,10 +203,20 @@ class EnrollmentController extends Controller
 
         $created = 0;
         foreach ($data['enrollments'] as $item) {
-            $exists = Enrollment::where('student_id', $item['student_id'])->where('class_id', $item['class_id'])->where('status', '!=', 'dropped')->exists();
             $class = ClassModel::find($item['class_id']);
-            if (! $exists && $class && ! $class->isFull()) {
-                Enrollment::create(array_merge($item, ['status' => 'pending', 'enrolled_at' => now()]));
+
+            if ($class && $class->isFull()) {
+                continue;
+            }
+
+            // Revives a dropped row instead of violating UNIQUE(student_id, class_id).
+            [$enrollment] = Enrollment::enroll(
+                (int) $item['student_id'],
+                (int) $item['class_id'],
+                Enrollment::STATUS_PENDING,
+            );
+
+            if ($enrollment !== null) {
                 $created++;
             }
         }
@@ -355,6 +402,7 @@ class EnrollmentController extends Controller
         $skipped = 0;
         $skippedFull = 0;
         $skippedExisting = 0;
+        $revivedCount = 0;
         $filters = [
             'section_id' => $sectionId,
             'class_id' => $classId,
@@ -408,12 +456,16 @@ class EnrollmentController extends Controller
                     continue;
                 }
 
-                $enrollment = Enrollment::create([
-                    'student_id' => $student->id,
-                    'class_id' => $class->id,
-                    'status' => $status,
-                    'enrolled_at' => now(),
-                ]);
+                // The student may have dropped this class before, which enroll() revives
+                // in place — inserting a second row would violate the
+                // UNIQUE(student_id, class_id) index.
+                [$enrollment, $wasRevived] = Enrollment::enroll($student->id, $class->id, $status);
+
+                if ($enrollment === null) {
+                    $skippedExisting++;
+
+                    continue;
+                }
 
                 EnrollmentLog::create([
                     'enrollment_id' => $enrollment->id,
@@ -421,16 +473,22 @@ class EnrollmentController extends Controller
                     'class_id' => $class->id,
                     'performed_by' => Auth::id(),
                     'action' => 'auto_enroll',
-                    'details' => "Auto-enrolled student in class {$class->code}",
+                    'details' => $wasRevived
+                        ? "Re-activated a dropped enrollment in class {$class->code}"
+                        : "Auto-enrolled student in class {$class->code}",
                     'filters' => $filters,
                     'status' => 'success',
                 ]);
 
                 $created++;
+                $revivedCount += $wasRevived ? 1 : 0;
             }
         }
 
         $message = "Successfully enrolled {$created} student(s).";
+        if ($revivedCount > 0) {
+            $message .= " {$revivedCount} previous drop(s) were reactivated.";
+        }
         if ($skippedFull > 0) {
             $message .= " Skipped {$skippedFull} due to full classes.";
         }

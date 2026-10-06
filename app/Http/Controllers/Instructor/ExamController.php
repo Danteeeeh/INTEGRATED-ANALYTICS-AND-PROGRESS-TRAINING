@@ -136,7 +136,11 @@ class ExamController extends Controller
 
         session()->flash('success', 'Exam created successfully.');
 
-        return redirect()->route('instructor.courses.exams.show', [$exam->course, $exam]);
+        // course_id is nullable, so fall back to the owning class's course for the URL.
+        return redirect()->route(
+            'instructor.courses.exams.show',
+            [$exam->course ?: $exam->class?->course, $exam]
+        );
     }
 
     public function show(Course $course, Exam $exam): View
@@ -252,7 +256,7 @@ class ExamController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('instructor.courses.exams.index', $course);
+        return redirect()->route('instructor.exams.index');
     }
 
     public function publish(Course $course, Exam $exam): RedirectResponse

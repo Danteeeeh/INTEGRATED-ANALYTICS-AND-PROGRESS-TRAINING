@@ -97,7 +97,7 @@ class DiagnosticController extends Controller
         }
 
         try {
-            $diagnostics['user_list'] = User::with('role')->limit(20)->get()->map(function ($user) {
+            $diagnostics['user_list'] = User::with('role')->withoutRegistrar()->limit(20)->get()->map(function ($user) {
                 return [
                     'email' => $user->email,
                     'name' => $user->first_name . ' ' . $user->last_name,

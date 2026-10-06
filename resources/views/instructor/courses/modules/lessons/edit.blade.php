@@ -2,7 +2,7 @@
 
 @section('title', 'Edit Lesson — ' . $lesson->title)
 @php
-    $activeNav = 'courses';
+    $activeNav = 'lessons';
     $pageTitle = 'Edit Lesson';
     $pageIcon = '<i class="fa-solid fa-pen-to-square"></i>';
     $lesson->load('materials');
@@ -155,15 +155,13 @@
                                         <span style="font-size: 0.75rem; color: var(--dash-muted, #9eafca);">({{ $material->extension ?? '—' }})</span>
                                     </div>
                                     <div style="display: flex; gap: 8px;">
-                                        @if($material->pivot)
-                                            <a href="{{ route('files.download', $material->pivot->mediaFile) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
-                                                <i class="fa-solid fa-download"></i>
-                                            </a>
-                                        @else
-                                            <a href="{{ $material->url }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
-                                                <i class="fa-solid fa-download"></i>
-                                            </a>
-                                        @endif
+                                        {{-- $lesson->materials is a belongsToMany to MediaFile,
+                                             so $material is already the MediaFile. Passing
+                                             $material->pivot->mediaFile resolved to null and
+                                             broke route('files.download'). --}}
+                                        <a href="{{ route('files.download', $material->id) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
                                         <form method="POST" action="{{ route('instructor.courses.modules.lessons.materials.delete', [$course, $module, $lesson, $material->pivot->id ?? $material->id]) }}" onsubmit="return confirm('Delete this material?');" style="display: inline;">
                                             @csrf
                                             @method('DELETE')

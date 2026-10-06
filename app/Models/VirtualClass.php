@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class VirtualClass extends Model
 {
@@ -77,5 +78,98 @@ class VirtualClass extends Model
     public function attendees(): HasMany
     {
         return $this->hasMany(VirtualClassAttendee::class);
+    }
+
+    /**
+     * Full start datetime, combining the `meeting_date` + `start_time` columns.
+     */
+    public function startsAt(): ?Carbon
+    {
+        if (! $this->meeting_date || ! $this->start_time) {
+            return null;
+        }
+
+        return Carbon::parse($this->meeting_date->format('Y-m-d').' '.$this->start_time);
+    }
+
+    /**
+     * Full end datetime, combining the `meeting_date` + `end_time` columns.
+     */
+    public function endsAt(): ?Carbon
+    {
+        if (! $this->meeting_date || ! $this->end_time) {
+            return null;
+        }
+
+        return Carbon::parse($this->meeting_date->format('Y-m-d').' '.$this->end_time);
+    }
+
+    /**
+     * Has the scheduled end time already passed?
+     */
+    public function hasEnded(): bool
+    {
+        return ($end = $this->endsAt()) !== null && $end->isPast();
+    }
+
+    public function isLive(): bool
+    {
+        return $this->status === self::STATUS_ONGOING;
+    }
+
+    public function canStart(): bool
+    {
+        return $this->status === self::STATUS_SCHEDULED && ! $this->hasEnded();
+    }
+
+    public function canEnd(): bool
+    {
+        return in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true);
+    }
+
+    /**
+     * Auto-close the meeting once its end time passes.
+     *
+     * Called whenever a virtual class is read so the status self-corrects
+     * without requiring a scheduler. Cancelled and completed rows are left
+     * untouched.
+     *
+     * @return bool  True when this call changed the status.
+     */
+    public function syncStatus(): bool
+    {
+        if (! in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true)) {
+            return false;
+        }
+
+        if (! $this->hasEnded()) {
+            return false;
+        }
+
+        $this->forceFill(['status' => self::STATUS_COMPLETED])->save();
+
+        return true;
+    }
+
+    /**
+     * Auto-close every meeting whose end time has passed.
+     *
+     * Meant for `schedule:run` via the console kernel.
+     */
+    public static function autoCloseExpired(): int
+    {
+        $affected = 0;
+
+        VirtualClass::query()
+            ->whereIn('status', [self::STATUS_SCHEDULED, self::STATUS_ONGOING])
+            ->whereDate('meeting_date', '<=', now()->toDateString())
+            ->get()
+            ->each(function (self $virtualClass) use (&$affected) {
+                if ($virtualClass->syncStatus()) {
+                    $affected++;
+                }
+            });
+
+        return $affected;
     }
 }

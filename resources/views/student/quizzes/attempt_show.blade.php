@@ -56,8 +56,11 @@
                         <strong>Q{{ $index + 1 }}: {{ $answer->question?->question_text ?? $answer->question?->text ?? 'Question' }}</strong>
                         <div class="user-email" style="margin-top:6px">
                             Your answer:
-                            @if($answer->choice)
-                                {{ $answer->choice->choice_text ?? $answer->choice->text ?? 'Choice' }}
+                            {{-- Multiple-choice answers are stored in quiz_answer_choices and read
+                                 via selectedChoices(); QuizAnswer has no `choice`. --}}
+                            @php($selectedChoices = $answer->selectedChoices)
+                            @if($selectedChoices->isNotEmpty())
+                                {{ $selectedChoices->pluck('choice_text')->join(', ') }}
                             @elseif($answer->answer_text)
                                 {{ $answer->answer_text }}
                             @else
@@ -78,9 +81,15 @@
     </div>
 
     <div class="user-actions">
-        @if($quiz->available())
+        @php($usedAttempts = $quiz->attempts()->where('student_id', auth()->id())->count())
+        @php($limitReached = (bool) $quiz->attempt_limit && $usedAttempts >= $quiz->attempt_limit)
+
+        @if($limitReached)
+            <span class="user-status archived"><i class="fa-solid fa-lock"></i> Attempt limit reached ({{ $usedAttempts }}/{{ $quiz->attempt_limit }})</span>
+        @elseif($quiz->available())
             <a href="{{ route('student.courses.quizzes.attempt.start', [$course, $quiz]) }}" class="btn btn-primary"><i class="fa-solid fa-rotate-right"></i> Try Again</a>
         @endif
+
         <a href="{{ route('student.courses.quizzes.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> All Quizzes</a>
     </div>
 </div>

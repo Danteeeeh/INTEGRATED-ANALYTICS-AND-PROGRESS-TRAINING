@@ -363,20 +363,28 @@
         // Load existing questions
         @php
             $existingQuestions = [];
-            foreach($quiz->questions as $q) {
-                $choices = [];
-                $correctIndex = 1;
-                foreach($q->choices as $index => $c) {
-                    $choices[] = $c->text;
-                    if ($c->is_correct) {
-                        $correctIndex = $index + 1;
-                    }
+            foreach ($quiz->questions as $q) {
+                // QuestionChoice stores the label in `choice_text` (there is no
+                // `text` column), and the correct flag is `is_correct`.
+                $choices = $q->choices->sortBy('position')->values();
+
+                $choiceTexts = $choices->pluck('choice_text')->all();
+
+                // Imported questions may carry any number of choices, so pad to
+                // at least 4 rather than forcing exactly 4 — otherwise extra
+                // choices are silently dropped from the textboxes.
+                while (count($choiceTexts) < 4) {
+                    $choiceTexts[] = '';
                 }
+
+                $correctIndex = $choices->search(fn ($c) => (bool) $c->is_correct);
+                $correctIndex = $correctIndex === false ? 1 : $correctIndex + 1;
+
                 $existingQuestions[] = [
                     'text' => $q->question_text,
                     'points' => $q->pivot->points ?? 1,
-                    'choices' => $choices,
-                    'correct_choice' => $correctIndex
+                    'choices' => $choiceTexts,
+                    'correct_choice' => $correctIndex,
                 ];
             }
         @endphp
@@ -390,17 +398,31 @@
             });
         }
 
+        // Escape text that gets injected into HTML attribute / textarea values.
+        function escapeAttr(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         function addQuestion(text = '', points = 1, choices = ['', '', '', ''], correctChoice = 1) {
             questionCount++;
+            text = escapeAttr(text);
             const questionsList = document.getElementById('questionsList');
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-item';
             questionDiv.style.cssText = 'background: rgba(139,92,246,.08); border: 1px solid rgba(139,92,246,.2); border-radius: 12px; padding: 20px; margin-bottom: 16px;';
             questionDiv.id = 'question-' + questionCount;
 
+            // Render exactly as many choice rows as exist (min 4), so imported
+            // questions with more than 4 choices keep all of them.
+            const choiceRows = Math.max(choices.length, 4);
+
             let choicesHtml = '';
-            for (let i = 0; i < 4; i++) {
-                const choiceValue = choices[i] || '';
+            for (let i = 0; i < choiceRows; i++) {
+                const choiceValue = escapeAttr(choices[i] || '');
                 const isChecked = (i + 1) === correctChoice ? 'checked' : '';
                 choicesHtml += `
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">

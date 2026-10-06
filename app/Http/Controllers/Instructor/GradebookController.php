@@ -10,7 +10,10 @@ use App\Models\GradeItem;
 use App\Models\AssignmentSubmission;
 use App\Models\User;
 use App\Services\FeedbackSuggestionService;
+use App\Services\GradeBreakdownService;
 use App\Services\GradeService;
+use App\Services\StudentRiskService;
+use App\Models\GradeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,15 +23,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GradebookController extends Controller
 {
-    public function __construct(private GradeService $grades)
-    {
+    public function __construct(
+        private GradeService $grades,
+        private GradeBreakdownService $breakdown,
+        private StudentRiskService $risk,
+    ) {
     }
 
     public function index(ClassModel $class): View
     {
         $this->authorize('view', Grade::class, ['class' => $class]);
 
-        $class->load(['gradeItems', 'enrollments.student']);
+        $class->load(['gradeItems', 'enrollments.student', 'gradeConfiguration']);
 
         $students = $class->enrollments()
             ->where('status', 'active')
@@ -45,13 +51,68 @@ class GradebookController extends Controller
 
         $classAverage = collect($summaries)->where('is_graded', true)->avg('percent') ?? 0;
 
+        // Component columns + On Track / At Risk, from the instructor's grading
+        // configuration when there is one.
+        $configuration = $class->gradeConfiguration;
+        $breakdowns = $this->breakdown->forClass($class);
+        $risk = $this->risk->evaluateAll($class, $breakdowns);
+
+        $componentColumns = $this->componentColumns($configuration, $breakdowns);
+        $riskTally = $this->risk->tally($risk);
+
         return view('instructor.gradebook.index', compact(
             'class',
             'students',
             'gradeItems',
             'summaries',
-            'classAverage'
+            'classAverage',
+            'configuration',
+            'breakdowns',
+            'risk',
+            'componentColumns',
+            'riskTally',
         ));
+    }
+
+    /**
+     * Which components get their own gradebook column.
+     *
+     * Only the enabled ones when a configuration exists; otherwise everything
+     * the class actually has grade items for.
+     *
+     * @param  array<int, array<string, mixed>>  $breakdowns
+     * @return array<int, array{type: string, label: string, weight: float}>
+     */
+    protected function componentColumns(?GradeConfiguration $configuration, array $breakdowns): array
+    {
+        $columns = [];
+
+        foreach (GradeConfiguration::COMPONENTS as $type => $meta) {
+            $weight = $configuration?->weights()[$type] ?? 0;
+
+            if ($configuration) {
+                // A configured component earns a column even before anyone has a
+                // grade in it, so the instructor can see it is still empty.
+                if ($weight <= 0) {
+                    continue;
+                }
+            } else {
+                $hasItems = collect($breakdowns)
+                    ->contains(fn ($row) => isset($row['components'][$type]));
+
+                if (! $hasItems) {
+                    continue;
+                }
+            }
+
+            $columns[] = [
+                'type' => $type,
+                'label' => $meta['label'],
+                'weight' => round($weight, 2),
+            ];
+        }
+
+        return $columns;
     }
 
     public function suggestFeedback(AssignmentSubmission $submission, FeedbackSuggestionService $feedback): JsonResponse

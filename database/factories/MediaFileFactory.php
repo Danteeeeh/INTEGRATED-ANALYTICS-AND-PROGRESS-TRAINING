@@ -28,7 +28,7 @@ class MediaFileFactory extends Factory
             'mime_type' => 'application/' . $ext,
             'size' => fake()->numberBetween(1024, 1048576),
             'extension' => $ext,
-            'uploader_id' => User::factory(),
+            'uploader_id' => User::factory()->instructor(),
         ];
     }
 }

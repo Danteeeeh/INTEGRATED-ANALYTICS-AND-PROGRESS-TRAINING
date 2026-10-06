@@ -14,6 +14,7 @@ class SectionController extends Controller
 {
     public function index(): View
     {
+        $this->authorize('viewAny', Section::class);
         $sections = Section::with(['program.department', 'academicPeriod'])
             ->withCount('classes')
             ->orderBy('code')
@@ -24,6 +25,7 @@ class SectionController extends Controller
 
     public function create(): View
     {
+        $this->authorize('create', Section::class);
         $programs = Program::with('department')->orderBy('code')->get();
         $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
 
@@ -48,6 +50,8 @@ class SectionController extends Controller
 
     public function show(Section $section): View
     {
+        $this->authorize('view', $section);
+
         $section->load(['program.department', 'academicPeriod', 'classes.course', 'classes.instructor']);
 
         $students = $section->students()
@@ -61,6 +65,8 @@ class SectionController extends Controller
 
     public function edit(Section $section): View
     {
+        $this->authorize('update', $section);
+
         $programs = Program::with('department')->orderBy('code')->get();
         $academicPeriods = AcademicPeriod::orderBy('start_date', 'desc')->get();
 
@@ -69,6 +75,8 @@ class SectionController extends Controller
 
     public function update(Request $request, Section $section): RedirectResponse
     {
+        $this->authorize('update', $section);
+
         $validated = $request->validate([
             'program_id' => ['nullable', 'exists:programs,id'],
             'academic_period_id' => ['nullable', 'exists:academic_periods,id'],
@@ -85,6 +93,9 @@ class SectionController extends Controller
 
     public function destroy(Section $section): RedirectResponse
     {
+        // Refuses when classes or students still hang off it.
+        $this->authorize('delete', $section);
+
         $section->delete();
 
         return redirect()->route('admin.sections.index')

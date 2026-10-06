@@ -36,8 +36,8 @@
             icon="fa-solid fa-users"
         />
         <x-sms-info-card
-            label="Active Courses"
-            :amount="$stats['active_classes']"
+            label="Published Courses"
+            :amount="$stats['published_courses']"
             icon="fa-solid fa-book"
         />
         <x-sms-info-card
@@ -76,7 +76,7 @@
             <div style="padding: 16px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 12px; color: white;">
                 <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 8px;">Top Program</div>
                 <div style="font-size: 1.2rem; font-weight: 700;">{{ collect($stats['learning_analytics']['completion_by_program'])->sortByDesc('rate')->first()['name'] ?? 'N/A' }}</div>
-                <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">{{ number_format(collect($stats['learning_analytics']['completion_by_program'])->sortByDesc('rate')->first()['rate'] ?? 0, 1) }}% completion</div>
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">{{ number_format(collect($stats['learning_analytics']['completion_by_program'])->sortByDesc('rate')->first()['rate'] ?? 0, 1) }}&percnt; completion</div>
             </div>
         </div>
     </div>
@@ -85,50 +85,90 @@
     <div class="form-card">
         <h3><i class="fa-solid fa-users"></i> Engagement Metrics</h3>
         
+        @php
+            // Flatten the nested payload once with safe defaults. A missing key
+            // here used to throw an ErrorException and 500 the whole dashboard.
+            $engagement = array_merge([
+                'daily_active_users' => [],
+                'content_consumption' => [],
+                'virtual_class_attendance' => [],
+            ], $stats['engagement_metrics'] ?? []);
+
+            $consumption = array_merge([
+                'total_lessons_viewed' => 0,
+                'total_videos_watched' => 0,
+                'average_lesson_completion' => 0,
+            ], $engagement['content_consumption']);
+
+            $vClassAttendance = array_merge([
+                'total_classes' => 0,
+                'average_attendance' => 0,
+                'attendance_rate' => 0,
+            ], $engagement['virtual_class_attendance']);
+
+            $dailyActive = $engagement['daily_active_users'] ?: [];
+        @endphp
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
             <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px;">
-                <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">{{ $stats['engagement_metrics']['content_consumption']['total_lessons_viewed'] }}</div>
-                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Lessons Viewed</div>
+                <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">{{ number_format($consumption['total_lessons_viewed']) }}</div>
+                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Lessons Completed</div>
             </div>
             
             <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px;">
-                <div style="font-size: 2rem; font-weight: 700; color: #16a34a;">{{ $stats['engagement_metrics']['content_consumption']['total_videos_watched'] }}</div>
+                <div style="font-size: 2rem; font-weight: 700; color: #16a34a;">{{ number_format($consumption['total_videos_watched']) }}</div>
                 <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Videos Watched</div>
             </div>
             
             <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px;">
-                <div style="font-size: 2rem; font-weight: 700; color: #d97706;">{{ $stats['engagement_metrics']['forum_participation']['total_posts'] }}</div>
-                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Forum Posts</div>
+                <div style="font-size: 2rem; font-weight: 700; color: #d97706;">{{ number_format((float) $consumption['average_lesson_completion'], 1) }}%</div>
+                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Avg. Lesson Progress</div>
             </div>
             
             <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px;">
-                <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6;">{{ number_format($stats['engagement_metrics']['virtual_class_attendance']['attendance_rate'], 1) }}%</div>
+                <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6;">{{ number_format((float) $vClassAttendance['attendance_rate'], 1) }}%</div>
                 <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">Class Attendance</div>
+                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
+                    across {{ number_format($vClassAttendance['total_classes']) }} virtual class{{ (int) $vClassAttendance['total_classes'] === 1 ? '' : 'es' }}
+                </div>
             </div>
         </div>
         
         <!-- Daily Active Users Chart -->
         <div style="margin-top: 24px;">
             <h4 style="margin-bottom: 12px;">Daily Active Users (Last 30 Days)</h4>
-            <div id="dailyActiveUsersChart" style="height: 300px; background: #f8fafc; border-radius: 8px; display: flex; align-items: flex-end; padding: 20px; gap: 4px;">
-                @foreach($stats['engagement_metrics']['daily_active_users'] as $date => $count)
-                    @php
-                        $dauMax = max(collect($stats['engagement_metrics']['daily_active_users'])->values()->all());
-                        $dauHeight = $count > 0 && $dauMax > 0 ? round(($count / $dauMax) * 100, 1) : 5;
-                    @endphp
-                    <div style="flex: 1; background: #3b82f6; border-radius: 4px 4px 0 0; transition: height 0.3s; position: relative; min-height: 20px; height: {{ $dauHeight }}%;"
-                         title="{{ $date }}: {{ $count }} users">
-                        <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; color: #64748b; white-space: nowrap;">
-                            {{ \Carbon\Carbon::parse($date)->format('M d') }}
-                        </div>
-                        @if($count > 0)
-                            <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; font-weight: 600; color: #3b82f6;">
-                                {{ $count }}
+            @php
+                // max() throws on an empty array, and the peak is the same for
+                // every bar, so resolve it once instead of inside the loop.
+                $dauMax = $dailyActive ? max(array_map('intval', array_values($dailyActive))) : 0;
+            @endphp
+
+            @if ($dailyActive)
+                <div id="dailyActiveUsersChart" style="height: 300px; background: #f8fafc; border-radius: 8px; display: flex; align-items: flex-end; padding: 20px 20px 40px; gap: 4px;">
+                    @foreach ($dailyActive as $date => $count)
+                        @php
+                            $count = (int) $count;
+                            $dauHeight = $dauMax > 0 ? max(round(($count / $dauMax) * 100, 1), 2) : 2;
+                        @endphp
+                        <div style="flex: 1; background: {{ $count > 0 ? '#3b82f6' : '#cbd5e1' }}; border-radius: 4px 4px 0 0; transition: height 0.3s; position: relative; height: {{ $dauHeight }}&percnt;;"
+                             title="{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}: {{ $count }} user{{ $count === 1 ? '' : 's' }}">
+                            <div style="position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: #94a3b8; white-space: nowrap;">
+                                {{ \Carbon\Carbon::parse($date)->format('M d') }}
                             </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
+                            @if ($count > 0)
+                                <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; font-weight: 600; color: #3b82f6;">
+                                    {{ $count }}
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div style="padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px;">
+                    <i class="fa-solid fa-chart-column" style="font-size: 2rem; margin-bottom: 8px; color: #94a3b8;"></i>
+                    No login activity recorded yet
+                </div>
+            @endif
         </div>
     </div>
 
@@ -147,7 +187,7 @@
                             <div style="flex: 1; height: 24px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
                                 <div style="height: 100%; background: {{ $color }}; width: {{ 
                                     ($stats['performance_trends']['grade_distribution'][strtolower($grade)] ?? 0) / max(array_sum($stats['performance_trends']['grade_distribution']), 1) * 100 
-                                }}%; transition: width 0.5s ease;"></div>
+                                }}&percnt;; transition: width 0.5s ease;"></div>
                             </div>
                             <span style="width: 50px; text-align: right; font-size: 0.85rem;">{{ $stats['performance_trends']['grade_distribution'][strtolower($grade)] ?? 0 }}</span>
                         </div>
@@ -261,7 +301,7 @@
                         <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">{{ $program['name'] }}</div>
                         <div style="margin-bottom: 8px;">
                             <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div style="background: #3b82f6; height: 100%; width: {{ $program['rate'] }}%;"></div>
+                                <div style="background: #3b82f6; height: 100%; width: {{ $program['rate'] }}&percnt;;"></div>
                             </div>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b;">

@@ -94,7 +94,7 @@ class DashboardController extends Controller
             'unread_notifications' => Notification::whereNull('read_at')->count(),
 
             // Recent Activity
-            'recent_users' => User::with('role')->orderBy('created_at', 'desc')->limit(5)->get(),
+            'recent_users' => User::with('role')->withoutRegistrar()->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_courses' => Course::orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_enrollments' => Enrollment::with(['student', 'class.course'])->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_audit_logs' => AuditLog::orderBy('created_at', 'desc')->limit(5)->get(),
@@ -342,12 +342,14 @@ class DashboardController extends Controller
 
     protected function getMostPopularCourses(): array
     {
-        return Course::withCount('enrollments')
+        return Course::withCount(['enrollments' => fn ($q) => $q->countable()])
             ->orderBy('enrollments_count', 'desc')
             ->limit(5)
             ->get()
             ->map(function ($course) {
-                $completedCount = $course->enrollments()->where('enrollments.status', 'completed')->count();
+                $completedCount = $course->enrollments()->where('enrollments.status', Enrollment::STATUS_COMPLETED)->count();
+                // Countable enrollments only, matching the completion_by_program
+                // rate below so both numbers agree.
                 $totalEnrollments = $course->enrollments_count;
                 $completionRate = $totalEnrollments > 0 ? ($completedCount / $totalEnrollments) * 100 : 0;
                 
@@ -363,7 +365,9 @@ class DashboardController extends Controller
     protected function getCompletionByProgram(): array
     {
         return Program::with('courses.enrollments')->get()->map(function ($program) {
-            $t = $program->courses->sum(fn ($c) => $c->enrollments()->count());
+            // Dropped enrollments are not "completed" work, so they must stay
+            // out of the total — otherwise a program's rate always reads low.
+            $t = $program->courses->sum(fn ($c) => $c->enrollments()->countable()->count());
             $done = $program->courses->sum(fn ($c) => $c->enrollments()->where('enrollments.status', 'completed')->count());
             return ['name' => $program->name, 'total' => $t, 'completed' => $done, 'rate' => $t > 0 ? ($done / $t) * 100 : 0];
         })->toArray();
@@ -373,8 +377,12 @@ class DashboardController extends Controller
     {
         // Calculate retention rate: (active + completed) / total enrollments * 100
         // This shows the percentage of students who are still engaged (active) or have successfully completed
-        $totalEnrollments = Enrollment::count();
-        
+        //
+        // Dropped enrollments are excluded from BOTH sides. They used to sit in
+        // the denominator only, so every past drop permanently depressed this
+        // number even though those students had already left.
+        $totalEnrollments = Enrollment::countable()->count();
+
         if ($totalEnrollments === 0) {
             return 0;
         }
@@ -744,7 +752,7 @@ class DashboardController extends Controller
             'current_period' => $currentPeriod,
 
             // Recent Activity
-            'recent_users' => User::with('role')->orderBy('created_at', 'desc')->limit(5)->get(),
+            'recent_users' => User::with('role')->withoutRegistrar()->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_courses' => Course::orderBy('created_at', 'desc')->limit(5)->get(),
         ];
 

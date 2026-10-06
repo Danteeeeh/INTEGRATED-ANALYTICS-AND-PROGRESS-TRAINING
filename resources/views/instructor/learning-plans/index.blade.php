@@ -1,6 +1,6 @@
 @extends('layouts.instructor')
 @section('title', 'Learning Plans — '.$class->code)
-@php $activeNav = 'classes'; @endphp
+@php $activeNav = 'learning_plans'; @endphp
 @section('page-title-bar')
 <div class="page-title-bar"><h2 class="page-title"><i class="fa-solid fa-route"></i> Learning Plans — {{ $class->code }}</h2><div class="page-actions"><a href="{{ route('instructor.classes.show',$class) }}" class="btn-modal-cancel">Back to Class</a></div></div>
 @endsection

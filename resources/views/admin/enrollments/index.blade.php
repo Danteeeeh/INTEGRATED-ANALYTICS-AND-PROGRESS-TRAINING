@@ -2,7 +2,7 @@
 
 @section('title', 'Enrollments')
 @php
-    $activeNav = 'enrollment';
+    $activeNav = 'enrollments';
     $pageTitle = 'Enrollment Management';
     $pageIcon = '<i class="fa-solid fa-graduation-cap"></i>';
 @endphp
@@ -163,14 +163,44 @@
                 @endforeach
             </select>
             <select name="status" aria-label="Filter status">
-                <option value="">All Status</option>
+                <option value="">All ({{ $includeDropped ? 'every status' : 'excl. dropped' }})</option>
                 @foreach(['pending' => 'Pending', 'active' => 'Active', 'completed' => 'Completed', 'dropped' => 'Dropped'] as $value => $label)
                     <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #dce4f0;border-radius:8px;font-size:.85rem;white-space:nowrap;cursor:pointer;">
+                <input type="checkbox" name="include_dropped" value="1" @checked($includeDropped)
+                       style="width:auto;margin:0;cursor:pointer;">
+                Show Dropped
+            </label>
             <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-filter"></i> Filter</button>
             <a href="{{ route('admin.enrollments.index') }}" class="btn btn-secondary">Clear</a>
         </form>
+
+        @if (session('enrollment_errors'))
+            <div style="margin-bottom:14px;padding:12px 16px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:.82rem;color:#991b1b;">
+                <strong><i class="fa-solid fa-triangle-exclamation"></i> Some enrollments were skipped:</strong>
+                <ul style="margin:6px 0 0;padding-left:18px;">
+                    @foreach (session('enrollment_errors') as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @unless ($includeDropped || request()->filled('status'))
+            @if ($droppedCount > 0)
+                <div style="margin-bottom:14px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:.82rem;color:#92400e;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>
+                        <strong>{{ $droppedCount }}</strong> dropped enrollment{{ $droppedCount === 1 ? ' is' : 's are' }} hidden.
+                        Students who dropped a class are no longer counted here.
+                    </span>
+                    <a href="{{ route('admin.enrollments.index', ['include_dropped' => 1]) }}"
+                       style="margin-left:auto;color:#92400e;font-weight:600;text-decoration:underline;">Show them</a>
+                </div>
+            @endif
+        @endunless
 
         <table class="crud-table">
             <thead>

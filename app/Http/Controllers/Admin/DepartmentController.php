@@ -12,6 +12,7 @@ class DepartmentController extends Controller
 {
     public function index(): View
     {
+        $this->authorize('viewAny', Department::class);
         $departments = Department::withCount('programs')->orderBy('name')->paginate(15);
 
         return view('admin.departments.index', compact('departments'));
@@ -19,6 +20,7 @@ class DepartmentController extends Controller
 
     public function create(): View
     {
+        $this->authorize('create', Department::class);
         return view('admin.departments.create');
     }
 
@@ -38,6 +40,8 @@ class DepartmentController extends Controller
 
     public function show(Department $department): View
     {
+        $this->authorize('view', $department);
+
         $department->load(['programs.sections']);
 
         $courses = $department->courses()->orderBy('code')->get();
@@ -47,11 +51,15 @@ class DepartmentController extends Controller
 
     public function edit(Department $department): View
     {
+        $this->authorize('update', $department);
+
         return view('admin.departments.edit', compact('department'));
     }
 
     public function update(Request $request, Department $department): RedirectResponse
     {
+        $this->authorize('update', $department);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:20', 'unique:departments,code,'.$department->id],
@@ -66,6 +74,9 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department): RedirectResponse
     {
+        // Refuses when programs, courses or students still hang off it.
+        $this->authorize('delete', $department);
+
         $department->delete();
 
         return redirect()->route('admin.departments.index')
