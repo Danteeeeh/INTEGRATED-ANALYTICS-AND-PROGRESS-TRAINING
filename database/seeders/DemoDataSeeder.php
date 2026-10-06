@@ -207,6 +207,9 @@ class DemoDataSeeder extends Seeder
     {
         $map = [];
 
+        // Ensure question categories exist
+        $categories = $this->ensureQuestionCategories($instructor);
+
         foreach ($courses as $code => $course) {
             $bank = QuestionBank::updateOrCreate(
                 ['title' => "{$course->title} Question Bank"],
@@ -223,10 +226,12 @@ class DemoDataSeeder extends Seeder
             );
 
             $questions = [
+                // Multiple Choice Questions
                 [
                     'q' => "Which of the following best describes the core topic of {$course->title}?",
                     'type' => 'multiple_choice',
                     'difficulty' => 'easy',
+                    'category' => 'General',
                     'choices' => [
                         ['t' => "The central concepts of {$course->title}", 'c' => true],
                         ['t' => 'An unrelated discipline', 'c' => false],
@@ -238,6 +243,7 @@ class DemoDataSeeder extends Seeder
                     'q' => "In {$course->title}, applying the learned concepts to real tasks demonstrates:",
                     'type' => 'multiple_choice',
                     'difficulty' => 'medium',
+                    'category' => 'Application',
                     'choices' => [
                         ['t' => 'Higher-order thinking', 'c' => true],
                         ['t' => 'Rote memorization', 'c' => false],
@@ -246,17 +252,178 @@ class DemoDataSeeder extends Seeder
                     ],
                 ],
                 [
+                    'q' => "Which methodology is most appropriate for analyzing data in {$course->title}?",
+                    'type' => 'multiple_choice',
+                    'difficulty' => 'hard',
+                    'category' => 'Analysis',
+                    'choices' => [
+                        ['t' => 'Statistical analysis with hypothesis testing', 'c' => true],
+                        ['t' => 'Anecdotal evidence collection', 'c' => false],
+                        ['t' => 'Pure speculation', 'c' => false],
+                        ['t' => 'Ignoring outliers entirely', 'c' => false],
+                    ],
+                ],
+                [
+                    'q' => "A key ethical consideration in {$course->title} research is:",
+                    'type' => 'multiple_choice',
+                    'difficulty' => 'medium',
+                    'category' => 'Ethics',
+                    'choices' => [
+                        ['t' => 'Informed consent and data privacy', 'c' => true],
+                        ['t' => 'Publishing all raw data publicly', 'c' => false],
+                        ['t' => 'Using data without attribution', 'c' => false],
+                        ['t' => 'Fabricating favorable results', 'c' => false],
+                    ],
+                ],
+                // True/False Questions
+                [
                     'q' => "{$course->title} is relevant to the BSIT program.",
                     'type' => 'true_false',
                     'difficulty' => 'easy',
+                    'category' => 'General',
                     'choices' => [
                         ['t' => 'True', 'c' => true],
                         ['t' => 'False', 'c' => false],
                     ],
                 ],
+                [
+                    'q' => "All problems in {$course->title} can be solved with a single formula.",
+                    'type' => 'true_false',
+                    'difficulty' => 'easy',
+                    'category' => 'Concepts',
+                    'choices' => [
+                        ['t' => 'True', 'c' => false],
+                        ['t' => 'False', 'c' => true],
+                    ],
+                ],
+                [
+                    'q' => "Critical thinking is not required in {$course->title} - only memorization matters.",
+                    'type' => 'true_false',
+                    'difficulty' => 'easy',
+                    'category' => 'Pedagogy',
+                    'choices' => [
+                        ['t' => 'True', 'c' => false],
+                        ['t' => 'False', 'c' => true],
+                    ],
+                ],
+                // Identification Questions
+                [
+                    'q' => "The process of breaking down a complex system into smaller, manageable components is called:",
+                    'type' => 'identification',
+                    'difficulty' => 'medium',
+                    'category' => 'Concepts',
+                    'is_case_sensitive' => false,
+                    'choices' => [
+                        ['t' => 'Decomposition', 'c' => true],
+                        ['t' => 'decomposition', 'c' => true],
+                        ['t' => 'Abstraction', 'c' => false],
+                        ['t' => 'Generalization', 'c' => false],
+                    ],
+                ],
+                [
+                    'q' => "In programming, a named storage location in memory that holds a value is called a:",
+                    'type' => 'identification',
+                    'difficulty' => 'easy',
+                    'category' => 'Programming',
+                    'is_case_sensitive' => false,
+                    'choices' => [
+                        ['t' => 'Variable', 'c' => true],
+                        ['t' => 'variable', 'c' => true],
+                        ['t' => 'Constant', 'c' => false],
+                        ['t' => 'Function', 'c' => false],
+                    ],
+                ],
+                [
+                    'q' => "The principle that states 'every object or entity should have a single, unambiguous purpose' is known as:",
+                    'type' => 'identification',
+                    'difficulty' => 'hard',
+                    'category' => 'Software Design',
+                    'is_case_sensitive' => false,
+                    'choices' => [
+                        ['t' => 'Single Responsibility Principle', 'c' => true],
+                        ['t' => 'single responsibility principle', 'c' => true],
+                        ['t' => 'SRP', 'c' => true],
+                        ['t' => 'SOLID Principle', 'c' => false],
+                    ],
+                ],
+                // Short Answer Questions
+                [
+                    'q' => "List two advantages of using version control systems in software development.",
+                    'type' => 'short_answer',
+                    'difficulty' => 'medium',
+                    'category' => 'Software Engineering',
+                    'is_case_sensitive' => false,
+                    'choices' => [
+                        ['t' => 'History tracking', 'c' => true],
+                        ['t' => 'Collaboration', 'c' => true],
+                        ['t' => 'Branching and merging', 'c' => true],
+                        ['t' => 'Rollback capability', 'c' => true],
+                        ['t' => 'Audit trail', 'c' => true],
+                    ],
+                ],
+                [
+                    'q' => "What does SQL stand for?",
+                    'type' => 'short_answer',
+                    'difficulty' => 'easy',
+                    'category' => 'Database',
+                    'is_case_sensitive' => false,
+                    'choices' => [
+                        ['t' => 'Structured Query Language', 'c' => true],
+                        ['t' => 'structured query language', 'c' => true],
+                        ['t' => 'SQL', 'c' => true],
+                    ],
+                ],
+                // Essay Questions
+                [
+                    'q' => "Discuss the impact of artificial intelligence on the future of {$course->title}. Provide at least three concrete examples of how AI can transform traditional approaches in this field.",
+                    'type' => 'essay',
+                    'difficulty' => 'hard',
+                    'category' => 'Future Trends',
+                    'choices' => [],
+                ],
+                [
+                    'q' => "Compare and contrast the waterfall and agile methodologies in the context of {$course->title} project development. When would you choose one over the other?",
+                    'type' => 'essay',
+                    'difficulty' => 'medium',
+                    'category' => 'Methodologies',
+                    'choices' => [],
+                ],
+                // Multiple Answer Questions
+                [
+                    'q' => "Which of the following are principles of clean code? (Select all that apply)",
+                    'type' => 'multiple_answer',
+                    'difficulty' => 'medium',
+                    'category' => 'Programming',
+                    'choices' => [
+                        ['t' => 'Meaningful names for variables and functions', 'c' => true],
+                        ['t' => 'Small, focused functions', 'c' => true],
+                        ['t' => 'Duplicated code is acceptable for speed', 'c' => false],
+                        ['t' => 'Comments should explain WHAT the code does', 'c' => false],
+                        ['t' => 'Error handling should be explicit', 'c' => true],
+                    ],
+                ],
+                [
+                    'q' => "Which of the following are part of the SOLID principles? (Select all that apply)",
+                    'type' => 'multiple_answer',
+                    'difficulty' => 'hard',
+                    'category' => 'Software Design',
+                    'choices' => [
+                        ['t' => 'Single Responsibility Principle', 'c' => true],
+                        ['t' => 'Open/Closed Principle', 'c' => true],
+                        ['t' => 'Liskov Substitution Principle', 'c' => true],
+                        ['t' => 'Interface Segregation Principle', 'c' => true],
+                        ['t' => 'Dependency Inversion Principle', 'c' => true],
+                        ['t' => 'Don\'t Repeat Yourself', 'c' => false],
+                    ],
+                ],
             ];
 
             foreach ($questions as $i => $spec) {
+                $categoryId = null;
+                if (isset($spec['category']) && isset($categories[$spec['category']])) {
+                    $categoryId = $categories[$spec['category']]->id;
+                }
+
                 $question = Question::updateOrCreate(
                     [
                         'question_bank_id' => $bank->id,
@@ -264,12 +431,21 @@ class DemoDataSeeder extends Seeder
                     ],
                     [
                         'question_type' => $spec['type'],
-                        'explanation' => 'The correct answer reflects the core learning outcome.',
+                        'explanation' => $spec['type'] === 'essay' 
+                            ? 'Grade based on depth of analysis, clarity, and relevance to course concepts.'
+                            : 'The correct answer reflects the core learning outcome.',
                         'difficulty' => $spec['difficulty'],
-                        'default_points' => 1,
-                        'tags' => ['demo', 'bsit', Str::lower($code)],
+                        'default_points' => match($spec['difficulty']) {
+                            'easy' => 1,
+                            'medium' => 2,
+                            'hard' => 3,
+                            default => 1,
+                        },
+                        'tags' => ['demo', 'bsit', Str::lower($code), Str::lower($spec['category'] ?? 'general')],
                         'created_by' => $instructor->id,
                         'status' => 'active',
+                        'category_id' => $categoryId,
+                        'is_case_sensitive' => $spec['is_case_sensitive'] ?? false,
                     ]
                 );
 
@@ -293,6 +469,38 @@ class DemoDataSeeder extends Seeder
         $this->command?->info('DemoData: question banks + questions created.');
 
         return $map;
+    }
+
+    protected function ensureQuestionCategories(User $instructor): array
+    {
+        $categoryNames = [
+            'General' => 'General knowledge questions',
+            'Application' => 'Real-world application scenarios',
+            'Analysis' => 'Critical analysis and problem solving',
+            'Ethics' => 'Ethical considerations in technology',
+            'Concepts' => 'Fundamental concepts and definitions',
+            'Pedagogy' => 'Teaching and learning methodologies',
+            'Programming' => 'Programming concepts and practices',
+            'Software Design' => 'Software architecture and design patterns',
+            'Software Engineering' => 'Software engineering best practices',
+            'Database' => 'Database concepts and SQL',
+            'Future Trends' => 'Emerging technologies and future directions',
+            'Methodologies' => 'Development methodologies and processes',
+        ];
+
+        $categories = [];
+        foreach ($categoryNames as $name => $description) {
+            $categories[$name] = \App\Models\QuestionCategory::updateOrCreate(
+                ['name' => $name],
+                [
+                    'description' => $description,
+                    'course_id' => null,
+                    'created_by' => $instructor->id,
+                ]
+            );
+        }
+
+        return $categories;
     }
 
     protected function createQuizzes(array $courses, array $moduleMap, array $bankMap, User $instructor, User $student): void

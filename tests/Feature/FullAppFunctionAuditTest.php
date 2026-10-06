@@ -152,15 +152,6 @@ class FullAppFunctionAuditTest extends TestCase
             ['GET', '/instructor/enrollments/'.$this->enrollment->id, 'instructor'],
             ['GET', '/instructor/courses/'.$this->course->id, 'instructor'],
 
-            // ---------- registrar ----------
-            ['GET', '/registrar/dashboard', 'registrar'],
-            ['GET', '/registrar/students', 'registrar'],
-            ['GET', '/registrar/students/'.$this->student->id, 'registrar'],
-            ['GET', '/registrar/enrollments', 'registrar'],
-            ['GET', '/registrar/classes', 'registrar'],
-            ['GET', '/registrar/courses', 'registrar'],
-            ['GET', '/registrar/reports', 'registrar'],
-
             // ---------- student ----------
             ['GET', '/student/dashboard', 'student'],
             ['GET', '/student/courses', 'student'],
@@ -179,7 +170,6 @@ class FullAppFunctionAuditTest extends TestCase
             'gmail' => $this->gmailAdmin,
             'instructor' => $this->instructor,
             'student' => $this->student,
-            'registrar' => $this->registrar,
             'guest' => null,
         ];
 

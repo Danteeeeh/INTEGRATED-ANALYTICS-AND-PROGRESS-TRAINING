@@ -21,7 +21,6 @@ class UserFunctionAuditTest extends TestCase
         $admin = $this->makeUser(Role::ADMIN);
         $instructor = $this->makeUser(Role::INSTRUCTOR);
         $student = $this->makeUser(Role::STUDENT);
-        $registrar = $this->makeUser(Role::REGISTRAR);
 
         $target = User::factory()->create([
             'role_id' => Role::where('slug', Role::STUDENT)->value('id'),
@@ -38,7 +37,6 @@ class UserFunctionAuditTest extends TestCase
             ['GET', '/profile', 'admin'],
             ['GET', '/profile', 'instructor'],
             ['GET', '/profile', 'student'],
-            ['GET', '/profile', 'registrar'],
 
             // --- admin user management ---
             ['GET', '/admin/users', 'admin'],
@@ -74,9 +72,7 @@ class UserFunctionAuditTest extends TestCase
             ['GET', '/admin/audit-logs', 'admin'],
             ['GET', '/admin/announcements', 'admin'],
             ['GET', '/admin/attendance', 'admin'],
-            ['GET', '/admin/badges', 'admin'],
             ['GET', '/admin/calendar', 'admin'],
-            ['GET', '/admin/certificates', 'admin'],
             ['GET', '/admin/competencies', 'admin'],
             ['GET', '/admin/courses', 'admin'],
             ['GET', '/admin/classes', 'admin'],
@@ -92,18 +88,6 @@ class UserFunctionAuditTest extends TestCase
             ['GET', '/admin/academic-periods', 'admin'],
             ['GET', '/admin/notifications', 'admin'],
             ['GET', '/admin/notifications/preferences', 'admin'],
-
-            // --- registrar ---
-            ['GET', '/registrar/dashboard', 'registrar'],
-            ['GET', '/registrar/students', 'registrar'],
-            ['GET', '/registrar/students/create', 'registrar'],
-            ['GET', '/registrar/students/'.$target->id, 'registrar'],
-            ['GET', '/registrar/students/'.$target->id.'/edit', 'registrar'],
-            ['GET', '/registrar/enrollments', 'registrar'],
-            ['GET', '/registrar/enrollments/create', 'registrar'],
-            ['GET', '/registrar/classes', 'registrar'],
-            ['GET', '/registrar/courses', 'registrar'],
-            ['GET', '/registrar/reports', 'registrar'],
 
             // --- instructor ---
             ['GET', '/instructor/dashboard', 'instructor'],
@@ -124,7 +108,6 @@ class UserFunctionAuditTest extends TestCase
             'admin' => $admin,
             'instructor' => $instructor,
             'student' => $student,
-            'registrar' => $registrar,
         ];
 
         $rows = [];

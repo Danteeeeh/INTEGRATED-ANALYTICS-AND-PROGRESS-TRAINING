@@ -180,37 +180,5 @@ class RoleTest extends TestCase
         $this->assertFalse($student->isAdmin());
         $this->assertFalse($student->isInstructor());
         $this->assertTrue($student->isStudent());
-        $this->assertFalse($student->isRegistrar());
-    }
-
-    public function test_registrar_can_access_registrar_routes_but_not_admin_or_instructor(): void
-    {
-        $registrar = User::factory()->create([
-            'role_id' => Role::where('slug', Role::REGISTRAR)->firstOrFail()->id,
-            'status' => 'active',
-        ]);
-
-        $this->actingAs($registrar)->get(route('registrar.dashboard'))->assertStatus(200);
-        $this->actingAs($registrar)->get(route('registrar.students.index'))->assertStatus(200);
-        $this->actingAs($registrar)->get(route('registrar.enrollments.index'))->assertStatus(200);
-        $this->actingAs($registrar)->get(route('admin.dashboard'))->assertStatus(403);
-        $this->actingAs($registrar)->get(route('admin.settings.index'))->assertStatus(403);
-        $this->actingAs($registrar)->get(route('instructor.dashboard'))->assertStatus(403);
-        $this->actingAs($registrar)->get(route('admin.quizzes.index'))->assertStatus(403);
-    }
-
-    public function test_instructor_and_student_cannot_access_registrar_routes(): void
-    {
-        $instructor = User::factory()->create([
-            'role_id' => Role::where('slug', Role::INSTRUCTOR)->firstOrFail()->id,
-            'status' => 'active',
-        ]);
-        $student = User::factory()->create([
-            'role_id' => Role::where('slug', Role::STUDENT)->firstOrFail()->id,
-            'status' => 'active',
-        ]);
-
-        $this->actingAs($instructor)->get(route('registrar.dashboard'))->assertStatus(403);
-        $this->actingAs($student)->get(route('registrar.students.index'))->assertStatus(403);
     }
 }

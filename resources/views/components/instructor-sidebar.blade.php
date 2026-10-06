@@ -104,6 +104,12 @@
                         <span>Question Banks</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'test_bank' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.test_bank.index') }}" class="nav-link" @if($activeNav === 'test_bank') aria-current="page" @endif>
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Test Bank</span>
+                    </a>
+                </li>
             </ul>
         </div>
 

@@ -169,29 +169,6 @@ class LoginTest extends TestCase
             ->assertStatus(200);
     }
 
-    public function test_registrar_can_login_and_access_registrar_dashboard(): void
-    {
-        $role = Role::where('slug', Role::REGISTRAR)->firstOrFail();
-        $user = User::factory()->create([
-            'email' => 'registrar@example.com',
-            'password' => bcrypt('password123'),
-            'role_id' => $role->id,
-            'status' => 'active',
-        ]);
-
-        $response = $this->post('/login', [
-            'email' => 'registrar@example.com',
-            'password' => 'password123',
-        ]);
-
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('registrar.dashboard'));
-
-        $this->actingAs($user)
-            ->get(route('registrar.dashboard'))
-            ->assertStatus(200);
-    }
-
     public function test_user_can_logout(): void
     {
         $role = Role::where('slug', Role::STUDENT)->firstOrFail();

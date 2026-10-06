@@ -285,6 +285,32 @@ class ExamController extends Controller
         return back();
     }
 
+    public function generateFromTestBank(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'instructions' => 'nullable|string',
+            'class_id' => 'required|exists:classes,id',
+            'course_id' => 'nullable|exists:courses,id',
+            'duration_minutes' => 'required|integer|min:1',
+            'passing_score_percent' => 'nullable|integer|min:0|max:100',
+            'grade_weight' => 'nullable|integer|min:0|max:100',
+            'attempt_limit' => 'nullable|integer|min:1',
+            'total_questions' => 'required|integer|min:1',
+            'category_quotas' => 'nullable|array',
+            'difficulty_quotas' => 'nullable|array',
+            'shuffle_questions' => 'boolean',
+            'shuffle_choices' => 'boolean',
+        ]);
+
+        $exam = $this->examService->generateFromTestBank($validated);
+
+        session()->flash('success', 'Exam generated from Test Bank successfully.');
+
+        return redirect()->route('instructor.courses.exams.show', [$exam->course ?: $exam->class->course, $exam]);
+    }
+
     public function grantExtension(Request $request, Course $course, Exam $exam): RedirectResponse
     {
         $this->authorize('extendDeadline', $exam);

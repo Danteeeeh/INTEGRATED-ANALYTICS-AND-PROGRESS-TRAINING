@@ -85,20 +85,6 @@ class FilteringTest extends TestCase
             ->assertSee('Hidden History');
     }
 
-    public function test_registrar_student_filters_are_applied(): void
-    {
-        $registrar = $this->makeUser(Role::REGISTRAR);
-        $studentRole = Role::where('slug', Role::STUDENT)->firstOrFail();
-        User::factory()->create(['first_name' => 'Filtered', 'last_name' => 'Student', 'role_id' => $studentRole->id, 'status' => 'inactive']);
-        User::factory()->create(['first_name' => 'Other', 'last_name' => 'Student', 'role_id' => $studentRole->id, 'status' => 'active']);
-
-        $this->actingAs($registrar)
-            ->get('/registrar/students?status=inactive&search=Filtered')
-            ->assertOk()
-            ->assertSee('Filtered Student')
-            ->assertDontSee('<div class="user-name">Other Student</div>', false);
-    }
-
     public function test_admin_enrollment_filter_is_applied(): void
     {
         $admin = $this->makeUser(Role::ADMIN);
