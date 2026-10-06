@@ -63,7 +63,14 @@
                                     <td>{{ $enrollment->class->code ?? '-' }} - {{ $enrollment->class->name ?? '-' }}</td>
                                     <td>{{ $enrollment->class->course->name ?? '-' }}</td>
                                     <td><x-user-status-badge status="{{ $enrollment->status }}" /></td>
-                                    <td>{{ $enrollment->final_grade ?? '-' }}</td>
+                                    <td>
+                                        @php($gradeSummary = $gradeSummaries[$enrollment->student_id] ?? null)
+                                        @if($gradeSummary['is_graded'] ?? false)
+                                            {{ number_format($gradeSummary['percent'], 1) }}%
+                                        @else
+                                            {{ $enrollment->final_grade ?? '-' }}
+                                        @endif
+                                    </td>
                                     <td>
                                         <div class="user-actions">
                                             <a href="{{ route('instructor.enrollments.show', $enrollment) }}" class="btn btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>

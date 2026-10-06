@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VideoUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -96,18 +97,7 @@ class Module extends Model
      */
     public function getYouTubeVideoId(): ?string
     {
-        if (!$this->external_video_url) {
-            return null;
-        }
-
-        $url = $this->external_video_url;
-        $pattern = '/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i';
-        
-        if (preg_match($pattern, $url, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return VideoUrl::youtubeId($this->external_video_url);
     }
 
     /**
@@ -136,20 +126,27 @@ class Module extends Model
     }
 
     /**
-     * Get embedded video URL
+     * Which provider the external video belongs to (youtube, vimeo, file, link).
+     */
+    public function getVideoProvider(): ?string
+    {
+        return VideoUrl::provider($this->external_video_url);
+    }
+
+    /**
+     * URL that can actually be played in an iframe / <video> element.
+     * Returns null when the URL is not a recognised video source.
      */
     public function getEmbeddedVideoUrl(): ?string
     {
-        if (!$this->external_video_url) {
-            return null;
-        }
+        return VideoUrl::embedUrl($this->external_video_url);
+    }
 
-        if ($this->isYouTubeVideo()) {
-            $videoId = $this->getYouTubeVideoId();
-            return "https://www.youtube.com/embed/{$videoId}";
-        }
-
-        // For other video platforms, return the original URL
-        return $this->external_video_url;
+    /**
+     * Can the external video be shown inline?
+     */
+    public function canEmbedExternalVideo(): bool
+    {
+        return $this->getEmbeddedVideoUrl() !== null;
     }
 }

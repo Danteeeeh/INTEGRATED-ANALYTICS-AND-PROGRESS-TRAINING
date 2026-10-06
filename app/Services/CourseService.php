@@ -18,7 +18,11 @@ class CourseService
         }
 
         if (filled($filters['department_id'] ?? null)) {
-            $query->where('department_id', $filters['department_id']);
+            $deptId = $filters['department_id'];
+            $query->where(function ($q) use ($deptId) {
+                $q->where('department_id', $deptId)
+                  ->orWhereHas('program', fn ($p) => $p->where('department_id', $deptId));
+            });
         }
 
         if (filled($filters['program_id'] ?? null)) {

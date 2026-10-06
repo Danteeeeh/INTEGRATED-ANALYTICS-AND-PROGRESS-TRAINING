@@ -32,10 +32,15 @@ class ProgressController extends Controller
         $completedEnrollments = $enrollments->where('status', 'completed');
 
         // Course progress data
+        $contentProgress = app(\App\Services\ContentProgressService::class);
         $courseProgressData = [];
         foreach ($activeEnrollments as $enrollment) {
             $course = $enrollment->class->course;
             if ($course) {
+                // Use live calculation so progress always reflects the real DB state,
+                // instead of relying on a potentially stale CourseProgress row.
+                $liveProgress = $contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
+
                 $progress = CourseProgress::where('student_id', $studentId)
                     ->where('class_id', $enrollment->class_id)
                     ->first();
@@ -59,7 +64,7 @@ class ProgressController extends Controller
                 $courseProgressData[] = [
                     'course' => $course,
                     'class' => $enrollment->class,
-                    'progress' => $progress ? $progress->progress_percent : 0,
+                    'progress' => $liveProgress['overall'],
                     'last_accessed' => $progress ? $progress->updated_at : null,
                     'modules_completed' => $moduleProgress->where('status', 'completed')->count(),
                     'total_modules' => $totalModules,
@@ -154,7 +159,7 @@ class ProgressController extends Controller
         for ($i = 0; $i < 30; $i++) {
             $date = $today->copy()->subDays($i);
             $hasActivity = LessonProgress::where('student_id', $studentId)
-                ->whereDate('updated_at', $date)
+                ->whereDate('completed_at', $date)
                 ->exists();
 
             if ($hasActivity) {
@@ -177,7 +182,7 @@ class ProgressController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $lessonsCompleted = LessonProgress::where('student_id', $studentId)
-                ->whereDate('updated_at', $date)
+                ->whereDate('completed_at', $date)
                 ->where('status', 'completed')
                 ->count();
             $quizzesTaken = QuizAttempt::where('student_id', $studentId)

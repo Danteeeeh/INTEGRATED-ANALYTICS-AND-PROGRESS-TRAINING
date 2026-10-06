@@ -38,6 +38,9 @@
                 <div class="user-actions" style="justify-content:flex-start;margin-top:14px">
                     <a href="{{ $lesson->external_url }}" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><i class="fa-solid fa-up-right-from-square"></i> Open External Lesson</a>
                 </div>
+                <div style="margin-top:16px">
+                    <x-external-video :url="$lesson->external_url" title="Lesson Video" />
+                </div>
             @endif
         </div>
     </div>

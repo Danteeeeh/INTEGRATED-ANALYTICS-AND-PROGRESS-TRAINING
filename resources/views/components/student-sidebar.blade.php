@@ -1,7 +1,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-brand-lockup"><img src="{{ asset('images/BCP_LOGO.png') }}" alt="BCP logo"><div><h2>{{ config('app.name') }}</h2>
-        <span class="sidebar-subtitle">Student Portal</span></div></div>
+        <span class="sidebar-subtitle">{{ auth()->user()->role?->name ?? 'Student' }} Portal</span></div></div>
     </div>
 
     <nav class="sidebar-nav">

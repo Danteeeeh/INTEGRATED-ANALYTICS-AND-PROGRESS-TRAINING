@@ -9,10 +9,29 @@
     </div>
     <a class="btn btn-secondary" href="{{ route('instructor.classes.gradebook.index', $class) }}"><i class="fa-solid fa-arrow-left"></i> Back to gradebook</a>
 </div>
+
 <div class="dash-stats">
-    <div class="dash-stat"><span class="dash-stat-label">Earned</span><span class="dash-stat-value">{{ number_format($earnedPoints, 1) }}</span></div>
-    <div class="dash-stat"><span class="dash-stat-label">Possible</span><span class="dash-stat-value">{{ number_format($totalPoints, 1) }}</span></div>
+    <div class="dash-stat"><span class="dash-stat-label">Earned</span><span class="dash-stat-value">{{ number_format($summary['earned_points'], 1) }}</span></div>
+    <div class="dash-stat"><span class="dash-stat-label">Possible</span><span class="dash-stat-value">{{ number_format($summary['max_points'], 1) }}</span></div>
+    <div class="dash-stat">
+        <span class="dash-stat-label">Grade</span>
+        <span class="dash-stat-value">
+            {{ ($summary['is_graded'] ?? false) ? number_format($summary['percent'], 1) . '%' : '—' }}
+            @if($summary['is_graded'] ?? false)
+                <small style="opacity:.7">({{ $summary['letter_grade'] }})</small>
+            @endif
+        </span>
+    </div>
+    <div class="dash-stat"><span class="dash-stat-label">Graded Items</span><span class="dash-stat-value">{{ $summary['graded_items'] }}</span></div>
 </div>
+
+@unless ($summary['is_graded'] ?? false)
+    <div class="empty-state" style="margin-bottom:16px">
+        <i class="fa-solid fa-circle-info"></i>
+        No released, graded items for this student yet. Scores appear here once the grade item is graded and released.
+    </div>
+@endunless
+
 <section class="dash-panel">
     <table class="dash-table">
         <thead>
@@ -20,6 +39,8 @@
                 <th>Item</th>
                 <th>Type</th>
                 <th>Score</th>
+                <th>%</th>
+                <th>Feedback</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -28,12 +49,27 @@
                 @php($grade = $item->grades->first())
                 <tr>
                     <td>{{ $item->title }}</td>
-                    <td>{{ ucfirst($item->item_type) }}</td>
+                    <td>{{ ucfirst($item->item_type ?? 'other') }}</td>
                     <td>{{ $grade ? number_format($grade->points, 1) . ' / ' . number_format($item->max_points, 1) : '—' }}</td>
+                    <td>
+                        @if($grade && $item->is_released)
+                            {{ number_format($grade->score_percent, 1) }}%
+                            <span style="opacity:.6">({{ $grade->letter_grade ?? '—' }})</span>
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td>
+                        @if($grade && $item->is_released)
+                            <span>{{ \Illuminate\Support\Str::limit($grade->feedback ?: '—', 60) }}</span>
+                        @else
+                            <span>—</span>
+                        @endif
+                    </td>
                     <td>{{ $item->is_released ? 'Released' : 'Hidden' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="search-no-results">No grade items for this class.</td></tr>
+                <tr><td colspan="6" class="search-no-results">No grade items for this class.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -185,7 +185,6 @@ class DashboardController extends Controller
                         'admins' => User::whereHas('role', fn ($q) => $q->where('slug', Role::ADMIN))->count(),
                         'instructors' => User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))->count(),
                         'students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
-                        'registrars' => User::whereHas('role', fn ($q) => $q->where('slug', Role::REGISTRAR))->count(),
                     ],
                     'attendance' => [
                         'present' => AttendanceRecord::where('attendance_records.status', 'present')->count(),

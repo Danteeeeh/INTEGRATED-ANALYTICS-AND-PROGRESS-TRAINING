@@ -1,7 +1,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-brand-lockup"><img src="{{ asset('images/BCP_LOGO.png') }}" alt="BCP logo"><div><h2>{{ config('app.name') }}</h2>
-        <span class="sidebar-subtitle">Registrar / Staff Panel</span></div></div>
+        <span class="sidebar-subtitle">{{ auth()->user()->role?->name ?? 'Registrar' }} / Staff Panel</span></div></div>
     </div>
 
     <nav class="sidebar-nav">

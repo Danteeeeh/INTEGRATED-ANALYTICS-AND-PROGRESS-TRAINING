@@ -7,6 +7,7 @@ use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
+use App\Services\GradeService;
 use Illuminate\View\View;
 
 class GradebookController extends Controller
@@ -38,24 +39,14 @@ class GradebookController extends Controller
             ->get()
             ->keyBy('grade_item_id');
 
-        $totalPoints = 0;
-        $earnedPoints = 0;
-        $totalWeighted = 0;
-        $earnedWeighted = 0;
+        // Exactly the same computation the instructor gradebook and Performance
+        // Analytics use, so a student and their instructor always see the same
+        // number. Released-but-ungraded items no longer drag the total down.
+        $summary = app(GradeService::class)->computeStudentClassGrade($studentId, $class->id);
 
-        foreach ($gradeItems as $item) {
-            $grade = $grades->get($item->id);
-            $maxPoints = $item->max_points ?? 0;
-            $points = $grade?->points ?? 0;
-            $factor = $item->factor ?? 1;
-
-            if ($maxPoints > 0) {
-                $totalPoints += $maxPoints * $factor;
-                $earnedPoints += $points * $factor;
-            }
-        }
-
-        $overallPercent = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
+        $totalPoints = $summary['max_points'];
+        $earnedPoints = $summary['earned_points'];
+        $overallPercent = $summary['percent'];
 
         return view('student.gradebook.index', compact(
             'class',
@@ -64,7 +55,8 @@ class GradebookController extends Controller
             'grades',
             'totalPoints',
             'earnedPoints',
-            'overallPercent'
+            'overallPercent',
+            'summary'
         ));
     }
 }

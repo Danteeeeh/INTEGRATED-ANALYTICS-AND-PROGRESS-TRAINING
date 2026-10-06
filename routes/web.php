@@ -543,6 +543,11 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/{questionBank}/edit', [InstructorQuestionBankController::class, 'edit'])->name('edit');
             Route::put('/{questionBank}', [InstructorQuestionBankController::class, 'update'])->name('update');
             Route::delete('/{questionBank}', [InstructorQuestionBankController::class, 'destroy'])->name('destroy');
+
+            // Questions inside a bank.
+            Route::post('/{questionBank}/questions', [InstructorQuestionBankController::class, 'storeQuestion'])->name('questions.store');
+            Route::put('/{questionBank}/questions/{question}', [InstructorQuestionBankController::class, 'updateQuestion'])->name('questions.update');
+            Route::delete('/{questionBank}/questions/{question}', [InstructorQuestionBankController::class, 'destroyQuestion'])->name('questions.destroy');
         });
 
         Route::prefix('submissions')->name('submissions.')->group(function () {

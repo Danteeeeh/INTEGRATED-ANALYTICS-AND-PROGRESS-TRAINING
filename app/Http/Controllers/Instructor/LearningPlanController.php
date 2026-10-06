@@ -8,6 +8,7 @@ use App\Models\Enrollment;
 use App\Models\LearningPlan;
 use App\Models\LearningPlanItem;
 use App\Models\User;
+use App\Services\GradeService;
 use App\Services\LearningPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,24 +28,34 @@ class LearningPlanController extends Controller
 
         $class->load(['course']);
 
-        // Reuse the same at-risk rule the instructor dashboard uses:
-        // active enrollments with a final grade below 60 or not yet graded.
+        // Reuse the same at-risk rule the instructor dashboard uses: an active
+        // enrollment that has a computed grade below the passing mark.
         $enrollments = Enrollment::where('class_id', $class->id)
             ->where('status', 'active')
             ->with(['student', 'student.learningPlans' => fn ($q) => $q->with('items')])
             ->orderBy('enrolled_at', 'desc')
             ->get();
 
-        $students = $enrollments->map(function (Enrollment $enrollment) {
+        $summaries = app(GradeService::class)->computeClassGradeSummaries(
+            $class->id,
+            $enrollments->pluck('student_id')->all()
+        );
+
+        $passingGrade = (float) config('lms.passing_grade', 60);
+
+        $students = $enrollments->map(function (Enrollment $enrollment) use ($summaries, $passingGrade) {
             $plan = $enrollment->student?->learningPlans
                 ?->sortByDesc('created_at')
                 ?->first();
+
+            $summary = $summaries[$enrollment->student_id] ?? null;
 
             return [
                 'enrollment' => $enrollment,
                 'student' => $enrollment->student,
                 'plan' => $plan,
-                'is_at_risk' => $enrollment->final_grade === null || (float) $enrollment->final_grade < 60,
+                'grade' => $summary['is_graded'] ?? false ? $summary['percent'] : null,
+                'is_at_risk' => ($summary['is_graded'] ?? false) && $summary['percent'] < $passingGrade,
             ];
         });
 

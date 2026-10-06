@@ -290,7 +290,7 @@ class ContentProgressService
             });
     }
 
-    public function calculateCourseLiveProgress(Course $course, int $studentId): array
+    public function calculateCourseLiveProgress(Course $course, int $studentId, ?int $classId = null): array
     {
         $totalModules = $course->modules()->published()->count();
         $completedModules = ModuleProgress::where('student_id', $studentId)
@@ -313,7 +313,7 @@ class ContentProgressService
         $lessonsPct = $totalLessons > 0 ? ($completedLessons / $totalLessons) * 100 : 0;
 
         $courseIds = collect([$course->id]);
-        $classIds = $course->classes()->pluck('classes.id');
+        $classIds = $classId ? collect([$classId]) : $course->classes()->pluck('classes.id');
         $assignmentsBase = $this->studentAssignmentsQuery($classIds, $courseIds);
         $totalAssignments = (clone $assignmentsBase)->count();
         $completedAssignments = $totalAssignments > 0

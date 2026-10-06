@@ -1,4 +1,4 @@
-@extends('layouts.admin-sms')
+@extends('layouts.admin')
 
 @section('title', 'Edit Student')
 @php
@@ -6,15 +6,6 @@
     $pageTitle = 'Edit Student';
     $pageIcon = '<i class="fa-solid fa-user-graduate"></i>';
 @endphp
-
-@section('page-title-bar')
-    <div class="page-title-bar">
-        <h2 class="page-title">
-            <i class="fa-solid fa-user-graduate"></i>
-            Edit Student
-        </h2>
-    </div>
-@endsection
 
 @section('content')
     <div class="form-card enhanced-form">

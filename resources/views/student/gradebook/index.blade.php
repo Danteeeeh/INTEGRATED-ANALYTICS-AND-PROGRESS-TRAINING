@@ -19,9 +19,9 @@
     </x-user-page-header>
 
     <div class="user-stat-grid">
-        <x-user-stat-card label="Overall" value="{{ number_format($overallPercent, 1) }}%" icon="fa-chart-line" trend="Average" />
+        <x-user-stat-card label="Overall" value="{{ ($summary['is_graded'] ?? false) ? number_format($overallPercent, 1) . '%' : '—' }}" icon="fa-chart-line" trend="{{ ($summary['is_graded'] ?? false) ? $summary['letter_grade'] : 'Not graded yet' }}" />
         <x-user-stat-card label="Earned" value="{{ number_format($earnedPoints, 1) }}" icon="fa-star" footer="weighted points" />
-        <x-user-stat-card label="Possible" value="{{ number_format($totalPoints, 1) }}" icon="fa-bullseye" footer="weighted points" />
+        <x-user-stat-card label="Possible" value="{{ number_format($totalPoints, 1) }}" icon="fa-bullseye" footer="weighted, graded items" />
         <x-user-stat-card label="Released Items" value="{{ $gradeItems->count() }}" icon="fa-file-lines" footer="grade items" />
     </div>
 

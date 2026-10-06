@@ -64,32 +64,50 @@ class EnrollmentController extends Controller
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:users,id',
-            'class_id' => 'required|exists:classes,id',
+            'class_ids' => 'required|array|min:1',
+            'class_ids.*' => 'required|exists:classes,id',
             'status' => 'required|in:pending,active,completed,dropped',
             'notes' => 'nullable|string',
         ]);
 
-        // Check if student is already enrolled in this class
-        $existing = Enrollment::where('student_id', $validated['student_id'])
-            ->where('class_id', $validated['class_id'])
-            ->where('status', '!=', 'dropped')
-            ->first();
+        $created = 0;
+        $errors = [];
 
-        if ($existing) {
-            return back()->with('error', 'Student is already enrolled in this class.');
+        foreach ($validated['class_ids'] as $classId) {
+            $existing = Enrollment::where('student_id', $validated['student_id'])
+                ->where('class_id', $classId)
+                ->where('status', '!=', 'dropped')
+                ->first();
+
+            if ($existing) {
+                $errors[] = "Student is already enrolled in class #{$classId}.";
+
+                continue;
+            }
+
+            $class = ClassModel::find($classId);
+
+            if ($class && $class->isFull()) {
+                $errors[] = "Class {$class->code} is already at full capacity.";
+
+                continue;
+            }
+
+            Enrollment::create([
+                'student_id' => $validated['student_id'],
+                'class_id' => $classId,
+                'status' => $validated['status'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            $created++;
         }
 
-        // Check class capacity
-        $class = ClassModel::find($validated['class_id']);
-
-        if ($class->isFull()) {
-            return back()->with('error', 'Class is already at full capacity.');
-        }
-
-        Enrollment::create($validated);
+        $message = $created > 0 ? "{$created} enrollment(s) created successfully." : 'No enrollments were created.';
 
         return redirect()->route('admin.enrollments.index')
-            ->with('status', 'Enrollment created successfully.');
+            ->with('status', $message)
+            ->with('errors', $errors);
     }
 
     public function show(Enrollment $enrollment): View

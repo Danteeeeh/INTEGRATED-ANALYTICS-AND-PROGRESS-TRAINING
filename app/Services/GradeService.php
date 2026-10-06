@@ -9,6 +9,7 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeHistory;
 use App\Models\GradeItem;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -224,28 +225,106 @@ class GradeService
         });
     }
 
-    public function calculateFinalGrade(Enrollment $enrollment): array
+    /**
+     * Single source of truth for a student's grade in a class.
+     *
+     * Method: points-weighted across grade items that are BOTH released and
+     * graded. Ungraded or unreleased items are excluded from the denominator
+     * so a student is never penalised for work that has not been scored or
+     * published yet.
+     */
+    public function computeStudentClassGrade(int $studentId, int $classId): array
     {
-        $class = $enrollment->class;
-
-        // Simple average of every released grade in the class.
-        $grades = Grade::where('student_id', $enrollment->student_id)
-            ->whereHas('item', function ($query) use ($class) {
-                $query->where('class_id', $class->id)
-                    ->where('is_released', true);
-            })
+        $grades = Grade::query()
+            ->where('student_id', $studentId)
+            ->whereHas('item', fn ($q) => $q->where('class_id', $classId)->where('is_released', true))
+            ->with('item:id,max_points,factor')
             ->get();
 
-        $average = $grades->isNotEmpty() ? $grades->avg('score_percent') : 0;
-        $letterGrade = $this->percentageToLetter($average);
+        return $this->summariseGrades($grades);
+    }
+
+    /**
+     * Batch version of {@see computeStudentClassGrade()} for a whole class.
+     *
+     * @param  array<int>|null  $studentIds  Restrict to these students (null = everyone graded).
+     * @return array<int, array{earned_points: float, max_points: float, percent: float, letter_grade: string, graded_items: int, is_graded: bool}>
+     */
+    public function computeClassGradeSummaries(int $classId, ?array $studentIds = null): array
+    {
+        $query = Grade::query()
+            ->whereHas('item', fn ($q) => $q->where('class_id', $classId)->where('is_released', true))
+            ->with('item:id,max_points,factor');
+
+        if ($studentIds !== null) {
+            $query->whereIn('student_id', $studentIds);
+        }
+
+        $summaries = [];
+
+        foreach ($query->get()->groupBy('student_id') as $studentId => $grades) {
+            $summaries[$studentId] = $this->summariseGrades($grades);
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * Computed grades for an arbitrary set of enrollments (which may span
+     * several classes), batched to avoid one query per row.
+     *
+     * @param  iterable<int, Enrollment>  $enrollments
+     * @return array<int, array<string, mixed>>  Keyed by student id.
+     */
+    public function computeSummariesForEnrollments(iterable $enrollments): array
+    {
+        $byClass = [];
+
+        foreach ($enrollments as $enrollment) {
+            $byClass[$enrollment->class_id][] = $enrollment->student_id;
+        }
+
+        $summaries = [];
+
+        foreach ($byClass as $classId => $studentIds) {
+            $summaries += $this->computeClassGradeSummaries($classId, array_values(array_unique($studentIds)));
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Grade>  $grades
+     */
+    protected function summariseGrades($grades): array
+    {
+        $earned = 0.0;
+        $possible = 0.0;
+
+        foreach ($grades as $grade) {
+            // Grade items carry a weighting (factor): exams often 0.3/0.3/0.4,
+            // participation 0.1, etc. Weighting is applied here so the instructor
+            // gradebook, Performance Analytics and the student gradebook all agree.
+            $factor = (float) ($grade->item?->factor ?? 1);
+            $earned += (float) $grade->points * $factor;
+            $possible += (float) ($grade->item?->max_points ?? 0) * $factor;
+        }
+
+        $percent = $possible > 0 ? round(($earned / $possible) * 100, 2) : 0.0;
 
         return [
-            'percentage' => round((float) $average, 2),
-            'letter_grade' => $letterGrade,
-            'total_points' => $grades->sum('points'),
-            'max_points' => $grades->sum(fn ($grade) => $grade->item?->max_points ?? 0),
-            'method' => 'simple_average',
+            'earned_points' => round($earned, 2),
+            'max_points' => round($possible, 2),
+            'percent' => $percent,
+            'letter_grade' => $this->percentageToLetter($percent),
+            'graded_items' => $grades->count(),
+            'is_graded' => $grades->isNotEmpty() && $possible > 0,
         ];
+    }
+
+    public function calculateFinalGrade(Enrollment $enrollment): array
+    {
+        return $this->computeStudentClassGrade($enrollment->student_id, $enrollment->class_id);
     }
 
     protected function calculatePercentage(float $points, float $maxPoints): float
@@ -253,7 +332,7 @@ class GradeService
         return $maxPoints > 0 ? ($points / $maxPoints) * 100 : 0;
     }
 
-    protected function percentageToLetter(float $percentage): string
+    public function percentageToLetter(float $percentage): string
     {
         if ($percentage >= 90) {
             return 'A';
@@ -271,6 +350,21 @@ class GradeService
         return 'F';
     }
 
+    /**
+     * Drop the cached instructor dashboard so Performance Analytics reflects a
+     * grade change immediately instead of after the cache TTL.
+     */
+    public function invalidateInstructorDashboardCache(?int $classId = null): void
+    {
+        $instructorIds = $classId
+            ? ClassModel::where('id', $classId)->pluck('instructor_id')
+            : ClassModel::distinct()->pluck('instructor_id');
+
+        foreach ($instructorIds->filter()->unique() as $instructorId) {
+            Cache::forget("instructor_dashboard_{$instructorId}");
+        }
+    }
+
     public function getStudentGradesForClass(int $studentId, int $classId): array
     {
         $grades = Grade::where('student_id', $studentId)
@@ -283,12 +377,7 @@ class GradeService
 
         return [
             'grades' => $grades,
-            'overall_average' => Grade::where('student_id', $studentId)
-                ->whereHas('item', function ($query) use ($classId) {
-                    $query->where('class_id', $classId)
-                        ->where('is_released', true);
-                })
-                ->avg('score_percent') ?? 0,
+            'overall_average' => $this->computeStudentClassGrade($studentId, $classId)['percent'],
         ];
     }
 

@@ -86,17 +86,18 @@
                         <span class="enrollment-section-icon"><i class="fa-solid fa-school" aria-hidden="true"></i></span>
                         <div><h3 id="create-class-heading">Class assignment</h3><p>Select where the student will learn.</p></div>
                     </div>
-                    <div class="enrollment-create-field @error('class_id') has-error @enderror">
-                        <label for="class_id">Class <span aria-hidden="true">*</span></label>
-                        <select id="class_id" name="class_id" required aria-describedby="class-help class-error" @error('class_id') aria-invalid="true" @enderror>
-                            <option value="">Select a class</option>
+                    <div class="enrollment-create-field @error('class_ids') has-error @enderror">
+                        <label for="class_ids">Class assignment <span aria-hidden="true">*</span></label>
+                        <div style="display:grid;gap:6px;margin-bottom:8px;">
                             @foreach($classes as $class)
-                                <option value="{{ $class->id }}" data-course="{{ $class->course?->title ?? $class->course?->name ?? '' }}" data-capacity="{{ $class->max_students ?? '—' }}" @selected((string) old('class_id') === (string) $class->id)>{{ $class->code }} — {{ $class->course?->title ?? $class->course?->name ?? 'Class' }}</option>
+                                <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--dash-line);border-radius:8px;">
+                                    <input type="checkbox" name="class_ids[]" value="{{ $class->id }}" id="class_{{ $class->id }}" @checked(in_array($class->id, (array) old('class_ids', [])))>
+                                    <span><strong>{{ $class->code }}</strong> — {{ $class->course?->title ?? $class->course?->name ?? 'Class' }} <small style="color:var(--dash-muted);">(capacity: {{ $class->max_students ?? '—' }})</small></span>
+                                </label>
                             @endforeach
-                        </select>
-                        <small id="class-help">Only active classes are listed. Capacity is checked on submit.</small>
-                        <div id="classPreview" class="enrollment-create-class-preview" hidden><div><span class="enrollment-preview-label">Selected class</span><strong id="classPreviewName">Class code</strong><small id="classPreviewCourse">Course title</small></div><span class="enrollment-class-capacity"><i class="fa-solid fa-users" aria-hidden="true"></i><span id="classPreviewCapacity">Capacity —</span></span></div>
-                        @error('class_id')<span id="class-error" class="enrollment-create-error" role="alert">{{ $message }}</span>@enderror
+                        </div>
+                        <small id="class-help">Check one or more classes. Capacity and duplicates are checked on submit.</small>
+                        @error('class_ids')<span id="class-error" class="enrollment-create-error" role="alert">{{ $message }}</span>@enderror
                     </div>
                 </section>
 
@@ -153,11 +154,6 @@
     const studentInitial = document.getElementById('studentPreviewInitial');
     const studentName = document.getElementById('studentPreviewName');
     const studentMeta = document.getElementById('studentPreviewMeta');
-    const classSelect = document.getElementById('class_id');
-    const classPreview = document.getElementById('classPreview');
-    const className = document.getElementById('classPreviewName');
-    const classCourse = document.getElementById('classPreviewCourse');
-    const classCapacity = document.getElementById('classPreviewCapacity');
     const notes = document.getElementById('notes');
     const notesCount = document.getElementById('notesCount');
     const submit = document.getElementById('enrollmentCreateSubmit');
@@ -171,18 +167,8 @@
         if (studentInitial) studentInitial.textContent = (option.textContent.trim()[0] || 'S').toUpperCase();
     }
 
-    function updateClassPreview() {
-        const option = classSelect?.selectedOptions[0];
-        if (!option || !option.value) { if (classPreview) classPreview.hidden = true; return; }
-        if (classPreview) classPreview.hidden = false;
-        if (className) className.textContent = option.textContent.split(' — ')[0];
-        if (classCourse) classCourse.textContent = option.dataset.course || 'Course assignment';
-        if (classCapacity) classCapacity.textContent = 'Capacity ' + (option.dataset.capacity || '—');
-    }
-
     function updateNotes() { if (notes && notesCount) notesCount.textContent = notes.value.length + ' / 5000'; }
     if (student) student.addEventListener('change', updateStudentPreview);
-    if (classSelect) classSelect.addEventListener('change', updateClassPreview);
     if (notes) notes.addEventListener('input', updateNotes);
     if (form) form.addEventListener('submit', function () {
         if (!submit || submit.disabled) return;

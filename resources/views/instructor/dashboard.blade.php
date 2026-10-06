@@ -120,7 +120,7 @@
             icon="fa-chart-line"
             valueId="stat-completion-value"
             trend="Avg"
-            footer="{{ $stats['completed_enrollments'] ?? 0 }} of {{ $stats['active_enrollments'] ?? 0 }} completed"
+            footer="{{ $stats['completed_enrollments'] ?? 0 }} of {{ $stats['active_enrollments'] ?? 0 }} marked completed"
         />
         <x-user-stat-card
             label="Pending Submissions"
@@ -177,7 +177,7 @@
                             <p class="dash-list-sub">{{ $enrollment->class?->course?->title ?? '' }}</p>
                         </div>
                         <div class="dash-list-meta">
-                            <span class="dash-meta-chip m-rose">{{ $enrollment->final_grade ? number_format($enrollment->final_grade, 1) . '%' : 'No grade' }}</span>
+                            <span class="dash-meta-chip m-rose">{{ isset($enrollment->computed_percent) ? number_format($enrollment->computed_percent, 1) . '%' : 'No grade' }}</span>
                             <span class="dash-list-date">{{ $enrollment->class?->code }}</span>
                         </div>
                     </li>

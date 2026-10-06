@@ -403,9 +403,9 @@
                     adminCharts['adminUsersChart'] = new Chart(document.getElementById('adminUsersCanvas'), {
                         type: 'doughnut',
                         data: {
-                            labels: ['Admins', 'Instructors', 'Students', 'Registrars'],
-                            datasets: [{ data: [d.users_by_role.admins, d.users_by_role.instructors, d.users_by_role.students, d.users_by_role.registrars],
-                                backgroundColor: ['#62c9f5', '#8b5cf6', '#34d399', '#fbbf24'], borderColor: '#151c2c', borderWidth: 2 }]
+                            labels: ['Admins', 'Instructors', 'Students'],
+                            datasets: [{ data: [d.users_by_role.admins, d.users_by_role.instructors, d.users_by_role.students],
+                                backgroundColor: ['#62c9f5', '#8b5cf6', '#34d399'], borderColor: '#151c2c', borderWidth: 2 }]
                         },
                         options: adminChartOptions()
                     });

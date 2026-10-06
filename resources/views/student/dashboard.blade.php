@@ -346,7 +346,6 @@
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming exams</li>
                 @endforelse
-                @endforelse
                 @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty() && ($stats['upcoming_exams'] ?? [])->isEmpty())
                     <li class="dash-list-empty"><i class="fa-solid fa-mug-hot"></i> All caught up — nothing due soon</li>
                 @endif

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Instructor;
 use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Services\ClassService;
+use App\Services\GradeService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -27,7 +28,10 @@ class ClassController extends Controller
 
         $class->load('course', 'academicPeriod', 'enrollments.student', 'assignments', 'quizzes', 'calendarEvents');
 
-        return view('instructor.classes.show', compact('class'));
+        // Real class grades, same computation as the gradebook and analytics.
+        $gradeSummaries = app(GradeService::class)->computeClassGradeSummaries($class->id);
+
+        return view('instructor.classes.show', compact('class', 'gradeSummaries'));
     }
 
     public function roster(ClassModel $class): View

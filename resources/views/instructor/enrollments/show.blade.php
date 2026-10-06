@@ -284,11 +284,19 @@
                 <span class="enr-stat-value">{{ $enrollment->class->academicPeriod->name ?? '—' }}</span>
             </div>
         </div>
-        @if($enrollment->final_grade !== null)
+        @if($gradeSummary['is_graded'])
+            <div class="enr-stat">
+                <span class="enr-stat-icon {{ $gradeSummary['percent'] >= 75 ? 'esi-green' : 'esi-rose' }}"><i class="fa-solid fa-star"></i></span>
+                <div class="enr-stat-body">
+                    <span class="enr-stat-label">Class Grade</span>
+                    <span class="enr-stat-value">{{ number_format($gradeSummary['percent'], 1) }}% ({{ $gradeSummary['letter_grade'] }})</span>
+                </div>
+            </div>
+        @elseif($enrollment->final_grade !== null)
             <div class="enr-stat">
                 <span class="enr-stat-icon {{ $enrollment->final_grade >= 75 ? 'esi-green' : 'esi-rose' }}"><i class="fa-solid fa-star"></i></span>
                 <div class="enr-stat-body">
-                    <span class="enr-stat-label">Final Grade</span>
+                    <span class="enr-stat-label">Final Grade (manual)</span>
                     <span class="enr-stat-value">{{ $enrollment->final_grade }}%</span>
                 </div>
             </div>
@@ -476,9 +484,9 @@
         <div class="enr-card" style="margin-bottom:0;">
             <div class="enr-card-head">
                 <h4><i class="fa-solid fa-star"></i> Grades ({{ $grades->count() }})</h4>
-                @if($averageGrade !== null)
-                    <span class="enr-head-badge {{ ($averageGrade >= 75 ? 'bh-green' : ($averageGrade >= 60 ? 'bh-amber' : 'bh-rose')) }}">
-                        Avg {{ number_format($averageGrade, 1) }}%
+                @if($gradeSummary['is_graded'])
+                    <span class="enr-head-badge {{ ($gradeSummary['percent'] >= 75 ? 'bh-green' : ($gradeSummary['percent'] >= 60 ? 'bh-amber' : 'bh-rose')) }}">
+                        {{ number_format($gradeSummary['percent'], 1) }}%
                     </span>
                 @endif
             </div>

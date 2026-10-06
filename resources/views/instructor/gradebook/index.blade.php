@@ -30,7 +30,7 @@
         <x-user-stat-card label="Grade Items" value="{{ $gradeItems->count() }}" icon="fa-tasks" />
         <x-user-stat-card
             label="Class Average"
-            value="{{ number_format($gradeItems->flatMap(fn ($item) => $item->grades)->avg('score_percent') ?? 0, 1) }}%"
+            value="{{ number_format($classAverage, 1) }}%"
             icon="fa-chart-line"
         />
     </div>
@@ -65,14 +65,27 @@
                                 <div class="user-email">{{ $item->max_points }} pts</div>
                             </th>
                         @endforeach
-                        <th>Total</th>
-                        <th>%</th>
+                        <th title="Earned points out of possible points across released, graded items">
+                            Total
+                            <div class="user-email">released &amp; graded only</div>
+                        </th>
+                        <th title="Points-weighted class grade">
+                            Grade
+                            <div class="user-email">{{ config('lms.passing_grade', 60) }}% to pass</div>
+                        </th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($students as $enrollment)
-                        <tr class="student-row" data-student="{{ $enrollment->student->name }}" style="border-bottom: 1px solid #e2e8f0;">
+                        @php
+                            $summary = $summaries[$enrollment->student_id] ?? null;
+                            $rowGradeCount = $gradeItems->filter(fn ($item) => $item->grades->contains('student_id', $enrollment->student_id))->count();
+                        @endphp
+                        <tr class="student-row"
+                            data-student="{{ $enrollment->student->name }}"
+                            data-status="{{ ! $gradeItems->isEmpty() && $rowGradeCount === $gradeItems->count() ? 'graded' : 'ungraded' }}{{ ($summary['is_graded'] ?? false) ? ' released' : '' }}"
+                            style="border-bottom: 1px solid #e2e8f0;">
                             <td style="padding: 12px;">
                                 <div style="font-weight: 600; color: #1e293b;">{{ $enrollment->student->name }}</div>
                                 <div style="font-size: 0.85rem; color: #64748b;">{{ $enrollment->student->email }}</div>
@@ -102,26 +115,29 @@
                                     @endif
                                 </td>
                             @endforeach
-                            
-                            @php
-                                $totalPoints = $gradeItems->sum('max_points');
-                                $earnedPoints = $gradeItems->flatMap(fn ($item) => $item->grades)
-                                    ->where('student_id', $enrollment->student_id)
-                                    ->sum('points');
-                                $totalPercent = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
-                            @endphp
-                            
+
+                            {{-- Released + graded items only, matching the student detail page and analytics. --}}
                             <td style="padding: 12px; text-align: center; font-weight: 600;">
-                                {{ $earnedPoints }}/{{ $totalPoints }}
+                                @if($summary['is_graded'] ?? false)
+                                    {{ $summary['earned_points'] }}/{{ $summary['max_points'] }}
+                                @else
+                                    <span style="color: #94a3b8; font-weight: 500;">—</span>
+                                @endif
                             </td>
-                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ ($totalPercent >= 70 ? '#16a34a' : ($totalPercent >= 50 ? '#d97706' : '#dc2626')) }};">
-                                {{ number_format($totalPercent, 1) }}%
+                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ (($summary['percent'] ?? 0) >= 70 ? '#16a34a' : (($summary['percent'] ?? 0) >= 50 ? '#d97706' : '#dc2626')) }};">
+                                @if($summary['is_graded'] ?? false)
+                                    {{ number_format($summary['percent'], 1) }}%
+                                    <div style="font-size: 0.7rem; color: #64748b;">{{ $summary['letter_grade'] }}</div>
+                                @else
+                                    <span style="color: #94a3b8; font-weight: 500;">Not graded</span>
+                                @endif
                             </td>
                             <td style="padding: 12px; text-align: center;">
-                                <button type="button" onclick="showStudentGrades({{ $enrollment->student_id }})" 
-                                        class="btn-add" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
+                                <a href="{{ route('instructor.classes.gradebook.student', [$class, $enrollment->student_id]) }}"
+                                   class="btn-add" title="View student grades" aria-label="View {{ $enrollment->student->name }}'s grades"
+                                   style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
                                     <i class="fa-solid fa-eye"></i>
-                                </button>
+                                </a>
                             </td>
                         </tr>
                     @endforeach
@@ -393,15 +409,25 @@
         function filterGrades() {
             const statusFilter = document.getElementById('statusFilter').value;
             const studentSearch = document.getElementById('studentSearch').value.toLowerCase();
-            
+
             const rows = document.querySelectorAll('.student-row');
-            
+
             rows.forEach(row => {
-                const studentName = row.dataset.student.toLowerCase();
+                const studentName = (row.dataset.student || '').toLowerCase();
                 const showByStudent = !studentSearch || studentName.includes(studentSearch);
-                
-                // Add status filtering logic here
-                row.style.display = showByStudent ? '' : 'none';
+
+                const flags = (row.dataset.status || '').split(' ');
+                let showByStatus = true;
+
+                if (statusFilter === 'graded') {
+                    showByStatus = flags.includes('graded');
+                } else if (statusFilter === 'ungraded') {
+                    showByStatus = flags.includes('ungraded');
+                } else if (statusFilter === 'released') {
+                    showByStatus = flags.includes('released');
+                }
+
+                row.style.display = (showByStudent && showByStatus) ? '' : 'none';
             });
         }
 

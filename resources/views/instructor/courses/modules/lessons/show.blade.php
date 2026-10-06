@@ -41,10 +41,21 @@
                 <div><span class="dash-stat-label">Type</span><div style="color:#eef4ff;font-weight:650;margin-top:3px;">{{ ucfirst($lesson->lesson_type ?? 'text') }}</div></div>
                 <div><span class="dash-stat-label">Duration</span><div style="color:#eef4ff;font-weight:650;margin-top:3px;">{{ $lesson->duration_minutes ? $lesson->duration_minutes . ' min' : '—' }}</div></div>
                 <div><span class="dash-stat-label">Position</span><div style="color:#eef4ff;font-weight:650;margin-top:3px;">{{ $lesson->position ?? '—' }}</div></div>
-                @if($lesson->external_url)
-                    <div><span class="dash-stat-label">External URL</span><div style="margin-top:3px;"><a href="{{ $lesson->external_url }}" target="_blank" style="color:#62c9f5;">{{ $lesson->external_url }}</a></div></div>
-                @endif
             </div>
+
+            {{-- Embeds YouTube / Vimeo / direct video files inline;
+                 falls back to an open-in-new-tab card otherwise. --}}
+            @if($lesson->external_url)
+                <div>
+                    <span class="dash-stat-label">External Video</span>
+                    <div style="margin-top:6px;">
+                        <x-external-video
+                            :url="$lesson->external_url"
+                            title="Lesson Video"
+                        />
+                    </div>
+                </div>
+            @endif
 
             @if($lesson->description)
                 <div>

@@ -20,6 +20,7 @@ use App\Models\Exam;
 use App\Models\ExamAttempt;
 use App\Models\User;
 use App\Models\VirtualClass;
+use App\Services\GradeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -28,6 +29,10 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private GradeService $grades)
+    {
+    }
+
     public function __invoke(): View
     {
         $instructorId = auth()->id();
@@ -64,7 +69,17 @@ class DashboardController extends Controller
             $totalStudents += $class->enrollments->count();
             $activeEnrollments += $class->enrollments->where('status', 'active')->count();
             $completedEnrollments += $class->enrollments->where('status', 'completed')->count();
-            $gradedEnrollments += $class->enrollments->whereNotNull('final_grade')->count();
+        }
+
+        // Real grades per class, computed from released + graded grade items.
+        // `enrollments.final_grade` is only populated when an instructor manually
+        // completes an enrollment, so it cannot be used as a grade source.
+        $classSummaries = [];
+
+        foreach ($myClasses as $class) {
+            $classSummaries[$class->id] = $this->grades->computeClassGradeSummaries($class->id);
+
+            $gradedEnrollments += collect($classSummaries[$class->id])->where('is_graded', true)->count();
         }
 
         // Get instructor's class IDs
@@ -172,37 +187,94 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Performance metrics
-        $averageGrade = $gradedEnrollments > 0
-            ? $myClasses->flatMap->enrollments->whereNotNull('final_grade')->avg('final_grade')
-            : 0;
+        // Performance metrics — derived from real released grade items.
+        $allGradedPercents = collect($classSummaries)
+            ->flatMap(fn ($summaries) => collect($summaries)->where('is_graded', true))
+            ->pluck('percent');
 
-        $completionRate = $activeEnrollments > 0
-            ? ($completedEnrollments / $activeEnrollments) * 100
+        $averageGrade = $allGradedPercents->isNotEmpty() ? $allGradedPercents->avg() : 0;
+
+        $activeRows = 0;
+        $progressSum = 0.0;
+
+        foreach ($myClasses as $class) {
+            foreach ($class->enrollments->where('status', 'active') as $enrollment) {
+                $course = $class->course;
+                if (! $course) {
+                    continue;
+                }
+
+                $live = app(\App\Services\ContentProgressService::class)
+                    ->calculateCourseLiveProgress($course, $enrollment->student_id, $enrollment->class_id);
+
+                $progressSum += $live['overall'];
+                $activeRows++;
+            }
+        }
+
+        // Global completion/completion rate is the average live course progress
+        // across the instructor's enrolled students, not "how many classes exist".
+        $completionRate = $activeRows > 0
+            ? $progressSum / $activeRows
             : 0;
 
         $classPerformance = [];
         foreach ($myClasses as $class) {
-            $classGrades = $class->enrollments->whereNotNull('final_grade');
+            $classGraded = collect($classSummaries[$class->id])->where('is_graded', true);
+
+            $classLiveAvg = 0.0;
+            $classLiveCount = 0;
+
+            foreach ($class->enrollments->where('status', 'active') as $enrollment) {
+                $course = $class->course;
+                if (! $course) {
+                    continue;
+                }
+
+                $live = app(\App\Services\ContentProgressService::class)
+                    ->calculateCourseLiveProgress($course, $enrollment->student_id, $enrollment->class_id);
+
+                $classLiveAvg += $live['overall'];
+                $classLiveCount++;
+            }
+
             $classPerformance[] = [
                 'class' => $class,
-                'average_grade' => $classGrades->isNotEmpty() ? $classGrades->avg('final_grade') : 0,
-                'completion_rate' => $class->enrollments->isNotEmpty()
-                    ? ($class->enrollments->where('status', 'completed')->count() / $class->enrollments->count()) * 100
-                    : 0,
+                'average_grade' => $classGraded->isNotEmpty() ? (float) $classGraded->avg('percent') : 0,
+                'completion_rate' => $classLiveCount > 0 ? $classLiveAvg / $classLiveCount : 0,
+                'graded_students' => $classGraded->count(),
             ];
         }
 
-        // At-risk students (low grades or low participation) with optimized query
-        $atRiskStudents = Enrollment::whereIn('class_id', $classIds)
-            ->where('status', 'active')
-            ->where(function ($query) {
-                $query->where('final_grade', '<', 60)
-                    ->orWhereNull('final_grade');
-            })
-            ->with(['student', 'class.course'])
-            ->limit(10)
-            ->get();
+        // At-risk = a released grade exists AND it is below the passing mark.
+        // Previously this flagged every student because final_grade is almost
+        // always NULL, which made the count meaningless.
+        $passingGrade = (float) config('lms.passing_grade', 60);
+        $atRiskEnrollments = collect();
+
+        foreach ($myClasses as $class) {
+            $summaries = $classSummaries[$class->id];
+
+            $atRiskIds = collect($summaries)
+                ->filter(fn ($s) => $s['is_graded'] && $s['percent'] < $passingGrade)
+                ->keys();
+
+            if ($atRiskIds->isEmpty()) {
+                continue;
+            }
+
+            Enrollment::where('class_id', $class->id)
+                ->where('status', 'active')
+                ->whereIn('student_id', $atRiskIds)
+                ->get()
+                ->each(function ($enrollment) use ($atRiskEnrollments, $summaries) {
+                    $enrollment->loadMissing(['student', 'class.course']);
+                    $enrollment->computed_percent = $summaries[$enrollment->student_id]['percent'] ?? null;
+                    $atRiskEnrollments->push($enrollment);
+                });
+        }
+
+        $atRiskStudents = $atRiskEnrollments->take(10)->values();
 
         // Recent enrollments with optimized query
         $recentEnrollments = Enrollment::whereHas('class', fn ($q) => $q->where('instructor_id', $instructorId))
@@ -224,6 +296,7 @@ class DashboardController extends Controller
             'average_grade' => $averageGrade,
             'completion_rate' => $completionRate,
             'class_performance' => $classPerformance,
+            'class_summaries' => $classSummaries,
 
             // Course Categories
             'published_courses' => $myCourses->where('status', 'published')->count(),
@@ -321,15 +394,20 @@ class DashboardController extends Controller
                     try {
                         switch ($validated['type']) {
                             case 'students':
-                                fputcsv($file, ['Student Name', 'Class', 'Course', 'Status', 'Grade', 'Enrolled Date']);
+                                fputcsv($file, ['Student Name', 'Class', 'Course', 'Status', 'Grade %', 'Letter', 'Enrolled Date']);
                                 foreach ($stats['my_classes_list'] as $class) {
+                                    $summaries = $stats['class_summaries'][$class->id] ?? [];
+
                                     foreach ($class->enrollments as $enrollment) {
+                                        $summary = $summaries[$enrollment->student_id] ?? null;
+
                                         fputcsv($file, [
-                                            $enrollment->student->name ?? 'N/A',
+                                            $enrollment->student?->name ?? 'N/A',
                                             $class->code,
-                                            $class->course->title ?? 'N/A',
+                                            $class->course?->title ?? 'N/A',
                                             $enrollment->status,
-                                            $enrollment->final_grade ?? 'N/A',
+                                            ($summary['is_graded'] ?? false) ? number_format($summary['percent'], 2) : 'N/A',
+                                            ($summary['is_graded'] ?? false) ? $summary['letter_grade'] : 'N/A',
                                             $enrollment->enrolled_at?->format('Y-m-d') ?? 'N/A',
                                         ]);
                                     }
@@ -337,12 +415,13 @@ class DashboardController extends Controller
                                 break;
 
                             case 'grades':
-                                fputcsv($file, ['Class', 'Course', 'Average Grade', 'Completion Rate', 'Active Students']);
+                                fputcsv($file, ['Class', 'Course', 'Average Grade', 'Graded Students', 'Completion Rate', 'Active Students']);
                                 foreach ($stats['class_performance'] as $perf) {
                                     fputcsv($file, [
                                         $perf['class']->code,
-                                        $perf['class']->course->title ?? 'N/A',
+                                        $perf['class']->course?->title ?? 'N/A',
                                         number_format($perf['average_grade'], 2),
+                                        $perf['graded_students'],
                                         number_format($perf['completion_rate'], 2),
                                         $perf['class']->enrollments->where('status', 'active')->count(),
                                     ]);
@@ -356,6 +435,7 @@ class DashboardController extends Controller
                                 fputcsv($file, ['Total Students', $stats['total_students']]);
                                 fputcsv($file, ['Active Enrollments', $stats['active_enrollments']]);
                                 fputcsv($file, ['Completed Enrollments', $stats['completed_enrollments']]);
+                                fputcsv($file, ['Graded Enrollments', $stats['graded_enrollments']]);
                                 fputcsv($file, ['Average Grade', number_format($stats['average_grade'], 2)]);
                                 fputcsv($file, ['Completion Rate', number_format($stats['completion_rate'], 2)]);
                                 fputcsv($file, ['At-Risk Students', $stats['at_risk_count']]);
@@ -644,10 +724,16 @@ class DashboardController extends Controller
 
                 case 'performance':
                     $analytics = [
-                        'average_grade' => $stats['average_grade'],
-                        'class_performance' => $stats['class_performance'],
+                        'average_grade' => (float) $stats['average_grade'],
+                        'class_performance' => collect($stats['class_performance'])->map(fn ($p) => [
+                            'class' => $p['class']->code,
+                            'course' => $p['class']->course?->title ?? 'N/A',
+                            'average_grade' => (float) $p['average_grade'],
+                            'completion_rate' => (float) $p['completion_rate'],
+                            'graded_students' => $p['graded_students'],
+                        ])->all(),
                         'graded_enrollments' => $stats['graded_enrollments'],
-                        'grade_distribution' => $this->calculateGradeDistribution($stats['my_classes_list']),
+                        'grade_distribution' => $this->calculateGradeDistribution($stats['class_summaries']),
                     ];
                     break;
 
@@ -711,9 +797,11 @@ class DashboardController extends Controller
     }
 
     /**
-     * Calculate grade distribution
+     * Calculate grade distribution from computed (released + graded) results.
+     *
+     * @param  array<int, array<int, array<string, mixed>>>  $classSummaries
      */
-    private function calculateGradeDistribution($classes): array
+    private function calculateGradeDistribution(array $classSummaries): array
     {
         $distribution = [
             'A' => 0,
@@ -723,22 +811,11 @@ class DashboardController extends Controller
             'F' => 0,
         ];
 
-        foreach ($classes as $class) {
-            foreach ($class->enrollments as $enrollment) {
-                if ($enrollment->final_grade !== null) {
-                    if ($enrollment->final_grade >= 90) {
-                        $distribution['A']++;
-                    } elseif ($enrollment->final_grade >= 80) {
-                        $distribution['B']++;
-                    } elseif ($enrollment->final_grade >= 70) {
-                        $distribution['C']++;
-                    } elseif ($enrollment->final_grade >= 60) {
-                        $distribution['D']++;
-                    } else {
-                        $distribution['F']++;
-                    }
-                }
-            }
+        $graded = collect($classSummaries)
+            ->flatMap(fn ($summaries) => collect($summaries)->where('is_graded', true));
+
+        foreach ($graded as $summary) {
+            $distribution[$summary['letter_grade']] = ($distribution[$summary['letter_grade']] ?? 0) + 1;
         }
 
         return $distribution;

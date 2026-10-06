@@ -1,7 +1,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-brand-lockup"><img src="{{ asset('images/BCP_LOGO.png') }}" alt="BCP logo"><div><h2>{{ config('app.name') }}</h2>
-        <span class="sidebar-subtitle">Instructor Panel</span></div></div>
+        <span class="sidebar-subtitle">{{ auth()->user()->role?->name ?? 'Instructor' }} Panel</span></div></div>
     </div>
 
     <nav class="sidebar-nav">
@@ -90,6 +90,12 @@
                         <i class="fa-solid fa-list-check"></i>
                         <span>Rubrics</span>
                         <span class="link-hint">Choose course</span>
+                    </a>
+                </li>
+                <li class="nav-item {{ $activeNav === 'question_banks' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.question_banks.index') }}" class="nav-link" @if($activeNav === 'question_banks') aria-current="page" @endif>
+                        <i class="fa-solid fa-database"></i>
+                        <span>Question Banks</span>
                     </a>
                 </li>
             </ul>

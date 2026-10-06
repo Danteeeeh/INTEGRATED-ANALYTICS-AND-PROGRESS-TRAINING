@@ -7,6 +7,9 @@ return [
     'password_min_length' => (int) env('LMS_PASSWORD_MIN_LENGTH', 8),
     'api_rate_limit' => (int) env('LMS_API_RATE_LIMIT', 60),
     'export_chunk_size' => 500,
+    // Minimum class grade (percent) considered a passing mark. Used by the
+    // gradebook and Performance Analytics so both agree on who is at risk.
+    'passing_grade' => (int) env('LMS_PASSING_GRADE', 60),
     'registration_default_status' => env('LMS_REGISTRATION_STATUS', 'pending'),
     'dev_seed_password' => env('LMS_DEV_SEED_PASSWORD', 'Password123!'),
     'login_otp' => [

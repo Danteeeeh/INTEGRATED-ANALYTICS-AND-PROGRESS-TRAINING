@@ -207,7 +207,7 @@ class DashboardController extends Controller
         foreach ($activeEnrollments as $enrollment) {
             $course = $enrollment->class->course;
             if ($course) {
-                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
+                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
                 $persisted = CourseProgress::where('student_id', $studentId)
                     ->where('class_id', $enrollment->class_id)
                     ->first();
@@ -688,7 +688,7 @@ class DashboardController extends Controller
                         if (! $course) {
                             continue;
                         }
-                        $live = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
+                        $live = $this->contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
                         $progressData[] = [
                             'course' => $course->title ?? 'Course',
                             'progress' => round($live['overall'] ?? 0, 1),
@@ -753,7 +753,7 @@ class DashboardController extends Controller
         foreach ($activeEnrollments as $enrollment) {
             $course = $enrollment->class->course;
             if ($course) {
-                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId);
+                $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
                 $overallProgress += $liveProgress['overall'];
                 $courseProgressCount++;
             }

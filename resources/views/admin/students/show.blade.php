@@ -1,4 +1,4 @@
-@extends('layouts.admin-sms')
+@extends('layouts.admin')
 
 @section('title', 'Student Details')
 @php
@@ -6,15 +6,6 @@
     $pageTitle = 'Student Details';
     $pageIcon = '<i class="fa-solid fa-user-graduate"></i>';
 @endphp
-
-@section('page-title-bar')
-    <div class="page-title-bar">
-        <h2 class="page-title">
-            <i class="fa-solid fa-user-graduate"></i>
-            Student Details
-        </h2>
-    </div>
-@endsection
 
 @section('content')
     <div class="form-card">
@@ -50,7 +41,7 @@
 
     <div class="crud-card">
         <div class="crud-header">
-            <h3>Enrollments ({{ $student->enrollments->count() }})</h3>
+            <h3>Enrollments ({{ $student->enrollments->whereIn('status', ['active', 'pending'])->count() }} current · {{ $student->enrollments->count() }} total)</h3>
         </div>
         
         <table class="crud-table">

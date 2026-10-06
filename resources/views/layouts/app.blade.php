@@ -95,6 +95,9 @@
                         @yield('title', 'Dashboard')
                     @endif
                 </h2>
+                <span class="topbar-role-badge" style="margin-left:8px;padding:4px 10px;border-radius:999px;background:rgba(98,201,245,.12);color:#62c9f5;font-size:.72rem;font-weight:700;white-space:nowrap;">
+                    {{ auth()->user()->role?->name ?? 'User' }}
+                </span>
                 @if($__env->hasSection('page-actions'))
                     <div class="page-actions">@yield('page-actions')</div>
                 @endif

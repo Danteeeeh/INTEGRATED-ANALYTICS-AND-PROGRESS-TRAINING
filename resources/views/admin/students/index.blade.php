@@ -44,6 +44,7 @@
                                 <th>Section</th>
                                 <th>Status</th>
                                 <th>Enrollments</th>
+                                <th>Total</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -65,6 +66,7 @@
                                     <td>{{ optional($student->program)->name ?: '—' }}</td>
                                     <td>{{ optional($student->section)->name ?: '—' }}@if($student->section?->code) ({{ $student->section->code }})@endif</td>
                                     <td><x-user-status-badge status="{{ $student->status }}" /></td>
+                                    <td>{{ $student->enrollments->whereIn('status', ['active', 'pending'])->count() }}</td>
                                     <td>{{ $student->enrollments->count() }}</td>
                                     <td>
                                         <div class="user-actions">

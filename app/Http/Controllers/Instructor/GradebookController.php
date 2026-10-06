@@ -10,6 +10,7 @@ use App\Models\GradeItem;
 use App\Models\AssignmentSubmission;
 use App\Models\User;
 use App\Services\FeedbackSuggestionService;
+use App\Services\GradeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GradebookController extends Controller
 {
+    public function __construct(private GradeService $grades)
+    {
+    }
+
     public function index(ClassModel $class): View
     {
         $this->authorize('view', Grade::class, ['class' => $class]);
@@ -35,7 +40,18 @@ class GradebookController extends Controller
             ->orderBy('position', 'asc')
             ->get();
 
-        return view('instructor.gradebook.index', compact('class', 'students', 'gradeItems'));
+        // Single source of truth: points-weighted over released + graded items.
+        $summaries = $this->grades->computeClassGradeSummaries($class->id);
+
+        $classAverage = collect($summaries)->where('is_graded', true)->avg('percent') ?? 0;
+
+        return view('instructor.gradebook.index', compact(
+            'class',
+            'students',
+            'gradeItems',
+            'summaries',
+            'classAverage'
+        ));
     }
 
     public function suggestFeedback(AssignmentSubmission $submission, FeedbackSuggestionService $feedback): JsonResponse
@@ -72,10 +88,13 @@ class GradebookController extends Controller
             'student_id' => $validated['student_id'],
             'points' => $validated['points'],
             'score_percent' => $scorePercent,
+            'letter_grade' => $this->grades->percentageToLetter((float) $scorePercent),
             'feedback' => $validated['feedback'] ?? null,
             'graded_by' => auth()->id(),
             'graded_at' => now(),
         ]);
+
+        $this->grades->invalidateInstructorDashboardCache($class->id);
 
         return redirect()->route('instructor.classes.gradebook.index', $class)
             ->with('success', 'Grade saved successfully.');
@@ -98,12 +117,15 @@ class GradebookController extends Controller
         $grade->update([
             'points' => $validated['points'],
             'score_percent' => $scorePercent,
+            'letter_grade' => $this->grades->percentageToLetter((float) $scorePercent),
             'feedback' => $validated['feedback'] ?? null,
             'override_note' => $validated['override_note'] ?? null,
             'is_override' => $validated['is_override'] ?? false,
             'graded_by' => auth()->id(),
             'graded_at' => now(),
         ]);
+
+        $this->grades->invalidateInstructorDashboardCache($class->id);
 
         return redirect()->route('instructor.classes.gradebook.index', $class)
             ->with('success', 'Grade updated successfully.');
@@ -128,6 +150,9 @@ class GradebookController extends Controller
             'is_released' => true,
             'released_at' => now(),
         ]);
+
+        // Releasing changes what counts towards a class grade.
+        $this->grades->invalidateInstructorDashboardCache($class->id);
 
         return redirect()->route('instructor.classes.gradebook.index', $class)
             ->with('success', 'Grades released successfully.');
@@ -175,6 +200,7 @@ class GradebookController extends Controller
                 [
                     'points' => $points,
                     'score_percent' => $scorePercent,
+                    'letter_grade' => $this->grades->percentageToLetter((float) $scorePercent),
                     'feedback' => $validated['feedback'][$studentId] ?? null,
                     'graded_by' => auth()->id(),
                     'graded_at' => now(),
@@ -182,6 +208,10 @@ class GradebookController extends Controller
             );
 
             $saved++;
+        }
+
+        if ($saved > 0) {
+            $this->grades->invalidateInstructorDashboardCache($class->id);
         }
 
         return redirect()->route('instructor.classes.gradebook.index', $class)
@@ -202,39 +232,50 @@ class GradebookController extends Controller
             ->with('student')
             ->get();
 
+        $summaries = $this->grades->computeClassGradeSummaries(
+            $class->id,
+            $enrollments->pluck('student_id')->all()
+        );
+
         $filename = 'gradebook-'.Str::slug($class->code ?? 'class-'.$class->id).'-'.now()->format('Ymd-His').'.csv';
 
-        return response()->streamDownload(function () use ($gradeItems, $enrollments) {
+        return response()->streamDownload(function () use ($gradeItems, $enrollments, $summaries) {
             $out = fopen('php://output', 'w');
 
             // Header row: student info + one column per grade item
             $header = ['Student Name', 'Email'];
             foreach ($gradeItems as $item) {
-                $header[] = $item->title.' (/'.$item->max_points.')';
+                $header[] = $item->title.' (/'.$item->max_points.')'.($item->is_released ? '' : ' [hidden]');
             }
             $header[] = 'Total Earned';
             $header[] = 'Total Possible';
             $header[] = 'Percent';
+            $header[] = 'Letter';
             fputcsv($out, $header);
 
             foreach ($enrollments as $enrollment) {
                 $student = $enrollment->student;
                 $row = [$student?->name ?? 'Unknown', $student?->email ?? ''];
-                $earned = 0;
-                $possible = 0;
 
                 foreach ($gradeItems as $item) {
+                    // Never leak unreleased scores to the CSV.
+                    if (! $item->is_released) {
+                        $row[] = '';
+                        continue;
+                    }
                     $grade = $item->grades->firstWhere('student_id', $enrollment->student_id);
                     $row[] = $grade ? $grade->points : '';
-                    if ($grade) {
-                        $earned += $grade->points;
-                    }
-                    $possible += $item->max_points;
                 }
 
-                $row[] = $earned;
-                $row[] = $possible;
-                $row[] = $possible > 0 ? number_format(($earned / $possible) * 100, 1).'%' : '0.0%';
+                $summary = $summaries[$enrollment->student_id] ?? null;
+
+                $row[] = $summary['earned_points'] ?? 0;
+                $row[] = $summary['max_points'] ?? 0;
+                $row[] = ($summary['is_graded'] ?? false)
+                    ? number_format($summary['percent'], 1).'%'
+                    : '—';
+                $row[] = ($summary['is_graded'] ?? false) ? $summary['letter_grade'] : '—';
+
                 fputcsv($out, $row);
             }
 
@@ -255,24 +296,14 @@ class GradebookController extends Controller
             ->orderBy('position', 'asc')
             ->get();
 
-        $totalPoints = 0;
-        $earnedPoints = 0;
-
-        foreach ($gradeItems as $item) {
-            $grade = $item->grades->first();
-            if ($grade && $item->is_released) {
-                $totalPoints += $item->max_points;
-                $earnedPoints += $grade->points;
-            }
-        }
+        $summary = $this->grades->computeStudentClassGrade($student->id, $class->id);
 
         return view('instructor.gradebook.student', compact(
             'class',
             'student',
             'enrollment',
             'gradeItems',
-            'totalPoints',
-            'earnedPoints'
+            'summary'
         ));
     }
 }

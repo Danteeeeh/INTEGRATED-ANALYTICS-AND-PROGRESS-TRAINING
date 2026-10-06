@@ -358,8 +358,9 @@
                                 </td>
                                 <td>{{ $enrollment->enrolled_at?->format('M d, Y') ?? '—' }}</td>
                                 <td>
-                                    @if($enrollment->final_grade !== null)
-                                        <span style="font-weight:750;color:{{ $enrollment->final_grade >= 75 ? '#6ee7b7' : '#fda4af' }}">{{ $enrollment->final_grade }}%</span>
+                                    @php($gradeSummary = $gradeSummaries[$enrollment->student_id] ?? null)
+                                    @if($gradeSummary['is_graded'] ?? false)
+                                        <span style="font-weight:750;color:{{ $gradeSummary['percent'] >= 75 ? '#6ee7b7' : '#fda4af' }}">{{ number_format($gradeSummary['percent'], 1) }}%</span>
                                     @else
                                         <span style="color:var(--bcp-muted,#98a7c4)">—</span>
                                     @endif

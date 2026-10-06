@@ -80,32 +80,11 @@
             <h3>Video Resource</h3>
         </div>
         <div class="user-panel-body">
-            <div class="module-video-container">
-                @if($module->getYouTubeThumbnailUrl())
-                    <div class="module-video-thumbnail">
-                        <img src="{{ $module->getYouTubeThumbnailUrl() }}" alt="Video thumbnail" loading="lazy">
-                        @if($module->isYouTubeVideo())
-                            <a href="{{ $module->external_video_url }}" target="_blank" class="module-video-play-btn">
-                                <i class="fa-solid fa-play"></i>
-                            </a>
-                        @endif
-                    </div>
-                @endif
-                <div class="module-video-info">
-                    <p style="margin: 0 0 8px; font-size: 0.85rem; color: #64748b;">
-                        <i class="fa-solid fa-link" style="margin-right: 6px;"></i>
-                        <a href="{{ $module->external_video_url }}" target="_blank" style="color: #2563eb; text-decoration: none;">
-                            {{ Str::limit($module->external_video_url, 60) }}
-                        </a>
-                    </p>
-                    @if($module->isYouTubeVideo())
-                        <p style="margin: 0; font-size: 0.75rem; color: #94a3b8;">
-                            <i class="fa-brands fa-youtube" style="margin-right: 6px;"></i>
-                            YouTube Video
-                        </p>
-                    @endif
-                </div>
-            </div>
+            <x-external-video
+                :url="$module->external_video_url"
+                :thumbnail="$module->video_thumbnail_url"
+                title="Module Video"
+            />
         </div>
     </div>
     @endif

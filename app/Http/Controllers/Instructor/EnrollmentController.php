@@ -9,6 +9,7 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\GradeService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -39,7 +40,9 @@ class EnrollmentController extends Controller
         $enrollments = $query->orderBy('enrolled_at', 'desc')->paginate(20);
         $classes = ClassModel::where('instructor_id', $instructorId)->with('course')->orderBy('code')->get();
 
-        return view('instructor.enrollments.index', compact('enrollments', 'classes'));
+        $gradeSummaries = app(GradeService::class)->computeSummariesForEnrollments($enrollments);
+
+        return view('instructor.enrollments.index', compact('enrollments', 'classes', 'gradeSummaries'));
     }
 
     public function create(): View
@@ -113,7 +116,11 @@ class EnrollmentController extends Controller
             ->orderBy('graded_at', 'desc')
             ->get();
 
-        $averageGrade = $grades->whereNotNull('score_percent')->avg('score_percent');
+        // Same computation as the gradebook and Performance Analytics.
+        $gradeSummary = app(GradeService::class)->computeStudentClassGrade(
+            $enrollment->student_id,
+            $enrollment->class_id
+        );
 
         // Attendance of this student in this class
         $attendance = AttendanceRecord::where('student_id', $enrollment->student_id)
@@ -130,7 +137,14 @@ class EnrollmentController extends Controller
             ? round(($attendanceSummary['present'] / $attendanceSummary['total']) * 100, 1)
             : null;
 
-        return view('instructor.enrollments.show', compact('enrollment', 'grades', 'averageGrade', 'attendance', 'attendanceSummary', 'attendanceRate'));
+        return view('instructor.enrollments.show', compact(
+            'enrollment',
+            'grades',
+            'gradeSummary',
+            'attendance',
+            'attendanceSummary',
+            'attendanceRate'
+        ));
     }
 
     /**
