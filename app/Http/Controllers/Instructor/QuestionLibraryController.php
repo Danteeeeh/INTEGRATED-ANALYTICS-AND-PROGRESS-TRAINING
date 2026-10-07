@@ -54,11 +54,8 @@ class QuestionLibraryController extends Controller
 
         // Only banks this user may write to. Shared banks owned by somebody
         // else stay read-only, so a question can never be parked in a bank the
-        // author cannot maintain.
-        $writable = $bank->created_by === $user->id
-            || ($user->isAdmin() && $bank->is_shared);
-
-        abort_unless($writable, 403, 'You can only add questions to a bank you own.');
+        // author cannot maintain. Same rule the picker is built from.
+        abort_unless($bank->isWritableBy($user), 403, 'You can only add questions to a bank you own.');
 
         // Reuse the bank's own rules so the library form and the bank form
         // accept and reject exactly the same questions.
@@ -163,10 +160,14 @@ class QuestionLibraryController extends Controller
 
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
         $categories = QuestionCategory::orderBy('name')->get(['id', 'name', 'course_id']);
-        $banks = QuestionBank::where('created_by', $user->id)
-            ->orWhere('is_shared', true)
+
+        // `created_by` and `is_shared` have to come along: the page decides
+        // which of these the viewer may write to, and selecting only the label
+        // left those null, which emptied the "Save into bank" picker and took
+        // the whole Add Question modal with it.
+        $banks = QuestionBank::writableBy($user)
             ->orderBy('title')
-            ->get(['id', 'title']);
+            ->get(['id', 'title', 'created_by', 'is_shared']);
 
         return view('instructor.question-banks.questions', [
             'questions' => $questions,

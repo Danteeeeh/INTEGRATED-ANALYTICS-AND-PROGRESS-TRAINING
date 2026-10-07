@@ -12,6 +12,7 @@ use App\Models\ExamAnswer;
 use App\Models\ExamAnswerChoice;
 use App\Models\ExamQuestion;
 use App\Models\Grade;
+use App\Models\GradeItem;
 use App\Models\Question;
 use App\Models\QuestionBank;
 use App\Models\QuestionChoice;
@@ -22,6 +23,8 @@ use Illuminate\Validation\ValidationException;
 
 class ExamService
 {
+    public function __construct(private QuestionGrader $grader) {}
+
     public function createExam(array $data): Exam
     {
         return DB::transaction(function () use ($data) {
@@ -486,8 +489,55 @@ class ExamService
                 ],
             ]);
 
+            $this->snapshotPaper($exam, $attempt);
+
             return $attempt;
         });
+    }
+
+    /**
+     * Freeze the paper onto the attempt, one answer row per question.
+     *
+     * The exam page renders exclusively from an attempt's answer rows — the
+     * question count, the navigation buttons, the cards and the progress figure
+     * are all derived from that collection. Starting an attempt therefore has to
+     * lay down those rows, or the student lands on a blank paper that reports
+     * "0 Questions" and offers nothing to answer. QuizService::startAttempt has
+     * always done this for quizzes; exams had no equivalent.
+     *
+     * Snapshotting at the start also means the paper cannot be altered once
+     * somebody is sitting it, and `QuestionSnapshotService` records the marks
+     * as they stood so grading never depends on later edits to the bank.
+     */
+    private function snapshotPaper(Exam $exam, ExamAttempt $attempt): void
+    {
+        $questions = $exam->questions()->with('choices')->get();
+
+        // Capture before shuffling: captureMany keys by question id, so the
+        // lookup stays O(1) whatever order the student meets the questions in.
+        $snapshots = app(QuestionSnapshotService::class)->captureMany(
+            $questions,
+            $exam->pointsByQuestionId()
+        );
+
+        if ($exam->shuffle_questions) {
+            $questions = $questions->shuffle();
+        }
+
+        $rows = $questions->map(fn (Question $question) => [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            // Encoded here rather than left to the model: a bulk insert goes
+            // straight to the query builder and skips the 'array' cast, so an
+            // un-encoded snapshot arrives at the driver as a PHP array.
+            'question_snapshot' => isset($snapshots[$question->id])
+                ? json_encode($snapshots[$question->id])
+                : null,
+        ])->all();
+
+        if ($rows !== []) {
+            ExamAnswer::insert($rows);
+        }
     }
 
     public function confirmStart(ExamAttempt $attempt): ExamAttempt
@@ -500,62 +550,164 @@ class ExamService
         return $attempt->fresh();
     }
 
+    /**
+     * Grade a submitted attempt against the paper frozen onto it at the start.
+     *
+     * This used to call sync() on a HasMany, which has no such method, so every
+     * submission was a 500. It also read is_correct and points_awarded straight
+     * off the request — nothing had graded the answers — so even had it worked,
+     * every student would have scored zero.
+     *
+     * The rows already exist: startAttempt() wrote one per question, each
+     * carrying the question as it stood. Grading is therefore an update against
+     * that snapshot, which is also why editing the bank afterwards cannot change
+     * a mark already earned.
+     *
+     * Essays and anything else the grader defers to a human are recorded as
+     * pending, not as wrong: the attempt stops short of `graded` so it lands in
+     * the instructor's queue instead of reporting a confident zero.
+     */
     public function submitAttempt(ExamAttempt $attempt, array $answers): ExamAttempt
     {
         return DB::transaction(function () use ($attempt, $answers) {
-            $attempt->answers()->sync($answers, function ($key, $value) {
-                return [
-                    'is_correct' => $value['is_correct'] ?? null,
-                    'points_awarded' => $value['points_awarded'] ?? 0,
-                    'graded_by' => auth()->id(),
-                    'graded_at' => now(),
-                ];
-            });
+            $rows = $attempt->answers()->with('question')->get();
 
-            $score = $attempt->answers->reduce(function ($carry, $answer) {
-                return $carry + ($answer->points_awarded ?? 0);
-            }, 0);
+            $earned = 0.0;
+            $possible = 0.0;
+            $awaitingMarking = 0;
 
-            $total = $attempt->exam->total_points;
+            foreach ($rows as $answer) {
+                $submitted = $answers[$answer->question_id] ?? null;
+                $snapshot = $answer->snapshotArray();
 
-            $passPercent = $total > 0 ? ($score / $total) * 100 : 0;
+                $grade = $this->grader->grade(
+                    $submitted,
+                    $snapshot,
+                    $answer->question,
+                    isset($snapshot['points']) ? (float) $snapshot['points'] : null
+                );
 
-            $scorePercent = number_format($passPercent, 2);
+                $answer->update([
+                    'answer_text' => $this->encodeSubmitted($submitted),
+                    'is_correct' => $grade['manual'] ? null : $grade['is_correct'],
+                    'points_awarded' => $grade['manual'] ? 0 : $grade['points'],
+                    'answered_at' => $answer->answered_at ?? now(),
+                    'flagged_for_review' => $grade['manual'],
+                ]);
 
-            $exam = $attempt->exam;
+                $earned += $grade['manual'] ? 0 : $grade['points'];
+                $possible += $grade['max_points'];
+                $awaitingMarking += $grade['manual'] ? 1 : 0;
+            }
+
+            $scorePercent = $possible > 0 ? round($earned / $possible * 100, 2) : 0.0;
+            $fullyGraded = $awaitingMarking === 0;
 
             $attempt->update([
-                'status' => ExamAttempt::STATUS_GRADED,
-                'score' => $score,
+                'status' => $fullyGraded
+                    ? ExamAttempt::STATUS_GRADED
+                    : ExamAttempt::STATUS_SUBMITTED,
+                'score' => $earned,
+                'earned_points' => $earned,
+                'total_points' => $possible,
                 'score_percent' => $scorePercent,
-                'graded_by' => auth()->id(),
-                'graded_at' => now(),
+                'submitted_at' => now(),
+                'ended_at' => now(),
+                'graded_at' => $fullyGraded ? now() : null,
+                'flagged_for_review' => ! $fullyGraded,
+                'is_passed' => $fullyGraded
+                    ? $scorePercent >= (float) $attempt->exam->passing_score_percent
+                    : null,
             ]);
 
             AuditLog::create([
                 'user_id' => auth()->id(),
-                'action' => 'grade',
+                'action' => $fullyGraded ? 'grade' : 'submit',
                 'resource_type' => ExamAttempt::class,
                 'resource_id' => $attempt->id,
                 'new_values' => [
-                    'previous_score' => 0,
-                    'new_score' => $scorePercent,
+                    'earned_points' => $earned,
+                    'total_points' => $possible,
+                    'score_percent' => $scorePercent,
+                    'awaiting_marking' => $awaitingMarking,
                 ],
             ]);
 
-            // Update grade
-            $grade = $exam->gradeForStudent($attempt->student_id);
-            if ($grade) {
-                $grade->update([
-                    'score' => $scorePercent,
-                    'grade' => $this->letterGrade($scorePercent),
-                    'updated_by' => auth()->id(),
-                    'updated_at' => now(),
-                ]);
+            $exam = $attempt->exam;
+
+            // Only a fully marked attempt may move the student's course grade;
+            // a half-marked one would report a score that ignores the essays.
+            if ($fullyGraded) {
+                $this->recordCourseGrade($attempt, $exam, $earned, $possible, $scorePercent);
             }
 
             return $attempt->fresh();
         });
+    }
+
+    /**
+     * Carry a fully marked exam into the gradebook.
+     *
+     * Mirrors QuizService and AssignmentService: the exam is represented in the
+     * gradebook by a GradeItem pointing back at it, and the student's mark is
+     * the Grade on that item.
+     */
+    private function recordCourseGrade(
+        ExamAttempt $attempt,
+        Exam $exam,
+        float $earned,
+        float $possible,
+        float $scorePercent
+    ): void {
+        $gradeItem = GradeItem::firstOrCreate([
+            'related_type' => Exam::class,
+            'related_id' => $exam->id,
+        ], [
+            'class_id' => $exam->class_id,
+            'title' => $exam->title,
+            'max_points' => $possible,
+            'item_type' => GradeItem::TYPE_EXAM,
+            'is_released' => true,
+            'released_at' => now(),
+        ]);
+
+        Grade::updateOrCreate(
+            [
+                'grade_item_id' => $gradeItem->id,
+                'student_id' => $attempt->student_id,
+            ],
+            [
+                'points' => $earned,
+                'score_percent' => $scorePercent,
+                'letter_grade' => $this->letterGrade($scorePercent),
+                'graded_by' => auth()->id(),
+                'graded_at' => now(),
+            ]
+        );
+    }
+
+    /**
+     * Store a submitted answer in the shape the result page reads back.
+     *
+     * One choice becomes its id; several become a JSON list; free text is kept
+     * verbatim. attempt_show.blade.php decodes exactly these three cases.
+     */
+    private function encodeSubmitted(mixed $submitted): ?string
+    {
+        if ($submitted === null || $submitted === '') {
+            return null;
+        }
+
+        if (is_array($submitted)) {
+            $ids = array_values(array_filter(array_map(
+                static fn ($value) => is_array($value) ? null : $value,
+                $submitted
+            ), static fn ($value) => $value !== null && $value !== ''));
+
+            return $ids === [] ? null : json_encode($ids);
+        }
+
+        return (string) $submitted;
     }
 
     protected function letterGrade(float $percent): string
