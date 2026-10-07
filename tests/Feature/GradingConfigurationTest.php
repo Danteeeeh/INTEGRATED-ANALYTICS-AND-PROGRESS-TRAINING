@@ -252,7 +252,15 @@ class GradingConfigurationTest extends TestCase
 
         // Attendance has no records yet, so the graded weights are renormalised
         // over the 85 that do have data: (0.20*50 + 0.25*100 + 0.40*90) / 0.85
-        $this->assertEqualsWithDelta(83.53, (float) $row['final_grade'], 0.05);
+        //
+        // That figure is now reported as provisional, not as the term grade:
+        // a weighted component with no records is outstanding work, so no
+        // final grade is published until attendance is recorded.
+        $this->assertEqualsWithDelta(83.53, (float) $row['provisional_grade'], 0.05);
+
+        $this->assertFalse($row['is_graded'], 'Attendance has no records, so the grade is not final.');
+        $this->assertNull($row['final_grade']);
+        $this->assertSame(1, $row['missing_items']);
     }
 
     public function test_component_columns_are_exposed(): void

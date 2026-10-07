@@ -32,11 +32,6 @@
     </div>
 @endunless
 
-@section('scripts')
-@show
-@push('scripts')
-@show
-
 <section class="dash-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-pen-to-square"></i> Grade Items (Manual)</h3>
@@ -83,16 +78,6 @@
         </tbody>
     </table>
 </section>
-
-@section('scripts')
-@show
-@push('scripts')
-@show
-
-@section('scripts')
-@show
-@push('scripts')
-@show
 
 @if($quizAttempts->count() > 0)
 <section class="dash-panel" style="margin-top:24px;">

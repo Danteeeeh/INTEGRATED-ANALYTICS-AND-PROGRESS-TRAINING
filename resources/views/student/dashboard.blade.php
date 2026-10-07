@@ -624,6 +624,15 @@
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-chart-pie"></i> My Performance Analytics</h4>
             <div class="analytics-controls">
+                <select id="analyticsClass" class="analytics-select" title="Limit results to one class">
+                    <option value="">All my classes</option>
+                    @foreach ($stats['my_enrollments'] ?? [] as $enrollment)
+                        @continue(! $enrollment->class)
+                        <option value="{{ $enrollment->class_id }}">
+                            {{ $enrollment->class->course?->code ?? $enrollment->class->code ?? 'Class' }} — {{ $enrollment->class->course?->title ?? 'Class' }}
+                        </option>
+                    @endforeach
+                </select>
                 <select id="analyticsType" class="analytics-select">
                     <option value="grades" selected>Grades</option>
                     <option value="quizzes">Quiz Performance</option>
@@ -807,11 +816,17 @@
 
         async function loadAnalytics() {
             const type = document.getElementById('analyticsType').value;
+            const classId = document.getElementById('analyticsClass').value;
             const button = document.querySelector('#analyticsType').closest('.analytics-controls').querySelector('.analytics-btn');
             button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
             button.disabled = true;
             try {
-                const response = await fetch(`{{ route('student.dashboard.analytics') }}?type=${type}`);
+                // Scope to a single class when one is chosen, otherwise the
+                // chart averages every enrolled class together.
+                const params = new URLSearchParams({ type });
+                if (classId) params.set('class_id', classId);
+
+                const response = await fetch(`{{ route('student.dashboard.analytics') }}?${params.toString()}`);
                 const data = await response.json();
                 if (data.success) {
                     displayAnalytics(data.data, type);

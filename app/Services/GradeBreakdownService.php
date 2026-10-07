@@ -97,12 +97,38 @@ class GradeBreakdownService
         $final = 0.0;
         $anyGraded = false;
         $weightedTotal = 0.0;
+        $expectedItems = 0;
+        $missingItems = 0;
+        $missingLabels = [];
 
         foreach ($weights as $type => $weight) {
             $group = $studentGrades
                 ->filter(fn ($g) => ($g->item?->item_type ?? $itemsById->get($g->grade_item_id)?->item_type) === $type);
 
             $percent = $this->percentOf($group);
+
+            // Every released item in a graded component has to be marked before
+            // the term grade means anything. Counting the outstanding ones is
+            // what stops a half-finished student being reported as passed.
+            $expected = $items->filter(fn ($i) => ($i->item_type ?? null) === $type)->count();
+            $missing = max(0, $expected - $group->count());
+
+            // A weighted component with nothing in it at all is still
+            // outstanding: the instructor allocated weight to exams, so a
+            // student cannot be "complete" while no exam exists to grade.
+            if ($expected === 0 && $type !== GradeItem::TYPE_ATTENDANCE) {
+                $missing = 1;
+                $missingLabels[] = (GradeConfiguration::COMPONENTS[$type]['label'] ?? ucfirst($type)).' (no items yet)';
+            }
+
+            $expectedItems += $expected;
+            $missingItems += $missing;
+
+            foreach ($items->filter(fn ($i) => ($i->item_type ?? null) === $type)
+                ->reject(fn ($i) => $group->contains('grade_item_id', $i->id)) as $absent
+            ) {
+                $missingLabels[] = $absent->title;
+            }
 
             // A component with no graded work contributes nothing rather than a
             // zero, otherwise an ungraded exam would silently read as 0%.
@@ -119,6 +145,8 @@ class GradeBreakdownService
                 'earned' => round((float) $group->sum(fn ($g) => (float) ($g->points ?? 0)), 2),
                 'possible' => round((float) $group->sum(fn ($g) => (float) ($g->item?->max_points ?? 0)), 2),
                 'graded_items' => $group->count(),
+                'expected_items' => $expected,
+                'missing_items' => $missing,
                 'is_graded' => $group->isNotEmpty(),
             ];
         }
@@ -140,6 +168,11 @@ class GradeBreakdownService
                 $final += $percent * ($weights[GradeItem::TYPE_ATTENDANCE] / GradeConfiguration::REQUIRED_TOTAL);
                 $weightedTotal += $weights[GradeItem::TYPE_ATTENDANCE];
                 $anyGraded = true;
+            } elseif ($weights[GradeItem::TYPE_ATTENDANCE] > 0) {
+                // A weighted attendance component with no records is still
+                // outstanding work, so it blocks the final grade too.
+                $missingItems++;
+                $missingLabels[] = $components[GradeItem::TYPE_ATTENDANCE]['label'].' (no records)';
             }
         }
 
@@ -151,11 +184,37 @@ class GradeBreakdownService
 
         $final = round(min($final, 100), 2);
 
+        // A term grade is only meaningful once every graded component has been
+        // marked. Until then the number is provisional and must be labelled as
+        // such rather than presented as the student's grade.
+        $isComplete = $missingItems === 0 && $anyGraded;
+
+        $incompleteReason = null;
+
+        if (! $isComplete) {
+            $incompleteReason = $missingItems > 0
+                ? sprintf(
+                    '%d of %d released item(s) still not graded%s.',
+                    $missingItems,
+                    $expectedItems,
+                    $missingLabels !== [] ? ': '.\Illuminate\Support\Str::limit(implode(', ', $missingLabels), 120) : ''
+                )
+                : 'No graded items yet.';
+        }
+
         return [
             'student_id' => $studentId,
-            'final_grade' => $final,
-            'is_graded' => $anyGraded,
-            'letter_grade' => $this->grades->percentageToLetter($final),
+            'final_grade' => $isComplete ? $final : null,
+            'is_graded' => $isComplete,
+            'is_complete' => $isComplete,
+            'letter_grade' => $isComplete ? $this->grades->percentageToLetter($final) : null,
+            // Kept so staff can see where the student stands mid-term without
+            // that number ever being mistaken for the term grade.
+            'provisional_grade' => $anyGraded ? $final : null,
+            'expected_items' => $expectedItems,
+            'graded_items_count' => $studentGrades->count(),
+            'missing_items' => $missingItems,
+            'incomplete_reason' => $incompleteReason,
             'components' => $components,
             'item_breakdown' => $this->itemBreakdown($studentGrades, $itemsById),
         ];

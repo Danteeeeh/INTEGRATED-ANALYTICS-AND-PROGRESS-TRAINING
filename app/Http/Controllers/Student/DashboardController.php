@@ -645,36 +645,70 @@ class DashboardController extends Controller
     {
         try {
             $type = $request->input('type', 'grades');
-            if (! in_array($type, ['grades', 'quizzes', 'progress'], true)) {
+            if (! in_array($type, ['grades', 'quizzes', 'exams', 'progress'], true)) {
                 $type = 'grades';
             }
 
             $studentId = auth()->id();
 
+            // Classes this student may look at. Anything outside this set is not
+            // theirs to view, so a forged class_id is rejected outright rather
+            // than silently widened to "all classes".
+            $enrolledClassIds = Enrollment::where('student_id', $studentId)
+                ->where('status', 'active')
+                ->pluck('class_id');
+
+            $requestedClassId = $request->input('class_id');
+
+            if ($requestedClassId !== null && $requestedClassId !== '') {
+                $request->validate([
+                    'class_id' => ['integer', 'in:'.$enrolledClassIds->implode(',')],
+                ], [
+                    'class_id.in' => 'You are not enrolled in that class.',
+                ]);
+
+                $classIds = collect([(int) $requestedClassId]);
+            } else {
+                $classIds = $enrolledClassIds;
+            }
+
             switch ($type) {
                 case 'grades':
-                    $classIds = Enrollment::where('student_id', $studentId)
-                        ->where('status', 'active')
-                        ->pluck('class_id');
-
                     $grades = Grade::where('student_id', $studentId)
                         ->with('item.class.course')
                         ->whereHas('item', fn ($q) => $q->where('is_released', true)
                             ->whereIn('class_id', $classIds))
                         ->orderBy('graded_at')
-                        ->get()
-                        ->map(fn ($g) => [
-                            'name' => $g->item?->title ?? 'Grade',
+                        ->get();
+
+                    // When more than one class is in view, name the course on
+                    // every point. "Final Exam" alone is ambiguous across
+                    // courses, and an unqualified average is meaningless.
+                    $scopedToOneClass = $classIds->count() === 1;
+
+                    $points = $grades->map(function ($g) use ($scopedToOneClass) {
+                        $title = $g->item?->title ?? 'Grade';
+                        $course = $g->item?->class?->course?->title;
+
+                        return [
+                            'name' => ($scopedToOneClass || ! $course)
+                                ? $title
+                                : $title.' · '.$course,
                             'score' => round($g->score_percent ?? 0, 1),
                             'date' => $g->graded_at?->format('M j'),
-                        ]);
+                            'course' => $course,
+                        ];
+                    });
 
                     $analytics = [
-                        'labels' => $grades->pluck('name')->toArray(),
-                        'scores' => $grades->pluck('score')->toArray(),
-                        'dates' => $grades->pluck('date')->toArray(),
-                        'average' => round($grades->avg('score') ?? 0, 1),
-                        'total_grades' => $grades->count(),
+                        'labels' => $points->pluck('name')->toArray(),
+                        'scores' => $points->pluck('score')->toArray(),
+                        'dates' => $points->pluck('date')->toArray(),
+                        'average' => round($points->avg('score') ?? 0, 1),
+                        'total_grades' => $points->count(),
+                        'scope' => $scopedToOneClass
+                            ? ($grades->first()->item?->class?->course?->title ?? 'Selected class')
+                            : 'All enrolled classes',
                     ];
                     break;
 
@@ -685,25 +719,77 @@ class DashboardController extends Controller
                             QuizAttempt::STATUS_AUTO_SUBMITTED,
                             QuizAttempt::STATUS_GRADED,
                         ])
-                        ->with('quiz')
+                        ->whereHas('quiz', fn ($q) => $q->whereIn('class_id', $classIds))
+                        ->with('quiz.class.course')
                         ->orderBy('created_at')
                         ->get()
-                        ->map(fn ($a) => [
-                            'quiz' => $a->quiz?->title ?? 'Quiz',
-                            'score' => round($a->score_percent ?? $a->score ?? 0, 1),
-                        ]);
+                        ->map(function ($a) use ($classIds) {
+                            $title = $a->quiz?->title ?? 'Quiz';
+                            $course = $a->quiz?->class?->course?->title;
+
+                            return [
+                                'quiz' => ($classIds->count() === 1 || ! $course)
+                                    ? $title
+                                    : $title.' · '.$course,
+                                'score' => round($a->score_percent ?? $a->score ?? 0, 1),
+                            ];
+                        });
 
                     $analytics = [
-                        'labels' => $attempts->pluck('quiz')->map(fn ($t) => Str::limit($t, 16))->toArray(),
+                        'labels' => $attempts->pluck('quiz')->map(fn ($t) => Str::limit($t, 32))->toArray(),
                         'scores' => $attempts->pluck('score')->toArray(),
                         'total_attempts' => $attempts->count(),
                         'best_score' => round(max($attempts->pluck('score')->toArray() ?: [0]), 1),
+                        'average' => round($attempts->avg('score') ?? 0, 1),
+                        'scope' => $classIds->count() === 1 ? 'Selected class' : 'All enrolled classes',
+                    ];
+                    break;
+
+                case 'exams':
+                    // The dropdown has always offered "Exam Performance", but
+                    // 'exams' was missing from the allow-list above, so it fell
+                    // through to the grades branch and showed the wrong chart.
+                    $examAttempts = ExamAttempt::where('student_id', $studentId)
+                        ->whereIn('status', [
+                            ExamAttempt::STATUS_SUBMITTED,
+                            ExamAttempt::STATUS_AUTO_SUBMITTED,
+                            ExamAttempt::STATUS_GRADED,
+                            ExamAttempt::STATUS_REVIEWED,
+                        ])
+                        ->whereHas('exam', fn ($q) => $q->whereIn('class_id', $classIds))
+                        ->with('exam.class.course')
+                        ->orderBy('submitted_at')
+                        ->get()
+                        ->map(function ($a) use ($classIds) {
+                            $title = $a->exam?->title ?? 'Exam';
+                            $course = $a->exam?->class?->course?->title;
+
+                            return [
+                                'exam' => ($classIds->count() === 1 || ! $course)
+                                    ? $title
+                                    : $title.' · '.$course,
+                                'score' => round($a->score_percent ?? 0, 1),
+                                'date' => ($a->submitted_at ?? $a->started_at)?->format('M j'),
+                            ];
+                        });
+
+                    $analytics = [
+                        'labels' => $examAttempts->pluck('exam')->map(fn ($t) => Str::limit($t, 32))->toArray(),
+                        'scores' => $examAttempts->pluck('score')->toArray(),
+                        'dates' => $examAttempts->pluck('date')->toArray(),
+                        'total_attempts' => $examAttempts->count(),
+                        'average' => round($examAttempts->avg('score') ?? 0, 1),
+                        'best_score' => round(max($examAttempts->pluck('score')->toArray() ?: [0]), 1),
+                        'scope' => $classIds->count() === 1 ? 'Selected class' : 'All enrolled classes',
                     ];
                     break;
 
                 case 'progress':
+                    // Honour the class filter here too, otherwise selecting a
+                    // class still returns every course's progress.
                     $enrollments = Enrollment::where('student_id', $studentId)
                         ->where('status', 'active')
+                        ->whereIn('class_id', $classIds)
                         ->with('class.course')
                         ->get();
 

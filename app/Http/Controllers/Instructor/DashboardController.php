@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Models\VirtualClass;
 use App\Services\GradeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Response;
@@ -48,14 +49,24 @@ class DashboardController extends Controller
         return view('instructor.dashboard', compact('stats'));
     }
 
-    private function calculateDashboardStats($instructorId): array
-    {
+    private function calculateDashboardStats(
+        $instructorId,
+        ?int $classId = null,
+        ?\Illuminate\Support\Carbon $gradedSince = null
+    ): array {
         $instructor = User::find($instructorId);
 
         // Get instructor's classes with optimized eager loading
-        $myClasses = ClassModel::where('instructor_id', $instructorId)
-            ->with(['course', 'enrollments.student'])
-            ->get();
+        $classQuery = ClassModel::where('instructor_id', $instructorId)
+            ->with(['course', 'enrollments.student']);
+
+        // Analytics may be scoped to a single class. Without this the panel
+        // blended every class the instructor teaches into one average.
+        if ($classId !== null) {
+            $classQuery->whereKey($classId);
+        }
+
+        $myClasses = $classQuery->get();
 
         // Get instructor's courses (created by them)
         $myCourses = Course::where('created_by', $instructorId)->get();
@@ -90,7 +101,8 @@ class DashboardController extends Controller
 
             $classSummaries[$class->id] = $this->grades->computeClassGradeSummaries(
                 $class->id,
-                $activeStudentIds
+                $activeStudentIds,
+                $gradedSince
             );
 
             $gradedEnrollments += collect($classSummaries[$class->id])->where('is_graded', true)->count();
@@ -717,13 +729,39 @@ class DashboardController extends Controller
             $validated = $request->validate([
                 'period' => 'required|in:week,month,semester,year',
                 'type' => 'required|in:enrollment,performance,attendance,engagement,quizzes,exams,assignments',
+                'class_id' => 'nullable|integer',
             ]);
 
             $instructorId = auth()->id();
             $period = $validated['period'];
             $type = $validated['type'];
 
-            $stats = $this->calculateDashboardStats($instructorId);
+            // A class may only be scoped to one the instructor actually teaches.
+            $scopeClassId = null;
+
+            if ($request->filled('class_id')) {
+                $scopeClassId = ClassModel::where('instructor_id', $instructorId)
+                    ->whereKey($request->integer('class_id'))
+                    ->value('id');
+
+                if ($scopeClassId === null) {
+                    throw ValidationException::withMessages([
+                        'class_id' => 'You do not teach that class.',
+                    ]);
+                }
+            }
+
+            // The period selector used to be validated and then discarded, so
+            // "This Month" and "This Year" returned identical numbers.
+            $gradedSince = match ($period) {
+                'week' => now()->subWeek(),
+                'month' => now()->subMonth(),
+                'semester' => now()->subMonths(6),
+                'year' => now()->subYear(),
+                default => null,
+            };
+
+            $stats = $this->calculateDashboardStats($instructorId, $scopeClassId, $gradedSince);
 
             $analytics = [];
 

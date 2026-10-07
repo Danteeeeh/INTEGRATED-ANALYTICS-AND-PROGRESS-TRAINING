@@ -217,12 +217,32 @@
                                 </td>
                             @endforeach
 
-                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ (($breakdown['final_grade'] ?? 0) >= 70 ? '#16a34a' : (($breakdown['final_grade'] ?? 0) >= 50 ? '#d97706' : '#dc2626')) }};">
-                                @if ($breakdown['is_graded'] ?? false)
+                            @php
+                                $isFinal = $breakdown['is_graded'] ?? false;
+                                $provisional = $breakdown['provisional_grade'] ?? null;
+                                $missing = (int) ($breakdown['missing_items'] ?? 0);
+                                $tone = $isFinal
+                                    ? (($breakdown['final_grade'] ?? 0) >= 70 ? '#16a34a' : (($breakdown['final_grade'] ?? 0) >= 50 ? '#d97706' : '#dc2626'))
+                                    : '#94a3b8';
+                            @endphp
+                            <td style="padding: 12px; text-align: center; font-weight: 600; color: {{ $tone }};">
+                                @if ($isFinal)
                                     {{ number_format((float) $breakdown['final_grade'], 2) }}%
                                     <div style="font-size: 0.7rem; color: #64748b;">{{ $breakdown['letter_grade'] }}</div>
                                 @else
                                     <span style="color: #94a3b8; font-weight: 500;">Not graded</span>
+                                    @if ($provisional !== null)
+                                        {{-- Partial standing, shown so staff can see where the
+                                             student is. Never presented as the term grade. --}}
+                                        <div style="font-size: 0.7rem; color: #64748b;" title="Provisional - not a final grade">
+                                            {{ number_format((float) $provisional, 2) }}% so far
+                                        </div>
+                                    @endif
+                                    @if ($missing > 0)
+                                        <div style="font-size: 0.68rem; color: #94a3b8; font-weight: 500;">
+                                            {{ $missing }} item{{ $missing === 1 ? '' : 's' }} left
+                                        </div>
+                                    @endif
                                 @endif
                             </td>
 

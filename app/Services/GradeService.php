@@ -250,14 +250,34 @@ class GradeService
      * @param  array<int>|null  $studentIds  Restrict to these students (null = everyone graded).
      * @return array<int, array{earned_points: float, max_points: float, percent: float, letter_grade: string, graded_items: int, is_graded: bool}>
      */
-    public function computeClassGradeSummaries(int $classId, ?array $studentIds = null): array
-    {
+    public function computeClassGradeSummaries(
+        int $classId,
+        ?array $studentIds = null,
+        ?\Illuminate\Support\Carbon $gradedSince = null
+    ): array {
         $query = Grade::query()
             ->whereHas('item', fn ($q) => $q->where('class_id', $classId)->where('is_released', true))
             ->with('item:id,max_points,factor');
 
         if ($studentIds !== null) {
             $query->whereIn('student_id', $studentIds);
+        }
+
+        // Optional reporting window. Left null by every existing caller, so
+        // this only narrows results when a caller explicitly asks for it.
+        //
+        // A grade with no graded_at was recorded without a grading timestamp,
+        // which is common for manually entered marks. Excluding it would make
+        // a period-filtered report silently drop real grades, so fall back to
+        // when the row was created.
+        if ($gradedSince !== null) {
+            $query->where(function ($q) use ($gradedSince) {
+                $q->where('graded_at', '>=', $gradedSince)
+                    ->orWhere(function ($q2) use ($gradedSince) {
+                        $q2->whereNull('graded_at')
+                            ->where('created_at', '>=', $gradedSince);
+                    });
+            });
         }
 
         $summaries = [];
@@ -361,7 +381,17 @@ class GradeService
     /**
      * @param  \Illuminate\Support\Collection<int, Grade>  $grades
      */
-    protected function summariseGrades($grades): array
+    /**
+     * Summary of whatever work this student has been graded on.
+ *
+     * Deliberately NOT gated on completeness: this backs operational counts
+     * ("how many students have graded work", class averages, grade
+     * distribution, at-risk lists), where a partially graded student still has
+     * to be counted. Whether a student may be *published* a final term grade is
+     * decided by GradeBreakdownService, which is the single place that rule
+     * lives.
+     */
+protected function summariseGrades($grades): array
     {
         $earned = 0.0;
         $possible = 0.0;

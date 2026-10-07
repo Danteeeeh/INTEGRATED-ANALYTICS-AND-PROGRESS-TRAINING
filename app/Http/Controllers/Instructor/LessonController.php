@@ -108,7 +108,11 @@ public function index(Course $course, ?Module $module = null): View
             $fileUploadService = new FileUploadService();
 
             foreach ($request->file('materials') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                // Folder must not repeat the disk name: the 'public' disk already resolves to
+                // storage/app/public, so 'public/lesson_materials' wrote to a
+                // doubled public/public directory. Rows created before the disk
+                // option existed sit one level up; see lms:repair-lesson-materials.
+                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
                     'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,
@@ -205,7 +209,11 @@ public function index(Course $course, ?Module $module = null): View
             $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
 
             foreach ($request->file('materials') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                // Folder must not repeat the disk name: the 'public' disk already resolves to
+                // storage/app/public, so 'public/lesson_materials' wrote to a
+                // doubled public/public directory. Rows created before the disk
+                // option existed sit one level up; see lms:repair-lesson-materials.
+                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
                     'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,
@@ -297,7 +305,11 @@ public function index(Course $course, ?Module $module = null): View
             $maxPosition = LessonMaterial::where('lesson_id', $lesson->id)->max('position') ?? 0;
 
             foreach ($request->file('files') as $index => $file) {
-                $mediaFile = $fileUploadService->uploadFile($file, 'public/lesson_materials', [
+                // Folder must not repeat the disk name: the 'public' disk already resolves to
+                // storage/app/public, so 'public/lesson_materials' wrote to a
+                // doubled public/public directory. Rows created before the disk
+                // option existed sit one level up; see lms:repair-lesson-materials.
+                $mediaFile = $fileUploadService->uploadFile($file, 'lesson_materials', [
                     'disk' => 'public',
                     'uploadable_type' => Lesson::class,
                     'uploadable_id' => $lesson->id,

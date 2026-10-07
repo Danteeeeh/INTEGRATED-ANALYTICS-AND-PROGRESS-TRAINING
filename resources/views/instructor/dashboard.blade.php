@@ -275,6 +275,14 @@
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-chart-pie"></i> Performance Analytics</h4>
             <div class="analytics-controls">
+                <select id="analyticsClass" class="analytics-select" title="Limit results to one class">
+                    <option value="">All my classes</option>
+                    @foreach ($stats['class_performance'] ?? [] as $perf)
+                        <option value="{{ $perf['class']->id }}">
+                            {{ $perf['class']->code }} — {{ $perf['class']->course?->title ?? $perf['class']->code }}
+                        </option>
+                    @endforeach
+                </select>
                 <select id="analyticsPeriod" class="analytics-select">
                     <option value="week">This Week</option>
                     <option value="month" selected>This Month</option>
@@ -569,6 +577,7 @@
         async function loadAnalytics(silent = false) {
             const period = document.getElementById('analyticsPeriod').value;
             const type = document.getElementById('analyticsType').value;
+            const classId = document.getElementById('analyticsClass').value;
             const button = document.querySelector('.analytics-btn');
             const cardId = ANALYTICS_CARD[type];
 
@@ -581,7 +590,12 @@
             }
 
             try {
-                const response = await fetch(`{{ route('instructor.dashboard.analytics') }}?period=${period}&type=${type}`);
+                // Scope to a single class when one is chosen; otherwise every
+                // class the instructor teaches is averaged together.
+                const params = new URLSearchParams({ period, type });
+                if (classId) params.set('class_id', classId);
+
+                const response = await fetch(`{{ route('instructor.dashboard.analytics') }}?${params.toString()}`);
                 const data = await response.json();
 
                 if (data.success) {

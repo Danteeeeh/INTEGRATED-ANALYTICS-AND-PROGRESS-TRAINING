@@ -46,6 +46,23 @@ class StudentRiskService
         $passing = (float) config('lms.passing_grade', 60);
 
         if (! ($summary['is_graded'] ?? false)) {
+            $missing = (int) ($summary['missing_items'] ?? 0);
+            $hasPartial = ($summary['provisional_grade'] ?? null) !== null;
+
+            if ($hasPartial) {
+                return [
+                    'status' => 'incomplete',
+                    'label' => 'Incomplete',
+                    'tone' => 'muted',
+                    'reasons' => [sprintf(
+                        '%d graded item%s outstanding — no final grade yet.',
+                        $missing,
+                        $missing === 1 ? ' is' : 's are'
+                    )],
+                    'has_data' => true,
+                ];
+            }
+
             return [
                 'status' => 'pending',
                 'label' => 'Pending',

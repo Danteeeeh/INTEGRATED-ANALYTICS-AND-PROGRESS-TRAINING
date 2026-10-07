@@ -28,6 +28,10 @@ class QuizImportService
         $created = 0;
         $errors = [];
 
+        // One transaction for the whole file. A transaction per question meant a
+        // COMMIT per row, which dominated the runtime of large imports.
+        $context = $this->beginImport($quiz, $userId, $questionBank);
+
         $handle = fopen($filePath, 'r');
         if ($handle === false) {
             throw new \RuntimeException('Unable to read the CSV file.');
@@ -42,25 +46,31 @@ class QuizImportService
             $header = array_map(fn ($column) => Str::of((string) $column)->trim()->lower()->replace(' ', '_')->toString(), $header);
 
             $rowNumber = 1;
-            while (($row = fgetcsv($handle)) !== false) {
-                $rowNumber++;
 
-                if ($this->rowIsEmpty($row)) {
-                    continue;
-                }
+            // One transaction for the whole file rather than a COMMIT per row.
+            // A rejected row rolls back only its own statement on MySQL/MariaDB,
+            // so it is still recorded as an error and the rest keep importing.
+            DB::transaction(function () use ($handle, $header, $quiz, $userId, &$context, &$created, &$errors, &$rowNumber) {
+                while (($row = fgetcsv($handle)) !== false) {
+                    $rowNumber++;
 
-                $record = [];
-                foreach ($header as $index => $column) {
-                    $record[$column] = isset($row[$index]) ? trim((string) $row[$index]) : '';
-                }
+                    if ($this->rowIsEmpty($row)) {
+                        continue;
+                    }
 
-                try {
-                    $this->createQuestionFromRecord($record, $quiz, $userId, $questionBank);
-                    $created++;
-                } catch (\Throwable $e) {
-                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                    $record = [];
+                    foreach ($header as $index => $column) {
+                        $record[$column] = isset($row[$index]) ? trim((string) $row[$index]) : '';
+                    }
+
+                    try {
+                        $this->createQuestionFromRecord($record, $quiz, $userId, $context);
+                        $created++;
+                    } catch (\Throwable $e) {
+                        $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                    }
                 }
-            }
+            });
         } finally {
             fclose($handle);
         }
@@ -82,6 +92,8 @@ class QuizImportService
         $currentChoices = [];
         $lineNumber = 0;
 
+        $context = $this->beginImport($quiz, $userId, $questionBank);
+
         foreach ($lines as $line) {
             $lineNumber++;
             $line = trim($line);
@@ -89,7 +101,7 @@ class QuizImportService
             if (empty($line)) {
                 if ($currentQuestion !== null) {
                     try {
-                        $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $questionBank);
+                        DB::transaction(fn () => $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $context));
                         $created++;
                     } catch (\Throwable $e) {
                         $errors[] = "Line {$lineNumber}: " . $e->getMessage();
@@ -103,7 +115,7 @@ class QuizImportService
             if (preg_match('/^(\d+)[.)\s]+(.+)$/', $line, $matches)) {
                 if ($currentQuestion !== null) {
                     try {
-                        $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $questionBank);
+                        DB::transaction(fn () => $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $context));
                         $created++;
                     } catch (\Throwable $e) {
                         $errors[] = "Line {$lineNumber}: " . $e->getMessage();
@@ -137,7 +149,7 @@ class QuizImportService
 
         if ($currentQuestion !== null) {
             try {
-                $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $questionBank);
+                DB::transaction(fn () => $this->createQuestionFromPlainText($currentQuestion, $currentChoices, $quiz, $userId, $context));
                 $created++;
             } catch (\Throwable $e) {
                 $errors[] = "End of file: " . $e->getMessage();
@@ -147,7 +159,42 @@ class QuizImportService
         return compact('created', 'errors');
     }
 
-    protected function createQuestionFromRecord(array $record, Quiz $quiz, int $userId, ?QuestionBank $questionBank = null): Question
+    /**
+     * Resolve everything that is constant for the whole import, once.
+     *
+     * The bank a quiz's questions land in and the next free position cannot
+     * change between rows, so looking them up per question was pure overhead:
+     * a SELECT for the bank plus a COUNT(*) for the position on every row.
+     *
+     * @return array{bank: \App\Models\QuestionBank, position: int}
+     */
+protected function beginImport(Quiz $quiz, int $userId, ?QuestionBank $questionBank = null): array
+    {
+        if (! $questionBank) {
+            $courseId = $quiz->class?->course_id
+                ?? $quiz->module?->course_id
+                ?? $quiz->lesson?->module?->course_id;
+
+            $questionBank = QuestionBank::firstOrCreate(
+                [
+                    'course_id' => $courseId,
+                    'title' => $quiz->title . ' Questions',
+                    'created_by' => $userId,
+                ],
+                [
+                    'description' => 'Questions for quiz: ' . $quiz->title,
+                    'status' => 'active',
+                ]
+            );
+        }
+
+        return [
+            'bank' => $questionBank,
+            'position' => (int) $quiz->questions()->max('position'),
+        ];
+    }
+
+protected function createQuestionFromRecord(array $record, Quiz $quiz, int $userId, array &$context): Question
     {
         $questionType = $this->mapQuestionType($record['question_type'] ?? $record['type'] ?? 'multiple_choice');
         $questionText = $record['question_text'] ?? $record['question'] ?? '';
@@ -155,113 +202,83 @@ class QuizImportService
             throw new \InvalidArgumentException('Question text is required.');
         }
 
-        return DB::transaction(function () use ($record, $questionType, $questionText, $quiz, $userId, $questionBank) {
-            if (! $questionBank) {
-                $courseId = $quiz->class?->course_id
-                    ?? $quiz->module?->course_id
-                    ?? $quiz->lesson?->module?->course_id;
-                $questionBank = \App\Models\QuestionBank::firstOrCreate(
-                    [
-                        'course_id' => $courseId,
-                        'title' => $quiz->title . ' Questions',
-                        'created_by' => $userId,
-                    ],
-                    [
-                        'description' => 'Questions for quiz: ' . $quiz->title,
-                        'status' => 'active',
-                    ]
-                );
-            }
+        $question = Question::create([
+            'question_bank_id' => $context['bank']->id,
+            'question_type' => $questionType,
+            'question_text' => $questionText,
+            'explanation' => $record['explanation'] ?? null,
+            'difficulty' => $record['difficulty'] ?? 'medium',
+            'default_points' => (float) ($record['points'] ?? $record['default_points'] ?? 1),
+            'tags' => ! empty($record['tags']) ? array_map('trim', explode(',', $record['tags'])) : [],
+            'created_by' => $userId,
+            'status' => 'active',
+        ]);
 
-            $question = Question::create([
-                'question_bank_id' => $questionBank->id,
-                'question_type' => $questionType,
-                'question_text' => $questionText,
-                'explanation' => $record['explanation'] ?? null,
-                'difficulty' => $record['difficulty'] ?? 'medium',
-                'default_points' => (float) ($record['points'] ?? $record['default_points'] ?? 1),
-                'tags' => ! empty($record['tags']) ? array_map('trim', explode(',', $record['tags'])) : [],
-                'created_by' => $userId,
-                'status' => 'active',
-            ]);
+        $context['position']++;
 
-            $position = $quiz->questions()->count() + 1;
+        QuizQuestion::create([
+            'quiz_id' => $quiz->id,
+            'question_id' => $question->id,
+            'position' => $context['position'],
+            'points' => (float) ($record['points'] ?? $record['default_points'] ?? 1),
+            'is_required' => (bool) ($record['is_required'] ?? true),
+            'pool_size' => null,
+        ]);
 
-            QuizQuestion::create([
-                'quiz_id' => $quiz->id,
-                'question_id' => $question->id,
-                'position' => $position,
-                'points' => (float) ($record['points'] ?? $record['default_points'] ?? 1),
-                'is_required' => (bool) ($record['is_required'] ?? true),
-                'pool_size' => null,
-            ]);
+        if (in_array($questionType, ['multiple_choice', 'multiple_answer', 'true_false'], true)) {
+            $this->createChoicesForQuestion($question, $record);
+        }
 
-            if (in_array($questionType, ['multiple_choice', 'multiple_answer', 'true_false'], true)) {
-                $this->createChoicesForQuestion($question, $record);
-            }
-
-            return $question;
-        });
+        return $question;
     }
 
-    protected function createQuestionFromPlainText(array $questionData, array $choices, Quiz $quiz, int $userId, ?QuestionBank $questionBank = null): Question
+    protected function createQuestionFromPlainText(array $questionData, array $choices, Quiz $quiz, int $userId, array &$context): Question
     {
-        return DB::transaction(function () use ($questionData, $choices, $quiz, $userId, $questionBank) {
-            if (! $questionBank) {
-                $courseId = $quiz->class?->course_id
-                    ?? $quiz->module?->course_id
-                    ?? $quiz->lesson?->module?->course_id;
-                $questionBank = \App\Models\QuestionBank::firstOrCreate(
-                    [
-                        'course_id' => $courseId,
-                        'title' => $quiz->title . ' Questions',
-                        'created_by' => $userId,
-                    ],
-                    [
-                        'description' => 'Questions for quiz: ' . $quiz->title,
-                        'status' => 'active',
-                    ]
-                );
+        $question = Question::create([
+            'question_bank_id' => $context['bank']->id,
+            'question_type' => $questionData['question_type'],
+            'question_text' => $questionData['question_text'],
+            'explanation' => $questionData['explanation'] ?? null,
+            'difficulty' => $questionData['difficulty'] ?? 'medium',
+            'default_points' => (float) ($questionData['default_points'] ?? 1),
+            'tags' => [],
+            'created_by' => $userId,
+            'status' => 'active',
+        ]);
+
+        $context['position']++;
+
+        QuizQuestion::create([
+            'quiz_id' => $quiz->id,
+            'question_id' => $question->id,
+            'position' => $context['position'],
+            'points' => (float) ($questionData['default_points'] ?? 1),
+            'is_required' => true,
+            'pool_size' => null,
+        ]);
+
+        if (! empty($choices) && in_array($questionData['question_type'], ['multiple_choice', 'multiple_answer', 'true_false'], true)) {
+            // One INSERT for the whole set instead of one per choice.
+            $now = now();
+            $rows = [];
+
+            foreach ($choices as $index => $choiceData) {
+                $rows[] = [
+                    'question_id' => $question->id,
+                    'choice_text' => $choiceData['choice_text'],
+                    'is_correct' => $choiceData['is_correct'] ?? false,
+                    'position' => $index + 1,
+                    'points' => 0,
+                    'feedback' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
 
-            $question = Question::create([
-                'question_bank_id' => $questionBank->id,
-                'question_type' => $questionData['question_type'],
-                'question_text' => $questionData['question_text'],
-                'explanation' => $questionData['explanation'] ?? null,
-                'difficulty' => $questionData['difficulty'] ?? 'medium',
-                'default_points' => (float) ($questionData['default_points'] ?? 1),
-                'tags' => [],
-                'created_by' => $userId,
-                'status' => 'active',
-            ]);
+            QuestionChoice::insert($rows);
+        }
 
-            $position = $quiz->questions()->count() + 1;
-
-            QuizQuestion::create([
-                'quiz_id' => $quiz->id,
-                'question_id' => $question->id,
-                'position' => $position,
-                'points' => (float) ($questionData['default_points'] ?? 1),
-                'is_required' => true,
-                'pool_size' => null,
-            ]);
-
-            if (! empty($choices) && in_array($questionData['question_type'], ['multiple_choice', 'multiple_answer', 'true_false'], true)) {
-                foreach ($choices as $index => $choiceData) {
-                    QuestionChoice::create([
-                        'question_id' => $question->id,
-                        'choice_text' => $choiceData['choice_text'],
-                        'is_correct' => $choiceData['is_correct'] ?? false,
-                        'position' => $index + 1,
-                        'points' => 0,
-                        'feedback' => null,
-                    ]);
-                }
-            }
-
-            return $question;
-        });
+        return $question;
     }
 
     protected function createChoicesForQuestion(Question $question, array $record): void
@@ -272,6 +289,8 @@ class QuizImportService
         ];
 
         $correctChoice = strtolower($record['correct_answer'] ?? $record['answer'] ?? '');
+        $rows = [];
+        $now = now();
 
         foreach ($choiceColumns as $index => $column) {
             if (! isset($record[$column]) || empty($record[$column])) {
@@ -281,14 +300,21 @@ class QuizImportService
             $choiceLetter = $index < 5 ? chr(97 + $index) : $column;
             $isCorrect = strtolower($correctChoice) === $choiceLetter;
 
-            QuestionChoice::create([
+            $rows[] = [
                 'question_id' => $question->id,
                 'choice_text' => $record[$column],
                 'is_correct' => $isCorrect,
                 'position' => $index + 1,
                 'points' => 0,
                 'feedback' => null,
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // One INSERT for the whole set instead of one round trip per choice.
+        if ($rows !== []) {
+            QuestionChoice::insert($rows);
         }
     }
 
