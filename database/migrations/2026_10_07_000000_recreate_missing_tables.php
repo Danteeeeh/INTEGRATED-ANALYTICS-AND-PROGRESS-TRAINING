@@ -24,6 +24,7 @@ return new class extends Migration
         $this->createSessions();
         $this->createAcademicPeriods();
         $this->createActivityLogs();
+        $this->createCacheTables();
     }
 
     public function down(): void
@@ -122,5 +123,33 @@ return new class extends Migration
             $table->index(['action', 'created_at']);
             $table->index(['subject_type', 'subject_id']);
         });
+    }
+
+    /**
+     * The cache pair, which .env requires on every request.
+     *
+     * CACHE_STORE=database means a missing `cache` table breaks the whole site
+     * rather than one feature: cache:clear, rate limiting and anything taking a
+     * lock all query it. This is the same failure a partial database import
+     * produces, and the original migration row already exists, so `migrate`
+     * alone would report "Nothing to migrate" and leave the site down.
+     */
+    private function createCacheTables(): void
+    {
+        if (! Schema::hasTable('cache')) {
+            Schema::create('cache', function (Blueprint $table) {
+                $table->string('key')->primary();
+                $table->mediumText('value');
+                $table->integer('expiration');
+            });
+        }
+
+        if (! Schema::hasTable('cache_locks')) {
+            Schema::create('cache_locks', function (Blueprint $table) {
+                $table->string('key')->primary();
+                $table->string('owner');
+                $table->integer('expiration');
+            });
+        }
     }
 };
