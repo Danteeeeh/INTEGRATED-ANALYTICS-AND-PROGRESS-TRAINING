@@ -68,17 +68,24 @@ class BladeCompilationTest extends TestCase
 
         $compiled = Blade::compileString($bareSource);
 
+        // Only the HTML half is checked. Once Blade has done its job the
+        // directives it handled live inside the PHP blocks it generated — and
+        // so do the words "@foreach" or "@php" when a comment mentions them.
+        // Those are prose, not uncompiled syntax.
+        $html = $this->stripGeneratedPhp($compiled);
+
         $leftovers = [];
 
         foreach (['@php', '@endphp', '@section', '@endsection', '@if(', '@endif', '@foreach'] as $directive) {
-            if (str_contains($compiled, $directive)) {
+            if (str_contains($html, $directive)) {
                 $leftovers[] = $directive;
             }
         }
 
         // Uncompiled echoes: Blade turns every {{ }} outside @verbatim into an
-        // echo call, so any survivor means that region was never processed.
-        if (preg_match('/\{\{.*?\}\}/s', $compiled)) {
+        // echo call, so any survivor in the HTML means that region was never
+        // processed and is being sent to the browser verbatim.
+        if (preg_match('/\{\{.*?\}\}/s', $html)) {
             $leftovers[] = '{{ }}';
         }
 
@@ -121,5 +128,27 @@ class BladeCompilationTest extends TestCase
         }
 
         return $source;
+    }
+
+    /**
+     * Drop the PHP Blade generated, leaving only what becomes page output.
+     *
+     * Handles the long form, the short-echo form and the `<?php(...)` shorthand
+     * Blade emits for inline statements.
+     */
+    private function stripGeneratedPhp(string $compiled): string
+    {
+        $patterns = [
+            '/<\?php\s.*?\?>/s',
+            '/<\?php\(.*?\)\s*;?\s*\?>/s',
+            '/<\?php\(.*?\)(?!\s*;)/s',
+            '/<\?=.*?\?>/s',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $compiled = (string) preg_replace($pattern, ' ', $compiled);
+        }
+
+        return $compiled;
     }
 }
