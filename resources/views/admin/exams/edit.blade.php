@@ -61,9 +61,13 @@
 
                     <div class="form-field">
                         <label>Type <span class="required">*</span></label>
+                        @php($legacyType = array_key_exists($exam->exam_type ?? '', \App\Models\Exam::typeOptions()) ? null : $exam->exam_type)
                         <select name="exam_type" required>
-                            @foreach(['midterm', 'final', 'comprehensive', 'module', 'other'] as $value)
-                                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type) === $value)>{{ ucfirst($value) }}</option>
+                            @if ($legacyType)
+                                <option value="{{ $legacyType }}" selected>{{ ucfirst($legacyType) }} (legacy)</option>
+                            @endif
+                            @foreach(\App\Models\Exam::typeOptions() as $value => $label)
+                                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type) === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>

@@ -102,7 +102,21 @@ class FileController extends Controller
             abort(403, 'Unauthorized access to this file.');
         }
 
-        return response()->file(Storage::disk($mediaFile->disk)->path($mediaFile->path));
+        // download() already guards this; serve() did not, so previewing a file
+        // whose bytes were missing raised a 500 instead of saying what happened.
+        abort_unless(
+            $mediaFile->fileExists(),
+            404,
+            'This file is no longer available on the server. The record exists but its contents are missing from storage.'
+        );
+
+        // Inline rather than as an attachment, so a PDF or image can be
+        // previewed in place. BinaryFileResponse still honours Range requests,
+        // which is what makes seeking work in the video and audio players.
+        return response()->file(
+            Storage::disk($mediaFile->disk)->path($mediaFile->path),
+            ['Content-Disposition' => 'inline']
+        );
     }
 
     public function delete(Request $request): JsonResponse

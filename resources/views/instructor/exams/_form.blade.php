@@ -51,17 +51,18 @@
     {{-- Required by the controller. The instructor form never had this
          field, so exam_type was absent from the payload and ExamService
          raised "Undefined array key \"exam_type\"". --}}
+    {{-- The three semestral assessments. Exams created before this field
+         existed hold a legacy "module" value; it is offered here so editing
+         one does not fail validation on its own unchanged field. --}}
+    @php($legacyType = isset($exam) && ! array_key_exists($exam->exam_type ?? '', \App\Models\Exam::typeOptions()) ? $exam->exam_type : null)
     <div class="form-field">
         <label>Type <span class="required">*</span></label>
         <select name="exam_type" required>
-            @foreach([
-                'midterm' => 'Midterm',
-                'final' => 'Final',
-                'comprehensive' => 'Comprehensive',
-                'module' => 'Module',
-                'other' => 'Other',
-            ] as $value => $label)
-                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type ?: 'midterm') === $value)>{{ $label }}</option>
+            @if ($legacyType)
+                <option value="{{ $legacyType }}" selected>{{ ucfirst($legacyType) }} (legacy)</option>
+            @endif
+            @foreach(\App\Models\Exam::typeOptions() as $value => $label)
+                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type ?? \App\Models\Exam::TYPE_PRELIM) === $value)>{{ $label }}</option>
             @endforeach
         </select>
         <span class="field-error">{{ $errors->first('exam_type') }}</span>

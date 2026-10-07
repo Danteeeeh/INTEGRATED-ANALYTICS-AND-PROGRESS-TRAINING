@@ -186,10 +186,10 @@ class AssignmentController extends Controller
 
         if ($assignment->submission_type === Assignment::TYPE_FILE) {
             $rules['files'] = 'required|array';
-            $rules['files.*'] = 'required|file|max:10240';
+            $rules['files.*'] = 'required|file|max:'.config('lms.uploads.assignment_submission');
         } elseif ($assignment->submission_type === Assignment::TYPE_MULTIPLE_FILES) {
             $rules['files'] = 'required|array|min:1';
-            $rules['files.*'] = 'required|file|max:10240';
+            $rules['files.*'] = 'required|file|max:'.config('lms.uploads.assignment_submission');
         }
 
         $validated = $request->validate($rules);

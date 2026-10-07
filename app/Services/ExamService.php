@@ -12,6 +12,9 @@ use App\Models\ExamAnswer;
 use App\Models\ExamAnswerChoice;
 use App\Models\ExamQuestion;
 use App\Models\Grade;
+use App\Models\Question;
+use App\Models\QuestionBank;
+use App\Models\QuestionChoice;
 use App\Models\GradeHistory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +29,7 @@ class ExamService
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
                 'instructions' => $data['instructions'] ?? null,
-                'exam_type' => $data['exam_type'] ?? 'module',
+                'exam_type' => $data['exam_type'] ?? Exam::TYPE_PRELIM,
                 'class_id' => $data['class_id'],
                 'course_id' => $data['course_id'] ?? null,
                 'module_id' => $data['module_id'] ?? null,
@@ -68,6 +71,256 @@ class ExamService
 
             return $exam;
         });
+    }
+
+    // ── Question management ───────────────────────────────────────
+    //
+    // An exam could be created but had no way to hold questions: the panel said
+    // "attach from your question bank or add them manually" and neither was
+    // wired up. These are the functions that make the exam usable.
+
+    /**
+     * Questions this instructor may put on an exam.
+     *
+     * Their own banks plus anything an admin has shared, mirroring what the
+     * Test Bank library is allowed to show.
+     *
+     * @return \Illuminate\Support\Collection<int, Question>
+     */
+    public function availableQuestions(int $instructorId): Collection
+    {
+        return Question::query()
+            ->where('status', '!=', Question::STATUS_ARCHIVED)
+            ->whereHas('bank', fn ($q) => $q->where('created_by', $instructorId)
+                ->orWhere('is_shared', true))
+            ->with('choices', 'bank')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * Link bank questions onto an exam.
+     *
+     * Questions already linked are skipped rather than duplicated, so clicking
+     * "attach" twice cannot produce the same question twice.
+     *
+     * @param  array<int, int>  $questionIds
+     * @param  array<int|string, float|int>  $points  Question id => points
+     * @return int  Number actually attached
+     */
+    public function attachQuestions(Exam $exam, array $questionIds, array $points = [], ?int $instructorId = null): int
+    {
+        $questionIds = array_values(array_unique(array_filter(array_map('intval', $questionIds))));
+
+        if ($questionIds === []) {
+            return 0;
+        }
+
+        // Never trust posted ids: a question the instructor cannot see must not
+        // be linkable just because its number was guessed.
+        $permitted = $this->availableQuestions($instructorId ?? auth()->id())
+            ->pluck('id')
+            ->all();
+
+        $attachable = array_values(array_intersect($questionIds, $permitted));
+
+        if ($attachable === []) {
+            return 0;
+        }
+
+        $existing = $exam->questions()->pluck('questions.id')->all();
+
+        $nextOrder = (int) ExamQuestion::where('exam_id', $exam->id)->max('order');
+
+        $attached = 0;
+
+        foreach ($attachable as $questionId) {
+            if (in_array($questionId, $existing, true)) {
+                continue;
+            }
+
+            $nextOrder++;
+
+            ExamQuestion::create([
+                'exam_id' => $exam->id,
+                'question_id' => $questionId,
+                'order' => $nextOrder,
+                // The exam's own weighting wins; the bank's default is only a
+                // starting point.
+                'points' => $points[$questionId] ?? Question::whereKey($questionId)->value('default_points') ?? 1,
+                'is_required' => true,
+            ]);
+
+            $attached++;
+        }
+
+        $exam->refresh();
+
+        return $attached;
+    }
+
+    /**
+     * Create a question inline and link it to the exam in one step.
+     *
+     * The question is written to the instructor's bank for the exam's course so
+     * it stays reusable rather than being stranded on one exam.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function addManualQuestion(Exam $exam, int $userId, array $data): ExamQuestion
+    {
+        $question = DB::transaction(function () use ($exam, $userId, $data) {
+            $bank = $this->resolveBank($exam, $userId);
+
+            $question = Question::create([
+                'question_bank_id' => $bank->id,
+                'question_type' => $data['question_type'],
+                'question_text' => $data['question_text'],
+                'explanation' => $data['explanation'] ?? null,
+                'difficulty' => $data['difficulty'] ?? Question::DIFFICULTY_MEDIUM,
+                'default_points' => $data['points'] ?? 1,
+                'tags' => $data['tags'] ?? [],
+                'created_by' => $userId,
+                'status' => Question::STATUS_ACTIVE,
+            ]);
+
+            foreach ($data['choices'] ?? [] as $index => $choice) {
+                $text = is_array($choice) ? ($choice['choice_text'] ?? null) : $choice;
+
+                if ($text === null || trim((string) $text) === '') {
+                    continue;
+                }
+
+                QuestionChoice::create([
+                    'question_id' => $question->id,
+                    'choice_text' => trim((string) $text),
+                    'is_correct' => (bool) (is_array($choice) ? ($choice['is_correct'] ?? false) : false),
+                    'position' => $index + 1,
+                    'points' => 0,
+                    'feedback' => null,
+                ]);
+            }
+
+            return $question;
+        });
+
+        $order = (int) ExamQuestion::where('exam_id', $exam->id)->max('order') + 1;
+
+        $link = ExamQuestion::create([
+            'exam_id' => $exam->id,
+            'question_id' => $question->id,
+            'order' => $order,
+            'points' => $data['points'] ?? $question->default_points ?? 1,
+            'is_required' => true,
+        ]);
+
+        $exam->refresh();
+
+        return $link;
+    }
+
+    /**
+     * Unlink a question from an exam, leaving the bank copy alone so it stays
+     * reusable on other exams.
+     */
+    public function detachQuestion(Exam $exam, Question $question): bool
+    {
+        $removed = ExamQuestion::where('exam_id', $exam->id)
+            ->where('question_id', $question->id)
+            ->delete();
+
+        // Close the gap the removal left so "order" stays 1..n.
+        $this->renumber($exam);
+
+        $exam->refresh();
+
+        return $removed > 0;
+    }
+
+    /**
+     * Set how many points one question is worth on this exam.
+     */
+    public function setQuestionPoints(Exam $exam, Question $question, float $points): bool
+    {
+        $updated = ExamQuestion::where('exam_id', $exam->id)
+            ->where('question_id', $question->id)
+            ->update(['points' => $points]);
+
+        $exam->refresh();
+
+        return $updated > 0;
+    }
+
+    /**
+     * Reorder the exam's questions to match the given ids.
+     *
+     * Questions missing from the list keep their relative position at the end
+     * rather than being dropped: reordering must never lose work.
+     *
+     * @param  array<int, int>  $orderedQuestionIds
+     */
+    public function reorderQuestions(Exam $exam, array $orderedQuestionIds): void
+    {
+        $ordered = array_values(array_unique(array_filter(array_map('intval', $orderedQuestionIds))));
+
+        $current = ExamQuestion::where('exam_id', $exam->id)->orderBy('order')->get();
+
+        $positions = [];
+
+        $slot = 1;
+
+        foreach ($ordered as $questionId) {
+            $positions[$questionId] = $slot++;
+        }
+
+        foreach ($current as $link) {
+            if (isset($positions[$link->question_id])) {
+                continue;
+            }
+
+            $positions[$link->question_id] = $slot++;
+        }
+
+        foreach ($positions as $questionId => $position) {
+            ExamQuestion::where('exam_id', $exam->id)
+                ->where('question_id', $questionId)
+                ->update(['order' => $position]);
+        }
+
+        $exam->refresh();
+    }
+
+    /** Rewrite order to a gapless 1..n sequence. */
+    private function renumber(Exam $exam): void
+    {
+        $links = ExamQuestion::where('exam_id', $exam->id)->orderBy('order')->orderBy('id')->get();
+
+        foreach ($links as $index => $link) {
+            if ($link->order !== $index + 1) {
+                $link->update(['order' => $index + 1]);
+            }
+        }
+    }
+
+    /**
+     * The bank an exam's inline questions belong to: one per course, so repeated
+     * adds collect in the same place instead of littering the bank list.
+     */
+    private function resolveBank(Exam $exam, int $userId): QuestionBank
+    {
+        $courseId = $exam->course_id ?? $exam->class?->course_id;
+
+        return QuestionBank::firstOrCreate(
+            [
+                'course_id' => $courseId,
+                'title' => ($exam->class?->course?->code ?? 'Exam').' Questions',
+                'created_by' => $userId,
+            ],
+            [
+                'description' => 'Questions added from exams.',
+                'status' => 'active',
+            ]
+        );
     }
 
     public function getExamQuestions(Exam $exam): Collection
@@ -398,7 +651,7 @@ class ExamService
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'instructions' => $data['instructions'] ?? null,
-            'exam_type' => $data['exam_type'] ?? 'special',
+            'exam_type' => $data['exam_type'] ?? Exam::TYPE_PRELIM,
             'class_id' => $data['class_id'],
             'course_id' => $data['course_id'] ?? null,
             'module_id' => $data['module_id'] ?? null,

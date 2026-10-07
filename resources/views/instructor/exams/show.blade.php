@@ -111,18 +111,57 @@
     <div class="user-panel">
         <div class="user-panel-head">
             <h3><i class="fa-solid fa-list-check"></i> Questions ({{ $exam->questions->count() }})</h3>
-            <span class="user-status">{{ number_format($exam->getTotalPoints(), 0) }} total points</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span class="user-status">{{ number_format($exam->getTotalPoints(), 0) }} total points</span>
+
+                {{-- The panel used to read "attach from your question bank or add
+                     them manually" with neither wired up. --}}
+                @if ($exam->status === \App\Models\Exam::STATUS_DRAFT)
+                    <a class="btn btn-primary" href="{{ route('instructor.courses.exams.questions.index', [$course, $exam]) }}">
+                        <i class="fa-solid fa-plus"></i> Add questions
+                    </a>
+                @endif
+            </div>
         </div>
         <div class="user-panel-body">
             @forelse($exam->questions->sortBy('pivot.order') as $question)
                 <div style="padding:12px;border:1px solid var(--dash-line);border-radius:10px;margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;gap:12px;">
+                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
                         <strong style="font-size:.86rem;">
                             {{ $question->question_text }}
                         </strong>
-                        <span class="user-status" style="flex-shrink:0;">
-                            {{ number_format($question->pivot->points ?? 1, 0) }} pts
-                        </span>
+
+                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                            <form method="POST"
+                                  action="{{ route('instructor.courses.exams.questions.update', [$course, $exam, $question]) }}"
+                                  style="display:flex;align-items:center;gap:4px;">
+                                @csrf
+                                @method('PUT')
+                                <input type="number" name="points" value="{{ $question->pivot->points ?? 1 }}"
+                                       min="0.5" max="1000" step="0.5"
+                                       title="Points for this question"
+                                       style="width:72px;padding:5px 7px;border-radius:7px;border:1px solid var(--dash-line);background:var(--dash-input,#0f172a);color:inherit;font-size:.8rem;">
+                                <button type="submit" class="btn btn-icon" title="Save points">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                            </form>
+
+                            <span class="user-status">
+                                {{ number_format($question->pivot->points ?? 1, 0) }} pts
+                            </span>
+
+                            @if ($exam->status === \App\Models\Exam::STATUS_DRAFT)
+                                <form method="POST"
+                                      action="{{ route('instructor.courses.exams.questions.destroy', [$course, $exam, $question]) }}"
+                                      onsubmit="return confirm('Remove this question from the exam? The copy in your bank is kept.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-icon btn-danger" title="Remove from this exam">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
                     </div>
 
                     <div style="margin-top:6px;font-size:.74rem;color:var(--dash-muted);text-transform:uppercase;letter-spacing:.06em;">
@@ -146,6 +185,14 @@
                     title="No questions yet"
                     description="Attach questions from your question bank or add them manually."
                 />
+
+                @if ($exam->status === \App\Models\Exam::STATUS_DRAFT)
+                    <div style="text-align:center;margin-top:-8px;">
+                        <a class="btn btn-primary" href="{{ route('instructor.courses.exams.questions.index', [$course, $exam]) }}">
+                            <i class="fa-solid fa-plus"></i> Add your first question
+                        </a>
+                    </div>
+                @endif
             @endforelse
         </div>
     </div>

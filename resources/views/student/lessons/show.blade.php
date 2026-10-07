@@ -54,10 +54,38 @@
             @if($lesson->lessonMaterials->count() > 0)
                 <div class="user-actions" style="justify-content:flex-start;flex-wrap:wrap">
                     @foreach($lesson->lessonMaterials as $material)
-                        <a href="{{ $material->mediaFile?->url ?? $material->mediaFile?->path ?? '#' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm lesson-material-link" data-material-id="{{ $material->id }}">
-                            <i class="fa-solid fa-file"></i> {{ $material->title ?? $material->mediaFile?->original_name ?? $material->mediaFile?->file_name ?? 'Material' }}
-                            @if($material->is_required)<span class="user-status active">Required</span>@endif
-                        </a>
+                        @php
+                            $media = $material->mediaFile;
+                            $displayName = $material->title
+                                ?: $media?->original_name
+                                ?: $media?->file_name
+                                ?: 'Material';
+                        @endphp
+
+                        {{-- The old link pointed at MediaFile::url, which is a raw
+                             /storage path and 404s for lesson materials; and it
+                             navigated away instead of showing the file. Preview it
+                             in place, and keep recording that it was opened. --}}
+                        @if($media && $media->fileExists())
+                            <span class="lesson-material-wrap"
+                                  data-material-id="{{ $material->id }}">
+                                <x-file-viewer :file="$media" :label="$displayName" />
+                                <a href="{{ route('files.download', ['mediaFile' => $media->id]) }}"
+                                   class="btn btn-secondary btn-sm lesson-material-link"
+                                   data-material-id="{{ $material->id }}"
+                                   target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-download"></i> {{ $displayName }}
+                                </a>
+                            </span>
+                        @else
+                            <span class="btn btn-secondary btn-sm" style="opacity:.6;cursor:not-allowed;" title="The stored file is missing from the server.">
+                                <i class="fa-solid fa-triangle-exclamation"></i> {{ $displayName }} — unavailable
+                            </span>
+                        @endif
+
+                        @if($material->is_required)
+                            <span class="user-status active">Required</span>
+                        @endif
                     @endforeach
                 </div>
             @else
@@ -219,25 +247,38 @@
         }
     }, 30000);
 
+    function markMaterialAccessed(materialId) {
+        if (!materialId) return;
+
+        fetch(window.location.pathname + '/materials/' + materialId + '/accessed', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({}),
+        })
+            .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+            .then(function (data) {
+                if (data && data.checklist) refreshChecklist();
+            })
+            .catch(function () { /* non-blocking */ });
+    }
+
     document.querySelectorAll('.lesson-material-link').forEach(function (link) {
         link.addEventListener('click', function () {
-            const materialId = link.dataset.materialId;
-            if (!materialId) return;
-            fetch(window.location.pathname + '/materials/' + materialId + '/accessed', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({}),
-            })
-                .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
-                .then(function (data) {
-                    if (data && data.checklist) refreshChecklist();
-                })
-                .catch(function () { /* non-blocking */ });
+            markMaterialAccessed(link.dataset.materialId);
+        });
+    });
+
+    // Previewing counts as opening the material too, so the completion
+    // checklist cannot be evaded by viewing a file in place.
+    document.querySelectorAll('.lesson-material-wrap .file-view-trigger').forEach(function (trigger) {
+        trigger.addEventListener('click', function () {
+            const wrap = trigger.closest('.lesson-material-wrap');
+            markMaterialAccessed(wrap && wrap.dataset.materialId);
         });
     });
 })();

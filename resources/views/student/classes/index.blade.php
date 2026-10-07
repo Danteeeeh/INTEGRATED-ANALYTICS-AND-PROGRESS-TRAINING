@@ -26,9 +26,21 @@
                                 <h3>{{ $class->course?->title ?? $class->name }}</h3>
                                 <p>{{ $class->instructor?->full_name ?? '—' }} · {{ $class->schedule ?? '' }}</p>
                             </div>
-                            <div class="user-actions" style="justify-content:space-between">
+                            <div class="user-actions" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
                                 <x-user-status-badge status="active" label="Enrolled" />
-                                <a href="{{ route('student.classes.show', $class) }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-eye"></i> Open</a>
+
+                                <div class="user-actions" style="gap:8px">
+                                    {{-- This page is what "My Grades" opens, so each card
+                                         needs a way into its gradebook. Without it the
+                                         only path was Open class, then find Gradebook
+                                         among the resource cards — which read as a dead
+                                         link. --}}
+                                    <a href="{{ route('student.classes.gradebook.index', $class) }}"
+                                       class="btn btn-secondary btn-sm">
+                                        <i class="fa-solid fa-chart-bar"></i> View Grades
+                                    </a>
+                                    <a href="{{ route('student.classes.show', $class) }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-eye"></i> Open</a>
+                                </div>
                             </div>
                         </div>
                     @endforeach

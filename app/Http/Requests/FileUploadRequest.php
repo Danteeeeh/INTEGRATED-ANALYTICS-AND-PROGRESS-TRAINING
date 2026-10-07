@@ -19,7 +19,7 @@ class FileUploadRequest extends FormRequest
             'file' => [
                 'required',
                 'file',
-                'max:10240', // 10MB
+                'max:'.config('lms.uploads.generic'),
                 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,gif,mp4,mp3,zip,txt',
             ],
         ];

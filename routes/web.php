@@ -523,6 +523,14 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::post('/{exam}/close', [InstructorExamController::class, 'close'])->name('close');
                     Route::post('/{exam}/extensions', [InstructorExamController::class, 'grantExtension'])->name('extensions.grant');
                     Route::delete('/{exam}/extensions/{student_id}', [InstructorExamController::class, 'revokeExtension'])->name('extensions.revoke');
+
+                    // Questions — the exam could be created but held nothing.
+                    Route::get('/{exam}/questions', [InstructorExamController::class, 'questions'])->name('questions.index');
+                    Route::post('/{exam}/questions', [InstructorExamController::class, 'storeQuestion'])->name('questions.store');
+                    Route::post('/{exam}/questions/attach', [InstructorExamController::class, 'attachQuestions'])->name('questions.attach');
+                    Route::post('/{exam}/questions/reorder', [InstructorExamController::class, 'reorderQuestions'])->name('questions.reorder');
+                    Route::put('/{exam}/questions/{question}', [InstructorExamController::class, 'updateQuestion'])->whereNumber('question')->name('questions.update');
+                    Route::delete('/{exam}/questions/{question}', [InstructorExamController::class, 'destroyQuestion'])->whereNumber('question')->name('questions.destroy');
                 });
 
                 Route::prefix('rubrics')->name('rubrics.')->group(function () {
@@ -746,6 +754,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{exam}', [StudentExamController::class, 'show'])->name('show');
                     Route::get('/{exam}/confirm', [StudentExamController::class, 'confirmStart'])->name('confirm');
                     Route::get('/{exam}/attempt', [StudentExamController::class, 'startAttempt'])->name('attempt.start');
+                    // The confirm screen's Start Exam button is a form; this is
+                    // what it posts to. It creates the attempt, then redirects
+                    // to the GET route above.
+                    Route::post('/{exam}/attempt/begin', [StudentExamController::class, 'beginAttempt'])->name('attempt.begin');
                     Route::post('/{exam}/attempt', [StudentExamController::class, 'storeAttempt'])->name('attempt.store');
                     Route::get('/{exam}/attempts/{attempt}', [StudentExamController::class, 'showAttempt'])->name('attempts.show');
                 });

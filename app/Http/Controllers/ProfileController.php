@@ -30,7 +30,7 @@ class ProfileController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'address' => ['nullable', 'string', 'max:500'],
-            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.config('lms.uploads.profile_photo')],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
 

@@ -223,7 +223,7 @@ class ModuleController extends Controller
         abort_if($module->course_id !== $course->id, 404);
 
         $request->validate([
-            'file' => 'required|file|max:204800', // 200MB max
+            'file' => 'required|file|max:'.config('lms.uploads.module_attachment'),
             'title' => 'nullable|string|max:255',
         ]);
 

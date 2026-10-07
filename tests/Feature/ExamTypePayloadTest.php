@@ -76,7 +76,11 @@ class ExamTypePayloadTest extends TestCase
         $exam = app(ExamService::class)->createExam($this->instructorPayload());
 
         $this->assertInstanceOf(Exam::class, $exam);
-        $this->assertSame('module', $exam->exam_type, 'createExam should apply its own default.');
+        $this->assertSame(
+            Exam::TYPE_PRELIM,
+            $exam->exam_type,
+            'createExam should apply the first semestral exam as its default.'
+        );
     }
 
     public function test_service_tolerates_a_payload_without_course_id(): void
@@ -88,13 +92,13 @@ class ExamTypePayloadTest extends TestCase
 
     public function test_service_records_the_persisted_type_in_the_audit_log(): void
     {
-        $exam = app(ExamService::class)->createExam($this->instructorPayload(['exam_type' => 'final']));
+        $exam = app(ExamService::class)->createExam($this->instructorPayload(['exam_type' => 'finals']));
 
         $audit = \App\Models\AuditLog::where('resource_type', Exam::class)
             ->where('resource_id', $exam->id)
             ->firstOrFail();
 
-        $this->assertSame('final', $audit->new_values['exam_type']);
+        $this->assertSame('finals', $audit->new_values['exam_type']);
     }
 
     public function test_instructor_can_create_an_exam(): void
@@ -129,7 +133,7 @@ class ExamTypePayloadTest extends TestCase
         $exam = Exam::create([
             'title' => 'Existing',
             'slug' => 'existing-'.uniqid(),
-            'exam_type' => 'final',
+            'exam_type' => 'finals',
             'class_id' => $this->class->id,
             'course_id' => $this->class->course_id,
             'duration_minutes' => 60,
@@ -160,10 +164,10 @@ class ExamTypePayloadTest extends TestCase
 
         $this->actingAs($this->instructor)
             ->put(route('instructor.courses.exams.update', [$this->class->course, $exam]),
-                $this->instructorPayload(['exam_type' => 'comprehensive']))
+                $this->instructorPayload(['exam_type' => 'finals']))
             ->assertRedirect();
 
-        $this->assertSame('comprehensive', $exam->fresh()->exam_type);
+        $this->assertSame('finals', $exam->fresh()->exam_type);
     }
 
     // ── The admin side-nav page the report also mentions ─────────
@@ -185,7 +189,7 @@ class ExamTypePayloadTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.exams.index', ['exam_type' => 'final']))
+            ->get(route('admin.exams.index', ['exam_type' => 'finals']))
             ->assertOk()
             ->assertDontSee('A midterm');
     }

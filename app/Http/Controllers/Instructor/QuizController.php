@@ -99,7 +99,7 @@ class QuizController extends Controller
             'video_url' => 'nullable|url|max:500',
             'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|string|in:draft,published,closed',
-            'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
+            'import_file' => 'nullable|file|mimes:csv,txt|max:'.config('lms.uploads.question_import'),
             'question_bank_id' => 'nullable|exists:question_banks,id',
             'questions' => 'nullable|array',
             'questions.*.text' => 'required_with:questions|string',
@@ -268,7 +268,7 @@ class QuizController extends Controller
             'video_url' => 'nullable|url|max:500',
             'video_duration_minutes' => 'nullable|integer|min:1',
             'status' => 'required|string|in:draft,published,closed',
-            'import_file' => 'nullable|file|mimes:csv,txt|max:10240',
+            'import_file' => 'nullable|file|mimes:csv,txt|max:'.config('lms.uploads.question_import'),
             'question_bank_id' => 'nullable|exists:question_banks,id',
             'questions' => 'nullable|array',
             'questions.*.text' => 'required_with:questions|string',
@@ -455,7 +455,7 @@ class QuizController extends Controller
         abort_if(! $course->isManagedBy(auth()->user()), 403);
 
         $validated = $request->validate([
-            'import_file' => 'required|file|mimes:csv,txt|max:10240',
+            'import_file' => 'required|file|mimes:csv,txt|max:'.config('lms.uploads.question_import'),
             'question_bank_id' => 'nullable|exists:question_banks,id',
         ]);
 

@@ -97,12 +97,50 @@ class Exam extends Model
     const STATUS_CLOSED = 'closed';
     const STATUS_ARCHIVED = 'archived';
 
-    // Exam type constants
+    // Exam type constants — the three semestral assessments.
+    const TYPE_PRELIM = 'prelim';
+
     const TYPE_MIDTERM = 'midterm';
-    const TYPE_FINAL = 'final';
-    const TYPE_COMPREHENSIVE = 'comprehensive';
+
+    const TYPE_FINALS = 'finals';
+
+    /**
+     * Legacy values kept readable so exams saved before the Type field existed
+     * still render. Never offered on a form; relabel with lms:relabel-exams.
+     */
     const TYPE_MODULE = 'module';
+
     const TYPE_OTHER = 'other';
+
+    /**
+     * The choices an instructor may pick, in semester order.
+     *
+     * Drives every create/edit form and the list filters so the three places
+     * cannot drift apart.
+     *
+     * @return array<string, string>
+     */
+    public static function typeOptions(): array
+    {
+        return [
+            self::TYPE_PRELIM => 'Prelim',
+            self::TYPE_MIDTERM => 'Midterm',
+            self::TYPE_FINALS => 'Finals',
+        ];
+    }
+
+    /**
+     * Types accepted from a request.
+     *
+     * Includes the legacy values so editing an exam created before Type
+     * existed does not fail validation on its own unchanged field.
+     *
+     * @return array<int, string>
+     */
+    public static function acceptedTypes(): array
+    {
+        return array_merge(array_keys(self::typeOptions()), [self::TYPE_MODULE, self::TYPE_OTHER]);
+    }
 
     // Result visibility constants
     const VISIBILITY_IMMEDIATELY = 'immediately';
@@ -206,19 +244,19 @@ class Exam extends Model
         return $query->where('exam_type', $type);
     }
 
+    public function scopePrelim($query)
+    {
+        return $query->where('exam_type', self::TYPE_PRELIM);
+    }
+
     public function scopeMidterm($query)
     {
         return $query->where('exam_type', self::TYPE_MIDTERM);
     }
 
-    public function scopeFinal($query)
+    public function scopeFinals($query)
     {
-        return $query->where('exam_type', self::TYPE_FINAL);
-    }
-
-    public function scopeComprehensive($query)
-    {
-        return $query->where('exam_type', self::TYPE_COMPREHENSIVE);
+        return $query->where('exam_type', self::TYPE_FINALS);
     }
 
     public function scopeModule($query)
@@ -285,10 +323,10 @@ class Exam extends Model
 
     public function getTypeLabel(): string
     {
-        return match($this->exam_type) {
+        return match ($this->exam_type) {
+            self::TYPE_PRELIM => 'Prelim Exam',
             self::TYPE_MIDTERM => 'Midterm Exam',
-            self::TYPE_FINAL => 'Final Exam',
-            self::TYPE_COMPREHENSIVE => 'Comprehensive Exam',
+            self::TYPE_FINALS => 'Finals Exam',
             self::TYPE_MODULE => 'Module Exam',
             self::TYPE_OTHER => 'Other',
             default => 'Exam',

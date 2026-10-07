@@ -91,7 +91,7 @@ public function index(Course $course, ?Module $module = null): View
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
             'materials' => 'nullable|array',
-            'materials.*' => 'file|max:204800', // 200MB max per file
+            'materials.*' => 'file|max:'.config('lms.uploads.lesson_material')
         ]);
 
         $validated['module_id'] = $module->id;
@@ -194,7 +194,7 @@ public function index(Course $course, ?Module $module = null): View
             'cr_min_minutes' => 'nullable|integer|min:0|max:600',
             'cr_require_content_view' => 'nullable|boolean',
             'materials' => 'nullable|array',
-            'materials.*' => 'file|max:204800', // 200MB max per file
+            'materials.*' => 'file|max:'.config('lms.uploads.lesson_material')
         ]);
 
         $validated['is_required'] = $validated['is_required'] ?? false;
@@ -294,7 +294,7 @@ public function index(Course $course, ?Module $module = null): View
 
             $request->validate([
                 'files' => 'required|array',
-                'files.*' => 'file|max:204800',
+                'files.*' => 'file|max:'.config('lms.uploads.lesson_material'),
                 'title' => 'nullable|string|max:255',
                 'description' => 'nullable|string',
                 'is_required' => 'boolean',

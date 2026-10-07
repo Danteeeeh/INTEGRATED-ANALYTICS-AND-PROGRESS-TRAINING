@@ -202,8 +202,14 @@ class FileUploadService
         // Remove extension
         $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
 
-        // Sanitize filename
+        // Sanitize filename. Str::slug() silently drops anything it cannot
+        // transliterate, so a name written entirely in a non-latin script came
+        // out as "" and the stored file was left with no name at all.
         $safeName = Str::slug($nameWithoutExt, '_');
+
+        if ($safeName === '') {
+            $safeName = 'file';
+        }
 
         // Add timestamp to prevent conflicts
         $timestamp = now()->format('YmdHis');

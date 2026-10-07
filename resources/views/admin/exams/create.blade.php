@@ -63,14 +63,8 @@
                     <div class="form-field">
                         <label>Type <span class="required">*</span></label>
                         <select name="exam_type" required>
-                            @foreach([
-                                'midterm' => 'Midterm',
-                                'final' => 'Final',
-                                'comprehensive' => 'Comprehensive',
-                                'module' => 'Module',
-                                'other' => 'Other',
-                            ] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('exam_type', 'midterm') === $value)>{{ $label }}</option>
+                            @foreach(\App\Models\Exam::typeOptions() as $value => $label)
+                                <option value="{{ $value }}" @selected(old('exam_type', \App\Models\Exam::TYPE_PRELIM) === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>

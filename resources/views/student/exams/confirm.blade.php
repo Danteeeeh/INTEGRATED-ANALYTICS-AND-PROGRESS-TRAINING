@@ -94,7 +94,10 @@
             </div>
         </div>
 
-        <form action="{{ route('student.courses.exams.attempt.start', [$course, $exam]) }}" method="POST">
+        {{-- Posts to attempt.begin, which creates the attempt and redirects to it.
+             Posting to the attempt path itself reached the submit handler, which
+             found no live attempt and answered 404. --}}
+        <form action="{{ route('student.courses.exams.attempt.begin', [$course, $exam]) }}" method="POST">
             @csrf
             <div class="flex gap-4">
                 <a href="{{ route('student.courses.exams.show', [$course, $exam]) }}"

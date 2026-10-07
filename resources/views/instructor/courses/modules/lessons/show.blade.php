@@ -90,22 +90,36 @@
         </div>
         <div style="padding: 16px 24px;">
             @forelse($lesson->lessonMaterials as $material)
+                @php
+                    $media = $material->mediaFile;
+                    // Show the name that was typed, not the slugified storage name,
+                    // which loses non-latin scripts entirely.
+                    $displayName = $material->title
+                        ?: $media?->original_name
+                        ?: $media?->file_name
+                        ?: 'Untitled';
+                @endphp
                 <div class="module-mini-card">
                     <div class="module-mini-icon"><i class="fa-solid fa-paperclip"></i></div>
                     <div class="module-mini-body">
                         <div class="module-mini-title">
-                            {{ $material->title ?? $material->mediaFile?->file_name ?? 'Untitled' }}
+                            {{ $displayName }}
                             @if($material->is_required)
                                 <span style="margin:0 8px;"><span class="badge-published">Required</span></span>
                             @endif
                         </div>
                         <div class="module-mini-meta">
-                            {{ $material->mediaFile?->mime_type ?? 'File' }}
-                            @if($material->mediaFile)
+                            {{ $media?->mime_type ?? 'File' }}
+                            @if($media && $media->fileExists())
                                 <span style="margin:0 8px;">·</span>
-                                <a href="{{ route('files.download', $material->mediaFile) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
+                                <x-file-viewer :file="$media" :label="$displayName" />
+                                <span style="margin:0 8px;">·</span>
+                                <a href="{{ route('files.download', ['mediaFile' => $media->id]) }}" target="_blank" style="color: #62c9f5; text-decoration: none; font-size: 0.8rem;">
                                     <i class="fa-solid fa-download"></i> Download
                                 </a>
+                            @elseif($media)
+                                <span style="margin:0 8px;">·</span>
+                                <span style="color:#f59e0b;font-size:.8rem;">Contents missing from storage</span>
                             @endif
                         </div>
                     </div>

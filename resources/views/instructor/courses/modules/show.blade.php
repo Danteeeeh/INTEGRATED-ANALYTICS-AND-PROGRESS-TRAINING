@@ -110,20 +110,42 @@
                     @if(($module->attachments->count() ?? 0) > 0)
                         <div class="module-attachment-list">
                             @foreach($module->attachments as $attachment)
+                                @php
+                                    $media = $attachment->mediaFile;
+                                    // file_name is slugified and can lose the original
+                                    // entirely for a non-latin script, so the name the
+                                    // uploader typed is what gets shown.
+                                    $displayName = $attachment->title
+                                        ?: $media?->original_name
+                                        ?: $media?->file_name
+                                        ?: 'Untitled';
+                                @endphp
                                 <article class="module-attachment-card">
                                     <span class="module-attachment-icon">
                                         <i class="fa-solid fa-file" aria-hidden="true"></i>
                                     </span>
                                     <div class="module-attachment-body">
-                                        <strong>{{ $attachment->title ?? $attachment->mediaFile->file_name }}</strong>
+                                        <strong>{{ $displayName }}</strong>
                                         <span class="module-attachment-meta">
-                                            <span><i class="fa-solid fa-hard-drive" aria-hidden="true"></i> {{ $attachment->mediaFile->size ? round($attachment->mediaFile->size / 1024 / 1024, 2) . ' MB' : '—' }}</span>
-                                            <span><i class="fa-solid fa-file-type" aria-hidden="true"></i> {{ $attachment->mediaFile->extension ?? '—' }}</span>
+                                            <span><i class="fa-solid fa-hard-drive" aria-hidden="true"></i> {{ $media->size ? round($media->size / 1024 / 1024, 2) . ' MB' : '—' }}</span>
+                                            <span><i class="fa-solid fa-file-type" aria-hidden="true"></i> {{ $media->extension ?? '—' }}</span>
+                                            @unless ($media->fileExists())
+                                                <span style="color:#f59e0b;">
+                                                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                                    Contents missing from storage
+                                                </span>
+                                            @endunless
                                         </span>
                                     </div>
                                     <div class="user-actions">
-                                        <a href="{{ $attachment->mediaFile->url }}" target="_blank" class="btn btn-icon" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></a>
-                                        <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete only the attachment &quot;{{ addslashes($attachment->title ?? $attachment->mediaFile->file_name) }}&quot;?\n\nThe module, its lessons and its other attachments are NOT affected.');">
+                                        @if ($media->fileExists())
+                                            <x-file-viewer :file="$media" :label="$displayName" />
+                                            <a href="{{ route('files.download', ['mediaFile' => $media->id]) }}" class="btn btn-icon" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></a>
+                                        @else
+                                            {{-- No point offering a view or download: the bytes are gone. --}}
+                                            <span class="user-status">Unavailable</span>
+                                        @endif
+                                        <form method="POST" action="{{ route('instructor.courses.modules.attachments.delete', [$course, $module, $attachment]) }}" onsubmit="return confirm('Delete only the attachment &quot;{{ addslashes($displayName) }}&quot;?\n\nThe module, its lessons and its other attachments are NOT affected.');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-icon btn-danger" title="Delete this attachment only"><i class="fa-solid fa-paperclip" aria-hidden="true"></i></button>

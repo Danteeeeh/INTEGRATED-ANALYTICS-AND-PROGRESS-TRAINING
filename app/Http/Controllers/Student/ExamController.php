@@ -168,6 +168,62 @@ class ExamController extends Controller
         return view('student.exams.attempt', compact('course', 'exam', 'enrollment', 'inProgress'));
     }
 
+    /**
+ * Create the attempt and hand the student to the exam page.
+ *
+ * The confirm screen's "Start Exam" button is a form, so it POSTs here rather
+ * than linking. Previously it POSTed to the attempt path, which is the *submit*
+ * handler: that looks for an attempt already in progress, finds none because
+ * nothing had started it, and firstOrFail() answered 404 — so every student who
+ * used the button hit a dead end.
+ *
+ * Starts are idempotent (an attempt already in progress is reused) and this
+ * redirects to the GET route, so a refresh cannot restart the clock.
+ */
+public function beginAttempt(Course $course, Exam $exam): RedirectResponse
+    {
+        $studentId = auth()->id();
+
+        $enrollment = Enrollment::where('student_id', $studentId)
+            ->whereHas('class', function ($q) use ($course) {
+                $q->where('course_id', $course->id);
+            })
+            ->where('status', 'active')
+            ->first();
+
+        if (!$enrollment) {
+            abort(403);
+        }
+
+        if (!$exam->isAvailable()) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam is not currently available.');
+        }
+
+        if ($exam->isOverdueForStudent($studentId)) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam is overdue and no longer available for attempts.');
+        }
+
+        $existing = ExamAttempt::ofExam($exam->id)
+            ->ofStudent($studentId)
+            ->inProgress()
+            ->first();
+
+        if (!$existing) {
+            $attemptCount = ExamAttempt::ofExam($exam->id)->ofStudent($studentId)->count();
+
+            if ($exam->attempt_limit && $attemptCount >= $exam->attempt_limit) {
+                return redirect()->route('student.courses.exams.show', [$course, $exam])
+                    ->with('error', 'You have reached the maximum number of attempts for this exam.');
+            }
+
+            $this->examService->startAttempt($exam);
+        }
+
+        return redirect()->route('student.courses.exams.attempt.start', [$course, $exam]);
+    }
+
     public function storeAttempt(Request $request, Course $course, Exam $exam): RedirectResponse
     {
         $studentId = auth()->id();
@@ -186,7 +242,15 @@ class ExamController extends Controller
         $attempt = ExamAttempt::ofExam($exam->id)
             ->ofStudent($studentId)
             ->inProgress()
-            ->firstOrFail();
+            ->first();
+
+        // firstOrFail() answered 404 whenever a submit arrived without a live
+        // attempt — a stale tab, a double click, a lost session. That is a dead
+        // end for the student, so send them back to start instead.
+        if (!$attempt) {
+            return redirect()->route('student.courses.exams.confirm', [$course, $exam])
+                ->with('error', 'Your attempt is no longer open. Please start it again.');
+        }
 
         if ($exam->duration_minutes && $exam->auto_submit_on_timeout) {
             $deadline = $attempt->started_at->addMinutes($exam->duration_minutes);

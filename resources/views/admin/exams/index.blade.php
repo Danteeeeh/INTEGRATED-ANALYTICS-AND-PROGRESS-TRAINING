@@ -45,7 +45,7 @@
 
             <select class="form-control" name="exam_type" aria-label="Filter exam type">
                 <option value="">All Types</option>
-                @foreach(['midterm' => 'Midterm', 'final' => 'Final', 'comprehensive' => 'Comprehensive', 'module' => 'Module', 'other' => 'Other'] as $value => $label)
+                @foreach(\App\Models\Exam::typeOptions() as $value => $label)
                     <option value="{{ $value }}" @selected(request('exam_type') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
