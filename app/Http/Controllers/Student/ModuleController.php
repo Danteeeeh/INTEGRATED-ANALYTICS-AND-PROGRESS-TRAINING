@@ -43,12 +43,16 @@ class ModuleController extends Controller
         // actually yields results. Stale section assignments (deleted modules,
         // another course) previously filtered everything out and the page
         // rendered empty even though the course had published modules.
+        //
+        // No join to `modules` here: `whereIn` below already restricts to this
+        // course's published modules, so the join filtered nothing extra and only
+        // made `status`/`course_id` ambiguous in the WHERE clause. Ordering is
+        // irrelevant anyway — this list is only ever fed back into `whereIn`,
+        // and the final ordering comes from $modulesQuery.
         $sectionModuleIds = SectionModuleAssignment::active()
             ->byCourse($course->id)
             ->bySection($enrollment->class->section_id)
-            ->whereIn('module_id', $allModuleIds)
-            ->join('modules', 'section_module_assignments.module_id', '=', 'modules.id')
-            ->orderBy('modules.position', 'asc')
+            ->whereIn('section_module_assignments.module_id', $allModuleIds)
             ->pluck('section_module_assignments.module_id');
 
         if ($sectionModuleIds->isNotEmpty()) {
@@ -63,6 +67,11 @@ class ModuleController extends Controller
     public function show(Course $course, Module $module): View
     {
         $studentId = auth()->id();
+
+        // {course} and {module} are bound independently by primary key, so a
+        // module from another course would otherwise render under this
+        // course's header. That combination does not exist → 404.
+        abort_unless((int) $module->course_id === (int) $course->id, 404);
 
         $enrollment = Enrollment::where('student_id', $studentId)
             ->whereHas('class', function ($q) use ($course) {

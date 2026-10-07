@@ -26,7 +26,7 @@ class SectionModuleAssignmentController extends Controller
 
         $modules = Module::where('course_id', $class->course_id)
             ->published()
-            ->orderBy('order')
+            ->orderBy('position')
             ->get();
 
         return view('instructor.section_module_assignments.index', compact(
@@ -42,7 +42,7 @@ class SectionModuleAssignmentController extends Controller
 
         $modules = Module::where('course_id', $class->course_id)
             ->published()
-            ->orderBy('order')
+            ->orderBy('position')
             ->get();
 
         return view('instructor.section_module_assignments.create', compact(

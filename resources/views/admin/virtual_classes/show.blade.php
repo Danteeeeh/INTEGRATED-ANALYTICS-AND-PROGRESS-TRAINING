@@ -45,12 +45,7 @@
             <div class="modal-row"><span>Date:</span><span>{{ $virtualClass->meeting_date->format('l, F j, Y') }}</span></div>
             <div class="modal-row"><span>Start Time:</span><span>{{ \Carbon\Carbon::parse($virtualClass->start_time)->format('g:i A') }}</span></div>
             <div class="modal-row"><span>End Time:</span><span>{{ \Carbon\Carbon::parse($virtualClass->end_time)->format('g:i A') }}</span></div>
-            @php
-                $start = \Carbon\Carbon::parse($virtualClass->start_time);
-                $end = \Carbon\Carbon::parse($virtualClass->end_time);
-                $duration = $start->diff($end)->format('%h hr %i min');
-            @endphp
-            <div class="modal-row"><span>Duration:</span><span>{{ $duration }}</span></div>
+            <div class="modal-row"><span>Duration:</span><span>{{ $virtualClass->durationLabel() }}</span></div>
 
             <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-video"></i> Meeting Details</div>
             @php
@@ -59,7 +54,7 @@
                     'google_meet' => 'Google Meet',
                     'microsoft_teams' => 'Microsoft Teams',
                     'other' => 'Other',
-                    default => ucfirst($virtualClass->meeting_provider),
+                    default => ucfirst((string) $virtualClass->meeting_provider),
                 };
             @endphp
             <div class="modal-row"><span>Provider:</span><span><x-user-status-badge :status="Str::slug($virtualClass->meeting_provider ?? 'other')" :label="$providerLabel" /></span></div>

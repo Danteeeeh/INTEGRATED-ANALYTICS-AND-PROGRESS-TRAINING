@@ -8,6 +8,8 @@ use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
 use App\Models\AssignmentSubmission;
+use App\Models\ExamAttempt;
+use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Services\FeedbackSuggestionService;
 use App\Services\GradeBreakdownService;

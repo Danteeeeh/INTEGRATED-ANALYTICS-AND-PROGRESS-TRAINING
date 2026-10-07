@@ -62,24 +62,31 @@ class SubjectController extends Controller
 
     /**
      * "Check Available Scores" — how complete a subject's grading is.
+     *
+     * Staff get the cohort report. A student gets their own sheet instead:
+     * the report carries every classmate's score plus the class average, so
+     * it is never handed to a student even though the route is shared.
      */
     public function scores(Request $request, ClassModel $class): View
     {
-        $this->authorizeSubjectAccess($request->user(), $class);
+        $user = $request->user();
+
+        $this->authorizeSubjectAccess($user, $class);
+
+        if (! $user->isAdmin() && ! $user->isInstructor()) {
+            return view('student.subjects.scores', $this->subjects->studentScoreSheet($class, $user->id));
+        }
 
         $report = $this->subjects->scoreAvailability($class);
 
         $view = match (true) {
-            $request->user()->isAdmin() => 'admin.subjects.scores',
-            $request->user()->isInstructor() => 'instructor.subjects.scores',
-            default => 'student.subjects.scores',
+            $user->isAdmin() => 'admin.subjects.scores',
+            default => 'instructor.subjects.scores',
         };
 
         return view($view, $report + [
-            'routePrefix' => $request->route()->getName() === 'admin.subjects.scores' ? 'admin.' : (
-                $request->route()->getName() === 'instructor.subjects.scores' ? 'instructor.' : 'student.'
-            ),
-            'canUnverify' => $request->user()->isAdmin(),
+            'routePrefix' => $request->route()->getName() === 'admin.subjects.scores' ? 'admin.' : 'instructor.',
+            'canUnverify' => $user->isAdmin(),
         ]);
     }
 

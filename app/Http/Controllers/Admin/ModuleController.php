@@ -64,13 +64,16 @@ class ModuleController extends Controller
         return view('admin.modules.index', compact('modules', 'courses'));
     }
 
-    public function create(): View
+    public function create(Course $course): View
     {
         $this->authorize('create', Module::class);
 
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
 
-        return view('admin.modules.create', compact('courses'));
+        // The form pre-selects the course it was opened from, so $course has to
+        // reach the view — it was never passed, hence "Undefined variable
+        // $course" on this page.
+        return view('admin.modules.create', compact('course', 'courses'));
     }
 
     public function store(StoreModuleRequest $request): RedirectResponse
@@ -87,25 +90,25 @@ class ModuleController extends Controller
         return redirect()->route('admin.courses.modules.show', [$module->course_id, $module]);
     }
 
-    public function show(Module $module): View
+    public function show(Course $course, Module $module): View
     {
         $this->authorize('view', $module);
 
         $module->load(['course', 'lessons.materials', 'creator']);
 
-        return view('admin.modules.show', compact('module'));
+        return view('admin.modules.show', compact('course', 'module'));
     }
 
-    public function edit(Module $module): View
+    public function edit(Course $course, Module $module): View
     {
         $this->authorize('update', $module);
 
         $courses = Course::orderBy('code')->get(['id', 'code', 'title']);
 
-        return view('admin.modules.edit', compact('module', 'courses'));
+        return view('admin.modules.edit', compact('course', 'module', 'courses'));
     }
 
-    public function update(UpdateModuleRequest $request, Module $module): RedirectResponse
+    public function update(UpdateModuleRequest $request, Course $course, Module $module): RedirectResponse
     {
         $data = $request->validated();
         $data['is_required'] = $request->boolean('is_required', $module->is_required);
@@ -117,7 +120,7 @@ class ModuleController extends Controller
         return redirect()->route('admin.courses.modules.show', [$module->course_id, $module]);
     }
 
-    public function destroy(Module $module): RedirectResponse
+    public function destroy(Course $course, Module $module): RedirectResponse
     {
         $this->authorize('delete', $module);
 
@@ -161,7 +164,7 @@ class ModuleController extends Controller
         return back();
     }
 
-    public function publish(Module $module): RedirectResponse
+    public function publish(Course $course, Module $module): RedirectResponse
     {
         $this->authorize('publish', $module);
 
@@ -172,7 +175,7 @@ class ModuleController extends Controller
         return back();
     }
 
-    public function unpublish(Module $module): RedirectResponse
+    public function unpublish(Course $course, Module $module): RedirectResponse
     {
         $this->authorize('publish', $module);
 

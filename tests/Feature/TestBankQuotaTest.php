@@ -200,6 +200,61 @@ class TestBankQuotaTest extends TestCase
         app(QuestionQuotaPicker::class)->pick($pool, 5, [$cats[1]->id => 3, $cats[2]->id => 3]);
     }
 
+    public function test_quota_holds_across_many_random_draws(): void
+    {
+        // The picker used to fill quotas greedily and then pad without looking
+        // at them, so roughly one draw in eight came back silently wrong — the
+        // category/difficulty mix simply did not match what was asked for.
+        // Running the same request many times makes that regression impossible
+        // to miss instead of hiding behind a 12% coin flip.
+        $poolData = $this->pool();
+        $pool = $poolData['questions'];
+        $cats = $poolData['categories'];
+
+        for ($i = 0; $i < 60; $i++) {
+            $drawn = app(QuestionQuotaPicker::class)->pick(
+                $pool,
+                7,
+                [$cats[1]->id => 4, $cats[2]->id => 3],
+                ['easy' => 3, 'medium' => 2, 'hard' => 2]
+            );
+
+            $this->assertCount(7, $drawn);
+            $this->assertSame(4, count(array_filter($drawn, fn (Question $q) => (int) $q->category_id === $cats[1]->id)), "category 1 wrong on draw {$i}");
+            $this->assertSame(3, count(array_filter($drawn, fn (Question $q) => (int) $q->category_id === $cats[2]->id)), "category 2 wrong on draw {$i}");
+            $this->assertSame(3, count(array_filter($drawn, fn (Question $q) => $q->difficulty === 'easy')), "easy wrong on draw {$i}");
+            $this->assertSame(2, count(array_filter($drawn, fn (Question $q) => $q->difficulty === 'medium')), "medium wrong on draw {$i}");
+            $this->assertSame(2, count(array_filter($drawn, fn (Question $q) => $q->difficulty === 'hard')), "hard wrong on draw {$i}");
+        }
+    }
+
+    public function test_free_remainder_never_overshoots_a_quota(): void
+    {
+        // 5 quota'd + 5 quota-less; ask for 3 from the quota'd bucket out of 5.
+        // The leftover 2 must come from the un-quota'd side, every time.
+        $poolData = $this->pool([
+            ['cat' => 0, 'diff' => 'easy', 'count' => 5],
+            ['cat' => 1, 'diff' => 'easy', 'count' => 5],
+        ]);
+        $pool = $poolData['questions'];
+        $cats = $poolData['categories'];
+
+        for ($i = 0; $i < 60; $i++) {
+            $drawn = app(QuestionQuotaPicker::class)->pick($pool, 5, [$cats[1]->id => 3]);
+
+            $this->assertSame(
+                3,
+                count(array_filter($drawn, fn (Question $q) => (int) $q->category_id === $cats[1]->id)),
+                "quota'd category overshot on draw {$i}"
+            );
+            $this->assertSame(
+                2,
+                count(array_filter($drawn, fn (Question $q) => $q->category_id === null)),
+                "remainder did not come from the un-quota'd bucket on draw {$i}"
+            );
+        }
+    }
+
     public function test_uncategorised_is_not_given_a_quota_unless_requested(): void
     {
         $poolData = $this->pool([
@@ -222,10 +277,22 @@ class TestBankQuotaTest extends TestCase
     {
         $pool = $this->pool([['cat' => 1, 'diff' => 'easy', 'count' => 10]])['questions'];
 
-        $a = app(QuestionQuotaPicker::class)->pick($pool, 5);
-        $b = app(QuestionQuotaPicker::class)->pick($pool, 5);
+        // Comparing a single element of two random draws was itself a coin
+        // flip — a 1-in-10 chance the two matched, which reddened CI for
+        // reasons that had nothing to do with the picker. Draw repeatedly and
+        // assert the shuffle produces *variety*, which is what is actually
+        // under test and cannot realistically come up all-equal.
+        $orders = [];
 
-        $this->assertNotSame($a[0]->id, $b[0]->id, 'Shuffled pool should yield different order');
+        for ($i = 0; $i < 15; $i++) {
+            $orders[] = implode(',', collect(app(QuestionQuotaPicker::class)->pick($pool, 5))->pluck('id')->all());
+        }
+
+        $this->assertGreaterThan(
+            1,
+            count(array_unique($orders)),
+            'A shuffled pool should not return the same order on every draw.'
+        );
     }
 
     public function test_total_larger_than_pool_refused(): void

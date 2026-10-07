@@ -52,11 +52,17 @@ class ExamService
                 'action' => 'create',
                 'resource_type' => Exam::class,
                 'resource_id' => $exam->id,
+                // Read back off $exam rather than $data: the create above
+                // applies defaults (exam_type => 'module', course_id => null,
+                // …) and the instructor form does not always submit exam_type
+                // at all. Indexing $data here raised
+                // "Undefined array key \"exam_type\"" and aborted the whole
+                // transaction, so the exam was never created at all.
                 'new_values' => [
-                    'title' => $data['title'],
-                    'exam_type' => $data['exam_type'],
-                    'class_id' => $data['class_id'],
-                    'course_id' => $data['course_id'],
+                    'title' => $exam->title,
+                    'exam_type' => $exam->exam_type,
+                    'class_id' => $exam->class_id,
+                    'course_id' => $exam->course_id,
                 ],
             ]);
 
@@ -78,6 +84,60 @@ class ExamService
         }
 
         return $query->get()->pluck('question')->filter()->values();
+    }
+
+    /**
+ * Open a new attempt for the signed-in student.
+ *
+ * Student\ExamController@attempt has called this since the attempt routes
+ * landed, but the method was never written — so starting an exam died with
+ * "Call to undefined method ExamService::startAttempt()" and no student could
+ * sit an exam at all.
+ *
+ * The attempt number continues the student's existing history, and the clock
+ * starts now so the countdown the attempt page shows is measured from the same
+ * moment.
+     */
+    public function startAttempt(Exam $exam): ExamAttempt
+    {
+        $studentId = auth()->id();
+
+        if (! $studentId) {
+            throw new \RuntimeException('Cannot start an exam attempt without an authenticated user.');
+        }
+
+        return DB::transaction(function () use ($exam, $studentId) {
+            $attemptNumber = ExamAttempt::ofExam($exam->id)
+                ->ofStudent($studentId)
+                ->max('attempt_number') + 1;
+
+            $attempt = ExamAttempt::create([
+                'exam_id' => $exam->id,
+                'student_id' => $studentId,
+                'attempt_number' => $attemptNumber,
+                'started_at' => now(),
+                'status' => ExamAttempt::STATUS_IN_PROGRESS,
+                'total_points' => $exam->total_points,
+                'ip_address' => request()->ip(),
+                'user_agent' => substr((string) request()->userAgent(), 0, 255),
+                'metadata' => [
+                    'started_from' => 'web',
+                ],
+            ]);
+
+            AuditLog::create([
+                'user_id' => $studentId,
+                'action' => 'start',
+                'resource_type' => ExamAttempt::class,
+                'resource_id' => $attempt->id,
+                'new_values' => [
+                    'exam_id' => $exam->id,
+                    'attempt_number' => $attemptNumber,
+                ],
+            ]);
+
+            return $attempt;
+        });
     }
 
     public function confirmStart(ExamAttempt $attempt): ExamAttempt
@@ -155,6 +215,63 @@ class ExamService
         if ($percent >= 70) return 'C';
         if ($percent >= 60) return 'D';
         return 'F';
+    }
+
+    /**
+     * Apply an edit to an existing exam.
+     *
+     * Both the admin and instructor controllers have called this since the
+     * resource routes landed, but the method was never written — so saving an
+     * exam from either side died with
+     * "Call to undefined method ExamService::updateExam()".
+     *
+     * Only keys actually present in $data are written, so a caller that omits
+     * an optional column leaves the stored value alone instead of nulling it.
+     * `slug` and `created_by` are deliberately never touched: the slug is the
+     * exam's identity in URLs and the author is history.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function updateExam(Exam $exam, array $data): Exam
+    {
+        return DB::transaction(function () use ($exam, $data) {
+            $tracked = ['title', 'exam_type', 'class_id', 'course_id', 'status'];
+            $before = $exam->only($tracked);
+
+            $editable = [
+                'title', 'description', 'instructions', 'exam_type', 'class_id',
+                'course_id', 'module_id', 'duration_minutes', 'total_points',
+                'passing_score_percent', 'grade_weight', 'attempt_limit',
+                'allow_review', 'requires_proctoring', 'proctoring_method',
+                'proctoring_instructions', 'record_session', 'detect_tab_switch',
+                'detect_copy_paste', 'allow_navigation', 'shuffle_questions',
+                'shuffle_choices', 'show_question_number', 'show_timer',
+                'auto_save_seconds', 'auto_submit_on_timeout', 'result_visibility',
+                'show_correct_answers', 'show_score', 'results_release_date',
+                'starts_at', 'ends_at', 'allowed_start_time', 'allowed_end_time',
+                'video_url', 'video_duration_minutes', 'require_confirmation',
+                'status',
+            ];
+
+            $attributes = array_intersect_key($data, array_flip($editable));
+
+            if ($attributes !== []) {
+                $exam->fill($attributes)->save();
+            }
+
+            $fresh = $exam->fresh();
+
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'update',
+                'resource_type' => Exam::class,
+                'resource_id' => $exam->id,
+                'old_values' => $before,
+                'new_values' => $fresh->only($tracked),
+            ]);
+
+            return $fresh;
+        });
     }
 
     public function deleteExam(Exam $exam): bool

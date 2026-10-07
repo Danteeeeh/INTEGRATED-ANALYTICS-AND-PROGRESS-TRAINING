@@ -92,17 +92,27 @@
         .cc-field.full { grid-column: 1 / -1; }
         .cc-field label { color: var(--bcp-muted, #98a7c4); font-size: .72rem; font-weight: 750; }
         .cc-field label .req { color: #fda4af; }
-        .cc-field input, .cc-field select, .cc-field textarea {
+        .cc-field input:not([type="radio"]):not([type="checkbox"]),
+        .cc-field select, .cc-field textarea {
             width: 100%; min-height: 40px; padding: 9px 12px;
             border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 9px;
             background: #101625; color: var(--bcp-ink, #eef4ff);
             font-size: .88rem; transition: border-color .18s, box-shadow .18s;
         }
-        .cc-field input:focus, .cc-field select:focus, .cc-field textarea:focus {
+        .cc-field input:not([type="radio"]):not([type="checkbox"]):focus,
+        .cc-field select:focus, .cc-field textarea:focus {
             outline: 0; border-color: #fda4af; box-shadow: 0 0 0 3px rgba(244,63,94,.15);
         }
         .cc-field textarea { resize: vertical; min-height: 110px; }
         .cc-field input::placeholder, .cc-field textarea::placeholder { color: #7f91b0; }
+
+        /* Checkboxes/radios keep their native size — the rule above is a
+           descendant selector and would otherwise stretch them to full width. */
+        .cc-field input[type="radio"], .cc-field input[type="checkbox"] {
+            flex: 0 0 auto; width: auto; min-height: 0; padding: 0; margin: 0;
+            border: 0; border-radius: 0; background: transparent;
+            accent-color: #8b5cf6; cursor: pointer;
+        }
         .cc-hint { color: var(--bcp-muted, #98a7c4); font-size: .68rem; margin-top: 4px; }
         .cc-char { display: block; text-align: right; color: var(--bcp-muted, #98a7c4); font-size: .66rem; font-weight: 600; margin-top: 4px; }
 

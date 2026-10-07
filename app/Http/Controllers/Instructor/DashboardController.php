@@ -25,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -530,6 +531,10 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => array_slice($results, 0, 30),
             ]);
+        } catch (ValidationException $e) {
+            // A missing/bad parameter is the caller's fault, not a server
+            // fault: let Laravel answer 422 instead of masking it as a 500.
+            throw $e;
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -804,6 +809,9 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => $analytics,
             ]);
+        } catch (ValidationException $e) {
+            // Surface a 422 with the error bag instead of a misleading 500.
+            throw $e;
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

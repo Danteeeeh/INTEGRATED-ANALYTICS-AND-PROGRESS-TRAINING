@@ -88,6 +88,9 @@ class ExamController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'instructions' => 'nullable|string',
+            // The admin form always sent this; the instructor form did not,
+            // which left exam_type absent from the payload entirely.
+            'exam_type' => 'required|in:midterm,final,comprehensive,module,other',
             'duration_minutes' => 'required|integer|min:1',
             'attempt_limit' => 'nullable|integer|min:1',
             'passing_score_percent' => 'nullable|integer|min:0|max:100',
@@ -188,6 +191,7 @@ class ExamController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'instructions' => 'nullable|string',
+            'exam_type' => 'required|in:midterm,final,comprehensive,module,other',
             'duration_minutes' => 'required|integer|min:1',
             'attempt_limit' => 'nullable|integer|min:1',
             'passing_score_percent' => 'nullable|integer|min:0|max:100',

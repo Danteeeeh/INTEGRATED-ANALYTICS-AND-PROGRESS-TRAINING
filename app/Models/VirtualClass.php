@@ -105,6 +105,28 @@ class VirtualClass extends Model
     }
 
     /**
+     * Human-readable span of the session.
+     *
+     * Lives here rather than in the view because a session can legitimately
+     * end before it starts (a data-entry slip, or a session that crossed
+     * midnight): Carbon's diff() hands back a negative interval and formatting
+     * that throws, which used to blow up the whole admin page.
+     */
+    public function durationLabel(): string
+    {
+        $start = $this->startsAt();
+        $end = $this->endsAt();
+
+        if (! $start || ! $end) {
+            return 'n/a';
+        }
+
+        $minutes = (int) abs($start->diffInMinutes($end, false));
+
+        return sprintf('%d hr %02d min', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    /**
      * Has the scheduled end time already passed?
      */
     public function hasEnded(): bool

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLessonRequest;
 use App\Http\Requests\UpdateLessonRequest;
+use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Services\ReorderService;
@@ -16,8 +17,12 @@ class LessonController extends Controller
 {
     public function __construct(private ReorderService $reorder) {}
 
-    public function index(?Module $module, Request $request): View
+    public function index(?Course $course = null, ?Module $module = null, ?Request $request = null): View
     {
+        // This action also serves the standalone /admin/lessons page, which has
+        // neither {course} nor {module}, so both stay optional here. On the
+        // nested route they are consumed positionally, which is what keeps the
+        // remaining parameters aligned.
         $this->authorize('viewAny', Lesson::class);
 
         // Standalone /admin/lessons has no {module}: only treat as course-context
@@ -31,7 +36,11 @@ class LessonController extends Controller
             $query->where('module_id', $module->id);
         }
 
-        // Standalone filters
+        // Standalone filters. $request is normally injected by the container;
+        // guard anyway because this action also answers a bare route that has
+        // no request to bind.
+        $request = $request ?? request();
+
         if ($request->filled('module_id')) {
             $query->where('module_id', $request->module_id);
         }
@@ -75,7 +84,7 @@ class LessonController extends Controller
         return view('admin.lessons.index', compact('module', 'lessons', 'modules', 'courses'));
     }
 
-    public function create(Module $module): View
+    public function create(Course $course, Module $module): View
     {
         $this->authorize('create', Lesson::class);
         $this->authorize('view', $module);
@@ -101,7 +110,7 @@ class LessonController extends Controller
         return redirect()->route('admin.courses.modules.lessons.show', [$lesson->module->course_id, $lesson->module, $lesson]);
     }
 
-    public function show(Module $module, Lesson $lesson): View
+    public function show(Course $course, Module $module, Lesson $lesson): View
     {
         $this->authorize('view', $lesson);
 
@@ -110,7 +119,7 @@ class LessonController extends Controller
         return view('admin.lessons.show', compact('module', 'lesson'));
     }
 
-    public function edit(Module $module, Lesson $lesson): View
+    public function edit(Course $course, Module $module, Lesson $lesson): View
     {
         $this->authorize('update', $lesson);
 
@@ -121,7 +130,7 @@ class LessonController extends Controller
         return view('admin.lessons.edit', compact('module', 'lesson', 'modules'));
     }
 
-    public function update(UpdateLessonRequest $request, Module $module, Lesson $lesson): RedirectResponse
+    public function update(UpdateLessonRequest $request, Course $course, Module $module, Lesson $lesson): RedirectResponse
     {
         $data = $request->validated();
         $data['is_required'] = $request->boolean('is_required', $lesson->is_required);
@@ -133,7 +142,7 @@ class LessonController extends Controller
         return redirect()->route('admin.courses.modules.lessons.show', [$lesson->module->course_id, $lesson->module, $lesson]);
     }
 
-    public function destroy(Module $module, Lesson $lesson): RedirectResponse
+    public function destroy(Course $course, Module $module, Lesson $lesson): RedirectResponse
     {
         $this->authorize('delete', $lesson);
 
@@ -147,7 +156,7 @@ class LessonController extends Controller
         return redirect()->route('admin.courses.modules.show', [$module->course_id, $module]);
     }
 
-    public function reorder(Request $request, Module $module): RedirectResponse
+    public function reorder(Request $request, Course $course, Module $module): RedirectResponse
     {
         $request->validate([
             'lesson_ids' => 'required|array',
@@ -171,7 +180,7 @@ class LessonController extends Controller
         return back();
     }
 
-    public function publish(Module $module, Lesson $lesson): RedirectResponse
+    public function publish(Course $course, Module $module, Lesson $lesson): RedirectResponse
     {
         $this->authorize('update', $lesson);
 
@@ -182,7 +191,7 @@ class LessonController extends Controller
         return back();
     }
 
-    public function unpublish(Module $module, Lesson $lesson): RedirectResponse
+    public function unpublish(Course $course, Module $module, Lesson $lesson): RedirectResponse
     {
         $this->authorize('update', $lesson);
 

@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Every column below is qualified on purpose. `modules` also carries
+ * `course_id` and `status`, so any caller that joins this model against
+ * `modules` (to order by position) would hit "Column 'status' is ambiguous"
+ * on MySQL/MariaDB the moment a bare column name is used.
+ */
 class SectionModuleAssignment extends Model
 {
     use HasFactory;
@@ -39,21 +45,21 @@ class SectionModuleAssignment extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('section_module_assignments.status', 'active');
+        return $query->where($this->qualifyColumn('status'), 'active');
     }
 
     public function scopeBySection($query, $sectionId)
     {
-        return $query->where('section_id', $sectionId);
+        return $query->where($this->qualifyColumn('section_id'), $sectionId);
     }
 
     public function scopeByCourse($query, $courseId)
     {
-        return $query->where('course_id', $courseId);
+        return $query->where($this->qualifyColumn('course_id'), $courseId);
     }
 
     public function scopeByModule($query, $moduleId)
     {
-        return $query->where('module_id', $moduleId);
+        return $query->where($this->qualifyColumn('module_id'), $moduleId);
     }
 }

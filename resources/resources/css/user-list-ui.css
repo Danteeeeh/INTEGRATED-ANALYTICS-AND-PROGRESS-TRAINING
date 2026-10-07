@@ -1,0 +1,7 @@
+/* Shared Users / Students / Instructors list-page details. */
+.user-list-page .user-info { display:flex; align-items:center; gap:10px; min-width:180px; }
+.user-list-page .user-avatar { display:grid; place-items:center; width:32px; height:32px; flex:0 0 32px; border-radius:10px; color:#fff; font-size:.75rem; font-weight:850; background:linear-gradient(135deg,#4d8ff0,#173aa8); box-shadow:0 6px 14px rgba(36,73,198,.28); }
+.user-list-page .user-name { color:var(--bcp-ink); font-size:.79rem; font-weight:800; }
+.user-list-page .user-email { margin-top:2px; color:var(--bcp-muted); font-size:.66rem; }
+.user-list-page .inline-form { display:inline-flex; }
+.user-list-page .table td:last-child { min-width:116px; }

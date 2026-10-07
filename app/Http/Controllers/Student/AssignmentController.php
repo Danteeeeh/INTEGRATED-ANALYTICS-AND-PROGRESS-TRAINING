@@ -98,7 +98,7 @@ class AssignmentController extends Controller
         return view('student.assignments.show', compact('course', 'assignment', 'enrollment', 'mySubmission', 'isOverdue', 'effectiveDeadline'));
     }
 
-    public function submitForm(Course $course, Assignment $assignment): View
+    public function submitForm(Course $course, Assignment $assignment): View|RedirectResponse
     {
         $this->authorize('submit', $assignment);
 

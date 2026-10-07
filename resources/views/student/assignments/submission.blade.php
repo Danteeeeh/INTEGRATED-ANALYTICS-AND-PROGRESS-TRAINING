@@ -31,9 +31,26 @@
                     <div class="modal-section-title"><i class="fa-solid fa-paperclip"></i> Attached Files</div>
                     <div class="user-actions" style="justify-content:flex-start">
                         @foreach($submission->files as $file)
-                            <a href="{{ $file->mediaFile?->url ?? $file->url ?? '#' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
-                                <i class="fa-solid fa-file"></i> {{ $file->mediaFile?->original_name ?? $file->original_name ?? 'File' }}
-                            </a>
+                            @php
+                                // Same rule as the instructor's copy: a link to a
+                                // deleted row or a row whose bytes left storage just
+                                // 404s, so show the state instead of a dead link.
+                                $media = $file->mediaFile;
+                                $available = $media && $media->url && $media->fileExists();
+                            @endphp
+
+                            @if ($available)
+                                <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-file"></i> {{ $file->original_name ?? $media->original_name ?? 'File' }}
+                                </a>
+                            @else
+                                <span class="btn btn-secondary btn-sm" style="opacity:.6;cursor:not-allowed;"
+                                      title="{{ $media ? 'This file is no longer available on the server.' : 'The linked file record was deleted.' }}">
+                                    <i class="fa-solid fa-file-circle-exclamation"></i>
+                                    {{ $file->original_name ?? 'File' }}
+                                    &mdash; unavailable
+                                </span>
+                            @endif
                         @endforeach
                     </div>
                 </div>

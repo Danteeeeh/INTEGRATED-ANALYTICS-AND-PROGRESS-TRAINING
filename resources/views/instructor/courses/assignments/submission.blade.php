@@ -52,11 +52,27 @@
                     <div class="modal-section-title"><i class="fa-solid fa-paperclip"></i> Attached Files</div>
                     <div class="user-actions" style="justify-content:flex-start">
                         @foreach($submission->files as $file)
-                            {{-- SubmissionFile only stores media_file_id + original_name.
-                                 The real download link lives on the MediaFile relation. --}}
-                            <a href="{{ $file->mediaFile?->url ?? '#' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
-                                <i class="fa-solid fa-file"></i> {{ $file->original_name ?? $file->mediaFile?->original_name ?? 'File' }}
-                            </a>
+                            @php
+                                // SubmissionFile only stores media_file_id + original_name.
+                                // The real link lives on the MediaFile relation, and it can be
+                                // gone (deleted row, or a row whose bytes left storage) — in which
+                                // case the download route 404s, so never render a dead link.
+                                $media = $file->mediaFile;
+                                $available = $media && $media->url && $media->fileExists();
+                            @endphp
+
+                            @if ($available)
+                                <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-file"></i> {{ $file->original_name ?? $media->original_name ?? 'File' }}
+                                </a>
+                            @else
+                                <span class="btn btn-secondary btn-sm" style="opacity:.6;cursor:not-allowed;"
+                                      title="{{ $media ? 'The file record exists but its contents are missing from storage.' : 'The linked file record was deleted.' }}">
+                                    <i class="fa-solid fa-file-circle-exclamation"></i>
+                                    {{ $file->original_name ?? 'File' }}
+                                    &mdash; unavailable
+                                </span>
+                            @endif
                         @endforeach
                     </div>
                 </div>

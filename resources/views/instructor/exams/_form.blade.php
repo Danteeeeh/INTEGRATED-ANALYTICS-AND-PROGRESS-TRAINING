@@ -48,6 +48,25 @@
         <span class="field-error">{{ $errors->first('course_id') }}</span>
     </div>
 
+    {{-- Required by the controller. The instructor form never had this
+         field, so exam_type was absent from the payload and ExamService
+         raised "Undefined array key \"exam_type\"". --}}
+    <div class="form-field">
+        <label>Type <span class="required">*</span></label>
+        <select name="exam_type" required>
+            @foreach([
+                'midterm' => 'Midterm',
+                'final' => 'Final',
+                'comprehensive' => 'Comprehensive',
+                'module' => 'Module',
+                'other' => 'Other',
+            ] as $value => $label)
+                <option value="{{ $value }}" @selected(old('exam_type', $exam->exam_type ?: 'midterm') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <span class="field-error">{{ $errors->first('exam_type') }}</span>
+    </div>
+
     <div class="form-field">
         <label>Duration (minutes) <span class="required">*</span></label>
         <input type="number" name="duration_minutes" min="1" value="{{ old('duration_minutes', $exam->duration_minutes ?: 60) }}" required>

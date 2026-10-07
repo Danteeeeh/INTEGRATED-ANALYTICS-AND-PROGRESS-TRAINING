@@ -118,7 +118,7 @@
                     <td>#{{ $attempt->attempt_number }}</td>
                     <td>
                         @if($attempt->status === 'submitted' || $attempt->status === 'auto_submitted' || $attempt->status === 'graded')
-                            {{ $attempt->score }}/{{ $attempt->quiz->questions()->sum('pivot.points') ?? '—' }}
+                            {{ $attempt->score }}/{{ $attempt->quiz->questions()->sum('quiz_questions.points') ?? '—' }}
                         @else
                             In Progress
                         @endif
@@ -168,7 +168,7 @@
                     <td>#{{ $attempt->attempt_number }}</td>
                     <td>
                         @if($attempt->status === 'submitted' || $attempt->status === 'auto_submitted' || $attempt->status === 'graded')
-                            {{ $attempt->score }}/{{ $attempt->exam->questions()->sum('pivot.points') ?? '—' }}
+                            {{ $attempt->score }}/{{ $attempt->exam->questions()->sum('exam_questions.points') ?? '—' }}
                         @else
                             In Progress
                         @endif

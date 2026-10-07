@@ -67,13 +67,48 @@ class MediaFile extends Model
         return $this->hasMany(SubmissionFile::class);
     }
 
-    public function getUrlAttribute(): string
+    /**
+     * Download/serve link for this file.
+     *
+     * `null` when the row is soft-deleted: the files.download route binds
+     * {mediaFile} implicitly, and implicit binding never matches a trashed
+     * row, so rendering a link for one hands the user a bare 404. Callers
+     * should show "file unavailable" instead.
+     */
+    public function getUrlAttribute(): ?string
     {
+        if ($this->trashed()) {
+            return null;
+        }
+
         if (in_array($this->disk, ['public', 's3'])) {
             return Storage::disk($this->disk)->url($this->path);
         }
 
         return route('files.download', ['mediaFile' => $this->id]);
+    }
+
+    /**
+     * Whether the bytes are actually still on the disk this row points at.
+     *
+     * The DB row and the stored blob are separate things: a row can outlive
+     * its file (restored backup, manual cleanup, a container that was rebuilt).
+     * The download route 404s when the blob is gone, so views check this first
+     * to say so plainly instead of offering a link that dead-ends.
+     */
+    public function fileExists(): bool
+    {
+        if ($this->trashed() || ! $this->path || ! $this->disk) {
+            return false;
+        }
+
+        try {
+            return Storage::disk($this->disk)->exists($this->path);
+        } catch (\Throwable) {
+            // Misconfigured/unreachable disk — treat as missing rather than
+            // letting a storage exception bubble up as a 500.
+            return false;
+        }
     }
 
     public function getFullPathAttribute(): string

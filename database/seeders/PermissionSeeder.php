@@ -29,6 +29,14 @@ class PermissionSeeder extends Seeder
             'assignment_submissions' => ['view', 'create', 'update', 'delete', 'grade', 'history'],
             'rubrics' => ['view', 'create', 'update', 'delete', 'attach', 'grade'],
             'quizzes' => ['view', 'create', 'update', 'delete', 'grade', 'attempt', 'publish', 'close'],
+            // ExamPolicy gates every exam route on these; without them even an
+            // admin is refused.
+            'exams' => [
+                'view', 'create', 'update', 'delete', 'grade', 'attempt',
+                'publish', 'close', 'reopen', 'extend_deadline',
+                'reset_attempt', 'manage_settings',
+            ],
+            'exam_attempts' => ['view', 'create', 'delete', 'grade', 'review'],
             'question_banks' => ['view', 'create', 'update', 'delete', 'import', 'export'],
             'questions' => ['view', 'create', 'update', 'delete', 'reuse'],
             'quiz_attempts' => ['view', 'create', 'delete', 'grade', 'review'],
@@ -60,6 +68,7 @@ class PermissionSeeder extends Seeder
             'schedule' => ['view', 'create', 'update', 'delete'],
             'documents' => ['view', 'create', 'update', 'delete', 'download'],
             'backup' => ['view', 'create', 'restore', 'download'],
+            'terms_of_service' => ['view', 'create', 'update', 'delete', 'activate', 'accept'],
         ];
 
         $ids = [];
@@ -98,6 +107,10 @@ class PermissionSeeder extends Seeder
             'assignment_submissions.view', 'assignment_submissions.grade', 'assignment_submissions.history',
             'rubrics.view', 'rubrics.create', 'rubrics.update', 'rubrics.delete', 'rubrics.attach', 'rubrics.grade',
             'quizzes.view', 'quizzes.create', 'quizzes.update', 'quizzes.delete', 'quizzes.grade', 'quizzes.publish', 'quizzes.close',
+            'exams.view', 'exams.create', 'exams.update', 'exams.delete', 'exams.grade',
+            'exams.publish', 'exams.close', 'exams.reopen', 'exams.extend_deadline',
+            'exams.reset_attempt', 'exams.manage_settings',
+            'exam_attempts.view', 'exam_attempts.grade', 'exam_attempts.review',
             'question_banks.view', 'question_banks.create', 'question_banks.update', 'question_banks.delete',
             'questions.view', 'questions.create', 'questions.update', 'questions.delete', 'questions.reuse',
             'quiz_attempts.view', 'quiz_attempts.grade', 'quiz_attempts.review',
@@ -136,6 +149,8 @@ class PermissionSeeder extends Seeder
             'rubrics.view',
             'quizzes.view', 'quizzes.attempt',
             'quiz_attempts.view', 'quiz_attempts.create',
+            'exams.view', 'exams.attempt',
+            'exam_attempts.view',
             'announcements.view',
             'calendar.view',
             'virtual_classes.view', 'virtual_classes.join',

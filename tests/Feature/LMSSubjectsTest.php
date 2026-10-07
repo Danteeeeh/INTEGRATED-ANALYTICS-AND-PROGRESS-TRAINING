@@ -372,4 +372,104 @@ class LMSSubjectsTest extends TestCase
             ->assertOk()
             ->assertSee('Check Available Scores', false);
     }
+
+    // ── Student scores privacy ───────────────────────────────────
+
+    public function test_student_scores_page_never_exposes_a_classmates_score(): void
+    {
+        $classmate = User::factory()->student()->create([
+            'status' => 'active',
+            'first_name' => 'Jonathan',
+            'last_name' => 'Talib',
+            'identifier' => 'STU-005',
+        ]);
+
+        $this->enroll($classmate, Enrollment::STATUS_ACTIVE, 42);
+
+        $response = $this->actingAs($this->student)
+            ->get(route('student.subjects.scores', $this->class));
+
+        $response->assertOk();
+
+        // The classmate's identity and score must not appear anywhere.
+        $response->assertDontSee('Jonathan');
+        $response->assertDontSee('Talib');
+        $response->assertDontSee('STU-005');
+
+        // …nor the cohort-level rollup this page used to render.
+        $response->assertDontSee('Class average');
+        $response->assertDontSee('Students enrolled');
+        $response->assertDontSee('Not ready to verify');
+
+        // The student's own released score is still shown.
+        $response->assertSee('88.0%');
+    }
+
+    public function test_student_scores_page_lists_only_their_own_row(): void
+    {
+        $this->enroll(User::factory()->student()->create(['status' => 'active']), Enrollment::STATUS_ACTIVE, 55);
+
+        $this->actingAs($this->student)
+            ->get(route('student.subjects.scores', $this->class))
+            ->assertOk()
+            ->assertSee('My Grade Breakdown')
+            // Per-student roster headers from the old shared view.
+            ->assertDontSee('Per-student scores')
+            ->assertDontSee('Student No')
+            ->assertDontSee('Final');
+    }
+
+    public function test_student_scores_page_hides_unreleased_items(): void
+    {
+        GradeItem::create([
+            'class_id' => $this->class->id,
+            'title' => 'Final Exam',
+            'item_type' => 'exam',
+            'max_points' => 50,
+            'factor' => 1,
+            'is_released' => false,
+            'position' => 1,
+        ]);
+
+        $this->actingAs($this->student)
+            ->get(route('student.subjects.scores', $this->class))
+            ->assertOk()
+            ->assertDontSee('Final Exam')
+            ->assertSee('Week 1');
+    }
+
+    public function test_student_score_sheet_payload_carries_no_other_student(): void
+    {
+        $classmate = User::factory()->student()->create(['status' => 'active']);
+        $this->enroll($classmate, Enrollment::STATUS_ACTIVE, 42);
+
+        $sheet = app(SubjectService::class)->studentScoreSheet($this->class, $this->student->id);
+
+        // 88 (this student) — never the classmate's 42.
+        $this->assertEqualsWithDelta(88.0, (float) $sheet['summary']['percent'], 0.01);
+        $this->assertArrayNotHasKey('classmate', $sheet);
+        $this->assertArrayNotHasKey('summaries', $sheet);
+        $this->assertArrayNotHasKey('class_average', $sheet);
+        $this->assertArrayNotHasKey('enrollment_count', $sheet);
+        $this->assertArrayNotHasKey('missing_student_ids', $sheet);
+    }
+
+    public function test_instructor_still_sees_the_whole_cohort(): void
+    {
+        $classmate = User::factory()->student()->create([
+            'status' => 'active',
+            'first_name' => 'Jonathan',
+            'last_name' => 'Talib',
+            'identifier' => 'STU-005',
+        ]);
+
+        $this->enroll($classmate, Enrollment::STATUS_ACTIVE, 42);
+
+        $this->actingAs($this->instructor)
+            ->get(route('instructor.subjects.scores', $this->class))
+            ->assertOk()
+            ->assertSee('Jonathan')
+            ->assertSee('STU-005')
+            ->assertSee('Per-student scores');
+    }
 }

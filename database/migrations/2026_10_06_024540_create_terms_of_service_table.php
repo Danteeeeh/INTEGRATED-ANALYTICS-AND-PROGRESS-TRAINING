@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('terms_of_service', function (Blueprint $table) {
+        // Plural to match every other table and the model's default table name.
+        Schema::create('terms_of_services', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('content');
@@ -32,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('terms_of_service');
+        Schema::dropIfExists('terms_of_services');
     }
 };

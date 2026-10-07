@@ -1,0 +1,263 @@
+/* ═══════════════════════════════════════════════════════════════
+   AUTHORITATIVE SIDEBAR + TOPBAR LAYOUT FIX
+   Loaded last. Guarantees a clean fixed sidebar and a sticky topbar
+   that stay visible at every scroll position, across every role.
+   ═══════════════════════════════════════════════════════════════ */
+
+html {
+    height: 100%;
+    overflow-x: clip;
+}
+
+body {
+    min-height: 100%;
+    overflow-x: clip;
+    /* A transformed body creates a containing block for fixed descendants. */
+    transform: none !important;
+}
+
+/* The admin page fade uses transform on body, which breaks fixed descendants. */
+body.admin-ui {
+    animation: none !important;
+}
+
+/* ── Sidebar: pinned to the left edge, full viewport, never scrolls away ── */
+.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    z-index: 1300 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: var(--compact-sidebar, 196px) !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    box-shadow: 12px 0 34px rgba(0, 0, 0, .18) !important;
+}
+
+/* Nav area scrolls internally so long menus never push the header away
+   or spill off-screen; the sidebar chrome stays pinned. */
+.sidebar-header {
+    flex: 0 0 auto !important;
+}
+
+.sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* ── Main panel: offset for the fixed sidebar, full-height column ── */
+.main {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    margin-left: var(--compact-sidebar, 196px) !important;
+    width: auto !important;
+    max-width: none !important;
+}
+
+/* ── Topbar: sticky so it stays pinned at every scroll position ── */
+.main > .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1200 !important;
+    flex: 0 0 auto !important;
+}
+
+/* ── Content area scrolls normally and fills remaining viewport ── */
+.main > .content {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+/* ── Collapsed (drawer) state: pull the rail off-screen ── */
+.sidebar.collapsed {
+    transform: translateX(-100%) !important;
+}
+body:has(.sidebar.collapsed) .main {
+    margin-left: 0 !important;
+}
+
+/* ── Mobile: fixed-width drawer ── */
+@media (max-width: 900px) {
+    .sidebar {
+        width: 248px !important;
+        min-width: 248px !important;
+        max-width: 248px !important;
+        box-shadow: 14px 0 42px rgba(0, 0, 0, .42) !important;
+    }
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+    }
+    body:has(.sidebar.collapsed) .main {
+        margin-left: 0 !important;
+    }
+}
+
+/* Safety net so a temporarily-invisible sidebar does not leave a gap. */
+@media (min-width: 901px) {
+    .sidebar.collapsed {
+        transform: translateX(-100%) !important;
+    }
+}
+
+/* ── Topbar icons: hamburger + theme sit on one size, icon centered ── */
+.hamburger,
+.theme-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+}
+.hamburger i,
+.theme-toggle i {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1em !important;
+    height: 1em !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+}
+
+/* ── Search: one compact field, icons inside, always usable ── */
+.search-wrap {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    width: min(280px, 34vw) !important;
+    min-width: 168px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+.search-wrap > i {
+    position: absolute !important;
+    left: 11px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    font-size: .72rem !important;
+    line-height: 1 !important;
+}
+.search-wrap input[type="search"],
+.search-wrap input[type="text"] {
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 38px 0 32px !important;
+    border-radius: 10px !important;
+}
+.search-wrap:has(.search-clear) input {
+    padding-right: 64px !important;
+}
+.search-submit,
+.search-clear {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 7px !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+.search-submit { right: 5px !important; }
+.search-clear { right: 34px !important; }
+@media (max-width: 700px) {
+    .search-wrap {
+        display: flex !important;
+        width: min(210px, 42vw) !important;
+        min-width: 140px !important;
+    }
+}
+@media (max-width: 520px) {
+    .search-wrap {
+        width: 36px !important;
+        min-width: 36px !important;
+    }
+    .search-wrap:focus-within,
+    .search-wrap.is-open {
+        width: min(220px, 62vw) !important;
+        min-width: 180px !important;
+    }
+}
+
+/* Final mobile drawer contract: only the collapsed class may hide it. */
+@media (max-width: 900px) {
+    body .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+    }
+
+    body .sidebar.collapsed {
+        transform: translateX(-100%) !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Sidebar label priority
+   The "Choose course"/"Choose class" hint was squeezing the real nav
+   label, so items rendered as "M...", "L...", "A..." because the hint
+   sat on the same line with margin-left:auto and nowrap.
+   Fix: the hint drops below the label, and the label is never truncated.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.sidebar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sidebar-nav .nav-link span:not(.link-hint):not(.soon-badge) {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Hint moves under the label instead of competing for horizontal space. */
+.sidebar-nav .nav-link .link-hint {
+    flex: 0 0 100%;
+    margin-left: 0;
+    padding-left: 22px;
+    margin-top: -2px;
+    font-size: .52rem;
+    opacity: .75;
+}
+
+/* Where there is no hint, the label keeps the full width. */
+.sidebar-nav .nav-link i {
+    flex: 0 0 auto;
+}
+
+/* Collapsed sidebar: keep it icon-only. */
+.sidebar.collapsed .sidebar-nav .nav-link .link-hint {
+    display: none;
+}

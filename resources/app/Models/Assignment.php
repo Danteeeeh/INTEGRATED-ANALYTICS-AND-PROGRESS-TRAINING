@@ -1,0 +1,194 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+
+class Assignment extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_PUBLISHED = 'published';
+
+    public const STATUS_CLOSED = 'closed';
+
+    public const TYPE_TEXT = 'text';
+
+    public const TYPE_FILE = 'file';
+
+    public const TYPE_MULTIPLE_FILES = 'multiple_files';
+
+    protected $fillable = [
+        'class_id',
+        'module_id',
+        'lesson_id',
+        'title',
+        'slug',
+        'instructions',
+        'points',
+        'submission_type',
+        'due_date',
+        'allow_late',
+        'late_submission_deduction_percent',
+        'max_attempts',
+        'allow_resubmission',
+        'resubmission_deadline',
+        'availability_from',
+        'availability_until',
+        'rubric_id',
+        'status',
+        'created_by',
+    ];
+
+    protected $casts = [
+        'points' => 'integer',
+        'allow_late' => 'boolean',
+        'late_submission_deduction_percent' => 'integer',
+        'max_attempts' => 'integer',
+        'allow_resubmission' => 'boolean',
+        'due_date' => 'datetime',
+        'resubmission_deadline' => 'datetime',
+        'availability_from' => 'datetime',
+        'availability_until' => 'datetime',
+        'status' => 'string',
+    ];
+
+    public function class(): BelongsTo
+    {
+        return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function module(): BelongsTo
+    {
+        return $this->belongsTo(Module::class);
+    }
+
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(Lesson::class);
+    }
+
+    public function rubric(): BelongsTo
+    {
+        return $this->belongsTo(Rubric::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Course this assignment belongs to — via class, module, or lesson.
+     */
+    public function resolveCourseId(): ?int
+    {
+        $this->loadMissing(['class', 'module', 'lesson.module']);
+
+        $courseId = $this->class?->course_id
+            ?? $this->module?->course_id
+            ?? $this->lesson?->module?->course_id;
+
+        return $courseId !== null ? (int) $courseId : null;
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(AssignmentAttachment::class)->orderBy('position');
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(AssignmentSubmission::class);
+    }
+
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(AssignmentExtension::class);
+    }
+
+    public function scopePublished($query)
+    {
+        return $query->where('assignments.status', self::STATUS_PUBLISHED);
+    }
+
+    public function scopeDraft($query)
+    {
+        return $query->where('assignments.status', self::STATUS_DRAFT);
+    }
+
+    public function scopeClosed($query)
+    {
+        return $query->where('assignments.status', self::STATUS_CLOSED);
+    }
+
+    public function scopeOfClass($query, $classId)
+    {
+        return $query->where('class_id', $classId);
+    }
+
+    public function scopeDueSoon($query, $days = 7)
+    {
+        return $query->whereBetween('due_date', [Carbon::now(), Carbon::now()->addDays($days)]);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('assignments.status', self::STATUS_PUBLISHED)
+            ->where(function ($q) {
+                $q->whereNull('availability_from')
+                    ->orWhere('availability_from', '<=', Carbon::now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('availability_until')
+                    ->orWhere('availability_until', '>=', Carbon::now());
+            });
+    }
+
+    public function isOverdue(): bool
+    {
+        // Assignment is overdue if it's past the due date
+        if ($this->due_date && Carbon::parse($this->due_date)->isPast()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isOverdueForStudent(int $studentId): bool
+    {
+        // Check if the assignment has an extension for this student
+        $extension = AssignmentExtension::where('assignment_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return false;
+        }
+
+        return $this->isOverdue();
+    }
+
+    public function getEffectiveDeadlineForStudent(int $studentId): ?Carbon
+    {
+        // Check if the assignment has an extension for this student
+        $extension = AssignmentExtension::where('assignment_id', $this->id)
+            ->where('student_id', $studentId)
+            ->where('extended_until', '>=', now())
+            ->first();
+
+        if ($extension) {
+            return Carbon::parse($extension->extended_until);
+        }
+
+        return $this->due_date ? Carbon::parse($this->due_date) : null;
+    }
+}

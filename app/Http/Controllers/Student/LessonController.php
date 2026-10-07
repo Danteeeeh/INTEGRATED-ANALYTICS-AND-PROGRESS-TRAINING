@@ -45,6 +45,41 @@ class LessonController extends Controller
         return view('student.lessons.index', compact('lessons', 'enrollments'));
     }
 
+    /**
+     * Lessons for one course, grouped by the module they belong to.
+     *
+     * The feature picker in student/courses/index links here rather than to the
+     * cross-course {@see indexAll()} list, so picking a course actually scopes
+     * the result — and each group names its module, which is what the student
+     * was trying to get back to.
+     */
+    public function index(Course $course): View
+    {
+        $studentId = auth()->id();
+
+        if (! $this->activeEnrollment($course, $studentId)) {
+            abort(403);
+        }
+
+        $groups = Lesson::published()
+            ->whereHas('module', fn ($q) => $q->where('modules.course_id', $course->id))
+            ->with(['module' => fn ($q) => $q->select('id', 'course_id', 'title', 'position')])
+            ->orderBy('position', 'asc')
+            ->get()
+            ->groupBy('module_id')
+            ->map(fn ($lessons) => [
+                'module' => $lessons->first()->module,
+                'lessons' => $lessons->values(),
+            ])
+            ->sortBy(fn ($group) => $group['module']->position ?? 0)
+            ->values();
+
+        return view('student.lessons.by-course', [
+            'course' => $course,
+            'groups' => $groups,
+        ]);
+    }
+
     public function show(Course $course, Module $module, Lesson $lesson): View
     {
         $studentId = auth()->id();
@@ -54,6 +89,8 @@ class LessonController extends Controller
         if (! $enrollment) {
             abort(403);
         }
+
+        $this->assertLessonIsUnderModule($course, $module, $lesson);
 
         $lesson->load('lessonMaterials', 'lessonMaterials.mediaFile');
 
@@ -103,6 +140,8 @@ class LessonController extends Controller
             abort(403);
         }
 
+        $this->assertLessonIsUnderModule($course, $module, $lesson);
+
         $progress = LessonProgress::firstOrCreate(
             ['lesson_id' => $lesson->id, 'student_id' => $studentId],
             [
@@ -143,6 +182,8 @@ class LessonController extends Controller
             abort(403);
         }
 
+        $this->assertLessonIsUnderModule($course, $module, $lesson);
+
         $lesson->load('lessonMaterials', 'lessonMaterials.mediaFile');
 
         $progress = LessonProgress::firstOrCreate(
@@ -179,6 +220,8 @@ class LessonController extends Controller
             abort(403);
         }
 
+        $this->assertLessonIsUnderModule($course, $module, $lesson);
+
         if ($material->lesson_id !== $lesson->id) {
             abort(404);
         }
@@ -214,5 +257,20 @@ class LessonController extends Controller
             })
             ->where('status', 'active')
             ->first();
+    }
+
+    /**
+     * Route model binding resolves {course}, {module} and {lesson} independently,
+     * by primary key, and never checks that they belong together. Without this
+     * guard a URL naming a lesson from another module or course still renders —
+     * under the wrong course/module header — which is exactly the "it opened
+     * the other course instead of my module" symptom.
+     *
+     * 404 rather than 403: that lesson-under-this-module simply does not exist.
+     */
+    private function assertLessonIsUnderModule(Course $course, Module $module, Lesson $lesson): void
+    {
+        abort_unless((int) $module->course_id === (int) $course->id, 404);
+        abort_unless((int) $lesson->module_id === (int) $module->id, 404);
     }
 }

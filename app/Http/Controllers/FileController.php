@@ -88,6 +88,10 @@ class FileController extends Controller
             abort(403, 'Unauthorized access to this file.');
         }
 
+        // A row with no bytes behind it is a storage problem, not a missing
+        // page. Saying so beats an unexplained 404 the instructor cannot act on.
+        abort_unless($mediaFile->fileExists(), 404, 'This file is no longer available on the server. The record exists but its contents are missing from storage.');
+
         return $this->fileUploadService->downloadFile($mediaFile);
     }
 

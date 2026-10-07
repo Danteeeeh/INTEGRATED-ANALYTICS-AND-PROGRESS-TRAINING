@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('terms_of_service_acceptances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('terms_of_service_id')->constrained('terms_of_service')->cascadeOnDelete();
+            $table->foreignId('terms_of_service_id')->constrained('terms_of_services')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->dateTime('accepted_at');
             $table->string('ip_address')->nullable();

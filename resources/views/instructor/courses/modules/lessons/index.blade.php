@@ -1,6 +1,6 @@
 @extends('layouts.instructor')
 
-@section('title', 'Lessons — ' . $module->title)
+@section('title', 'Lessons — ' . ($module?->title ?? $course->title))
 @php
     $activeNav = 'lessons';
     $pageTitle = 'Lessons';
@@ -11,17 +11,24 @@
     <div class="page-title-bar">
         <h2 class="page-title">
             <i class="fa-solid fa-book-open"></i>
-            Lessons — {{ $module->title }}
+            Lessons — {{ $module?->title ?? $course->title }}
         </h2>
         <div class="page-actions">
-            <a href="{{ route('instructor.courses.modules.show', [$course, $module]) }}" class="btn-modal-cancel" style="padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
-                <i class="fa-solid fa-arrow-left"></i>
-                Back to Module
-            </a>
-            <a href="{{ route('instructor.courses.modules.lessons.create', [$course, $module]) }}" class="btn-add">
-                <i class="fa-solid fa-plus"></i>
-                Add Lesson
-            </a>
+            @if ($module)
+                <a href="{{ route('instructor.courses.modules.show', [$course, $module]) }}" class="btn-modal-cancel" style="padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back to Module
+                </a>
+                <a href="{{ route('instructor.courses.modules.lessons.create', [$course, $module]) }}" class="btn-add">
+                    <i class="fa-solid fa-plus"></i>
+                    Add Lesson
+                </a>
+            @else
+                <a href="{{ route('instructor.courses.show', $course) }}" class="btn-modal-cancel" style="padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back to Course
+                </a>
+            @endif
         </div>
     </div>
 @endsection
@@ -59,13 +66,13 @@
                             @endif
                         </td>
                         <td class="actions-cell">
-                            <a href="{{ route('instructor.courses.modules.lessons.show', [$course, $module, $lesson]) }}" class="btn-icon btn-view" title="View">
+                            <a href="{{ route('instructor.courses.modules.lessons.show', [$course, $lesson->module, $lesson]) }}" class="btn-icon btn-view" title="View">
                                 <i class="fa-solid fa-eye"></i>
                             </a>
-                            <a href="{{ route('instructor.courses.modules.lessons.edit', [$course, $module, $lesson]) }}" class="btn-icon btn-edit" title="Edit">
+                            <a href="{{ route('instructor.courses.modules.lessons.edit', [$course, $lesson->module, $lesson]) }}" class="btn-icon btn-edit" title="Edit">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
-                            <a href="{{ route('instructor.courses.modules.lessons.materials', [$course, $module, $lesson]) }}" class="btn-icon" title="Materials" style="color:#62c9f5;">
+                            <a href="{{ route('instructor.courses.modules.lessons.materials', [$course, $lesson->module, $lesson]) }}" class="btn-icon" title="Materials" style="color:#62c9f5;">
                                 <i class="fa-solid fa-folder-open"></i>
                             </a>
                         </td>
@@ -73,7 +80,10 @@
                 @empty
                     <tr>
                         <td colspan="6" style="text-align:center;padding:24px;color:#aaa;">
-                            No lessons yet. <a href="{{ route('instructor.courses.modules.lessons.create', [$course, $module]) }}" style="color:#2563eb;text-decoration:underline;">Add one</a>
+                            No lessons yet.
+                            @if ($module)
+                                <a href="{{ route('instructor.courses.modules.lessons.create', [$course, $module]) }}" style="color:#2563eb;text-decoration:underline;">Add one</a>
+                            @endif
                         </td>
                     </tr>
                 @endforelse

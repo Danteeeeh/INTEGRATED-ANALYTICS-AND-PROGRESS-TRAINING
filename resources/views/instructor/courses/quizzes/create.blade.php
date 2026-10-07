@@ -92,17 +92,63 @@
         .cc-field.full { grid-column: 1 / -1; }
         .cc-field label { color: var(--bcp-muted, #98a7c4); font-size: .72rem; font-weight: 750; }
         .cc-field label .req { color: #fda4af; }
-        .cc-field input, .cc-field select, .cc-field textarea {
+        .cc-field input:not([type="radio"]):not([type="checkbox"]),
+        .cc-field select, .cc-field textarea {
             width: 100%; min-height: 40px; padding: 9px 12px;
             border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 9px;
             background: #101625; color: var(--bcp-ink, #eef4ff);
             font-size: .88rem; transition: border-color .18s, box-shadow .18s;
         }
-        .cc-field input:focus, .cc-field select:focus, .cc-field textarea:focus {
+        .cc-field input:not([type="radio"]):not([type="checkbox"]):focus,
+        .cc-field select:focus, .cc-field textarea:focus {
             outline: 0; border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(139,92,246,.18);
         }
         .cc-field textarea { resize: vertical; min-height: 86px; }
         .cc-field input::placeholder, .cc-field textarea::placeholder { color: #7f91b0; }
+
+        /* Radios/checkboxes keep their native size. The rule above is a
+           descendant selector, and the answer rows are nested inside a
+           .cc-field — without this they render as full-width circles and
+           push the text input out of the row. */
+        .cc-field input[type="radio"], .cc-field input[type="checkbox"] {
+            flex: 0 0 auto; width: auto; min-height: 0; padding: 0; margin: 0;
+            border: 0; border-radius: 0; background: transparent;
+            accent-color: #8b5cf6; cursor: pointer;
+        }
+
+        /* Answer row: letter badge + text input + "correct" radio. */
+        .cc-choice-row {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 8px; padding: 7px 10px;
+            border: 1px solid var(--bcp-line, rgba(153,174,214,.18));
+            border-radius: 9px; background: rgba(16,22,37,.55);
+            transition: border-color .18s, background .18s;
+        }
+        .cc-choice-row.is-correct {
+            border-color: rgba(139,92,246,.6); background: rgba(139,92,246,.14);
+        }
+        .cc-choice-letter {
+            flex: 0 0 auto; display: grid; place-items: center;
+            width: 26px; height: 26px; border-radius: 7px;
+            background: rgba(139,92,246,.16); color: #c4b5fd;
+            font-size: .72rem; font-weight: 800;
+        }
+        .cc-choice-row.is-correct .cc-choice-letter { background: #8b5cf6; color: #fff; }
+        .cc-choice-input {
+            flex: 1 1 auto; width: auto; min-width: 0;
+            min-height: 38px; padding: 8px 12px;
+            border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 8px;
+            background: #101625; color: var(--bcp-ink, #eef4ff); font-size: .85rem;
+        }
+        .cc-choice-input:focus {
+            outline: 0; border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(139,92,246,.18);
+        }
+        .cc-choice-correct {
+            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+            white-space: nowrap; cursor: pointer; user-select: none;
+            color: var(--bcp-muted, #98a7c4); font-size: .68rem; font-weight: 700;
+        }
+        .cc-choice-row.is-correct .cc-choice-correct { color: #c4b5fd; }
         .cc-hint { color: var(--bcp-muted, #98a7c4); font-size: .68rem; margin-top: 4px; }
         .cc-char { display: block; text-align: right; color: var(--bcp-muted, #98a7c4); font-size: .66rem; font-weight: 600; margin-top: 4px; }
 
@@ -371,9 +417,13 @@
             let choicesHtml = '';
             for (let i = 1; i <= 4; i++) {
                 choicesHtml += `
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                        <input type="radio" name="questions[${questionCount}][correct_choice]" value="${i}" style="accent-color: #8b5cf6; cursor: pointer;">
-                        <input type="text" name="questions[${questionCount}][choices][${i}]" placeholder="Choice ${i}" required style="flex: 1; min-height: 38px; padding: 8px 12px; border: 1px solid var(--bcp-line, rgba(153,174,214,.18)); border-radius: 8px; background: #101625; color: var(--bcp-ink, #eef4ff); font-size: 0.85rem;">
+                    <div class="cc-choice-row" data-choice-row>
+                        <span class="cc-choice-letter">${String.fromCharCode(64 + i)}</span>
+                        <input type="text" class="cc-choice-input" name="questions[${questionCount}][choices][${i}]" placeholder="Choice ${i}" required>
+                        <label class="cc-choice-correct">
+                            <input type="radio" name="questions[${questionCount}][correct_choice]" value="${i}" data-correct-radio>
+                            Correct
+                        </label>
                     </div>
                 `;
             }
@@ -410,5 +460,19 @@
                 questionDiv.remove();
             }
         }
+
+        // Flag the answer row so the instructor can see at a glance which
+        // choice is marked correct. Delegated so it also covers rows added
+        // later by addQuestion().
+        document.getElementById('questionsList').addEventListener('change', (e) => {
+            const radio = e.target.closest('[data-correct-radio]');
+            if (!radio) return;
+
+            const group = radio.closest('.cc-choice-row').parentElement;
+            group.querySelectorAll('[data-choice-row]').forEach((row) => {
+                const own = row.querySelector('[data-correct-radio]');
+                row.classList.toggle('is-correct', own && own.checked);
+            });
+        });
     </script>
 @endsection

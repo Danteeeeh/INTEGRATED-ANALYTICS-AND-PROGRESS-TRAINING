@@ -218,6 +218,54 @@ class SubjectService
     }
 
     /**
+     * One student's own view of a subject's grades.
+     *
+     * Deliberately does not reuse {@see scoreAvailability()}: that report is
+     * cohort-wide by design (enrollment counts, class average, who is still
+     * pending) and is instructor/registrar information. Passing it to a student
+     * would expose every classmate's score, so the student's payload is built
+     * from scratch and only ever carries that one student's rows.
+     *
+     * Only released items are described, matching the gradebook: an item that
+     * has not been published must not reveal either its existence or a score.
+     *
+     * @return array<string, mixed>
+     */
+    public function studentScoreSheet(ClassModel $class, int $studentId): array
+    {
+        $items = GradeItem::where('class_id', $class->id)
+            ->where('is_released', true)
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get();
+
+        $grades = Grade::where('student_id', $studentId)
+            ->whereIn('grade_item_id', $items->pluck('id'))
+            ->get()
+            ->keyBy('grade_item_id');
+
+        $summary = $this->grades->computeStudentClassGrade($studentId, $class->id);
+
+        // Decorate each released item with this student's own points, so the
+        // view never has to reach for another student's row.
+        $rows = $items->map(fn (GradeItem $item) => [
+            'item' => $item,
+            'points' => $grades[$item->id]->points ?? null,
+            'percent' => $grades[$item->id] !== null && $item->max_points > 0
+                ? round(((float) $grades[$item->id]->points / (float) $item->max_points) * 100, 2)
+                : null,
+        ]);
+
+        return [
+            'class' => $class,
+            'rows' => $rows,
+            'item_count' => $items->count(),
+            'graded_count' => $rows->filter(fn ($row) => $row['points'] !== null)->count(),
+            'summary' => $summary,
+        ];
+    }
+
+    /**
      * Mean of every graded student's class grade.
      *
      * @param  array<int, array<string, mixed>>  $summaries

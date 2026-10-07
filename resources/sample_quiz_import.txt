@@ -1,0 +1,23 @@
+1. What is the capital of France?
+a. Paris*
+b. London
+c. Berlin
+d. Rome
+Type: multiple_choice
+Points: 1
+
+2. Which programming language is used for web development?
+a. Python
+b. Java
+c. JavaScript*
+d. C
+Type: multiple_choice
+Points: 1
+
+3. What is 2 + 2?
+a. 3
+b. 4*
+c. 5
+d. 6
+Type: multiple_choice
+Points: 1

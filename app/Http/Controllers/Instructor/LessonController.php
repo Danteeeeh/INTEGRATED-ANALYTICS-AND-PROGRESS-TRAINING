@@ -15,15 +15,32 @@ use Illuminate\View\View;
 
 class LessonController extends Controller
 {
-    public function index(Course $course, Module $module): View
+    /**
+ * Lessons for a course, or for one of its modules.
+ *
+ * This action backs two routes: instructor/courses/{course}/lessons (the
+ * course picker, no module) and .../modules/{module}/lessons. It previously
+ * required a Module unconditionally, so the course-level route built an empty
+ * one and 404'd. $module is therefore optional and, when absent, every lesson
+ * in the course is listed instead.
+ */
+public function index(Course $course, ?Module $module = null): View
     {
         $this->authorize('viewAny', Lesson::class);
 
         abort_if(! $course->isManagedBy(auth()->user()), 403);
-        abort_if($module->course_id !== $course->id, 404);
 
-        $lessons = Lesson::where('module_id', $module->id)
+        if ($module) {
+            abort_if($module->course_id !== $course->id, 404);
+
+            $query = Lesson::where('module_id', $module->id);
+        } else {
+            $query = Lesson::whereHas('module', fn ($q) => $q->where('course_id', $course->id));
+        }
+
+        $lessons = $query
             ->with('module', 'materials')
+            ->orderBy('module_id')
             ->orderBy('position', 'asc')
             ->paginate(15);
 

@@ -182,6 +182,11 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::resource('programs', ProgramController::class);
         Route::resource('sections', SectionController::class);
 
+        // Registered before Route::resource('courses', ...) below: the resource
+        // defines courses/{course}, which would otherwise swallow
+        // "courses/export" and 404 on model binding.
+        Route::get('courses/export', [AdminCourseController::class, 'export'])->name('courses.export');
+
         Route::resource('courses', AdminCourseController::class);
         Route::post('courses/{course}/publish', [AdminCourseController::class, 'publish'])->name('courses.publish');
         Route::post('courses/{course}/unpublish', [AdminCourseController::class, 'unpublish'])->name('courses.unpublish');
@@ -189,26 +194,29 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::post('courses/{course}/duplicate', [AdminCourseController::class, 'duplicate'])->name('courses.duplicate');
         Route::get('courses/{course}/stats', [AdminCourseController::class, 'quickStats'])->name('courses.stats');
         Route::post('courses/bulk-action', [AdminCourseController::class, 'bulkAction'])->name('courses.bulk-action');
-        Route::get('courses/export', [AdminCourseController::class, 'export'])->name('courses.export');
 
         Route::get('modules', [AdminModuleController::class, 'index'])->name('modules.index');
         Route::get('lessons', [AdminLessonController::class, 'index'])->name('lessons.index');
 
         Route::prefix('courses/{course}')->name('courses.')->group(function () {
-            Route::resource('modules', AdminModuleController::class)->except(['index', 'create', 'store']);
+            // Literal segments are registered BEFORE the resource below: the
+            // resource defines modules/{module}, which would otherwise swallow
+            // "modules/create" and blow up on route-model binding.
             Route::get('modules', [AdminModuleController::class, 'index'])->name('modules.index');
             Route::get('modules/create', [AdminModuleController::class, 'create'])->name('modules.create');
             Route::post('modules', [AdminModuleController::class, 'store'])->name('modules.store');
             Route::post('modules/reorder', [AdminModuleController::class, 'reorder'])->name('modules.reorder');
+            Route::resource('modules', AdminModuleController::class)->except(['index', 'create', 'store']);
             Route::post('modules/{module}/publish', [AdminModuleController::class, 'publish'])->name('modules.publish');
             Route::post('modules/{module}/unpublish', [AdminModuleController::class, 'unpublish'])->name('modules.unpublish');
 
             Route::prefix('modules/{module}')->name('modules.')->group(function () {
-                Route::resource('lessons', AdminLessonController::class)->except(['index', 'create', 'store']);
+                // Same ordering rule as above, for lessons/create.
                 Route::get('lessons', [AdminLessonController::class, 'index'])->name('lessons.index');
                 Route::get('lessons/create', [AdminLessonController::class, 'create'])->name('lessons.create');
                 Route::post('lessons', [AdminLessonController::class, 'store'])->name('lessons.store');
                 Route::post('lessons/reorder', [AdminLessonController::class, 'reorder'])->name('lessons.reorder');
+                Route::resource('lessons', AdminLessonController::class)->except(['index', 'create', 'store']);
             });
         });
 
@@ -287,10 +295,14 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/', [AdminCalendarController::class, 'index'])->name('index');
             Route::get('/create', [AdminCalendarController::class, 'create'])->name('create');
             Route::post('/', [AdminCalendarController::class, 'store'])->name('store');
-            Route::get('/{event}', [AdminCalendarController::class, 'show'])->name('show');
-            Route::get('/{event}/edit', [AdminCalendarController::class, 'edit'])->name('edit');
-            Route::put('/{event}', [AdminCalendarController::class, 'update'])->name('update');
-            Route::delete('/{event}', [AdminCalendarController::class, 'destroy'])->name('destroy');
+            // Named {calendarEvent}, not {event}: implicit binding matches the
+            // placeholder to the controller argument *by name*, so {event} never
+            // bound and each page handed its view an empty CalendarEvent — which
+            // then failed the moment it built its own links.
+            Route::get('/{calendarEvent}', [AdminCalendarController::class, 'show'])->name('show');
+            Route::get('/{calendarEvent}/edit', [AdminCalendarController::class, 'edit'])->name('edit');
+            Route::put('/{calendarEvent}', [AdminCalendarController::class, 'update'])->name('update');
+            Route::delete('/{calendarEvent}', [AdminCalendarController::class, 'destroy'])->name('destroy');
         });
 
         Route::resource('virtual_classes', AdminVirtualClassController::class)->parameters(['virtual_classes' => 'virtualClass']);
@@ -299,12 +311,14 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/', [AdminAttendanceController::class, 'index'])->name('index');
             Route::get('/create', [AdminAttendanceController::class, 'create'])->name('create');
             Route::post('/', [AdminAttendanceController::class, 'store'])->name('store');
+            // Literal segments must precede the {record} wildcard, otherwise
+            // "attendance/export" is swallowed by attendance/{attendanceRecord}.
+            Route::get('/export', [AdminAttendanceController::class, 'export'])->name('export');
+            Route::get('/classes/{class}/report', [AdminAttendanceController::class, 'report'])->name('report');
             Route::get('/{attendanceRecord}', [AdminAttendanceController::class, 'show'])->name('show');
             Route::get('/{attendanceRecord}/edit', [AdminAttendanceController::class, 'edit'])->name('edit');
             Route::put('/{attendanceRecord}', [AdminAttendanceController::class, 'update'])->name('update');
             Route::delete('/{attendanceRecord}', [AdminAttendanceController::class, 'destroy'])->name('destroy');
-            Route::get('/export', [AdminAttendanceController::class, 'export'])->name('export');
-            Route::get('/classes/{class}/report', [AdminAttendanceController::class, 'report'])->name('report');
         });
 
         Route::prefix('gradebook')->name('gradebook.')->group(function () {
@@ -377,8 +391,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         Route::prefix('audit-logs')->name('audit_logs.')->group(function () {
             Route::get('/', [AuditLogController::class, 'index'])->name('index');
-            Route::get('/{auditLog}', [AuditLogController::class, 'show'])->name('show');
+            // Before the {auditLog} wildcard so "audit-logs/export" is not
+            // treated as an audit log id.
             Route::get('/export', [AuditLogController::class, 'export'])->name('export');
+            Route::get('/{auditLog}', [AuditLogController::class, 'show'])->name('show');
         });
     });
 
@@ -693,6 +709,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/lessons/all', [StudentLessonController::class, 'indexAll'])->name('lessons.all');
 
             Route::prefix('{course}')->group(function () {
+                // Scoped to the course so the "Lessons" picker does not drop
+                // the student onto the cross-course indexAll() list.
+                Route::get('/lessons', [StudentLessonController::class, 'index'])->name('lessons.index');
+
                 Route::prefix('modules')->name('modules.')->group(function () {
                     Route::get('/', [StudentModuleController::class, 'index'])->name('index');
                     Route::get('/{module}', [StudentModuleController::class, 'show'])->name('show');

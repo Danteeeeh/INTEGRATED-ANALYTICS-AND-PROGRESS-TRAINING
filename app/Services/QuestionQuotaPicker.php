@@ -96,8 +96,31 @@ final class QuestionQuotaPicker
             }
         }
 
-        while (count($picked) < $total && $remaining->isNotEmpty()) {
-            $picked[] = $remaining->shift();
+        // A quota is an exact count, so the free remainder may only come from
+        // categories that were NOT given a quota. Padding from anywhere allowed
+        // a quota'd category to overshoot (measured ~13% of draws).
+        while (count($picked) < $total) {
+            $free = $remaining
+                ->filter(fn (Question $q) => ! array_key_exists((int) $q->category_id, $quotas))
+                ->values();
+
+            if ($free->isEmpty()) {
+                break;
+            }
+
+            $question = $free->shift();
+            $pos = $remaining->search(fn (Question $q) => $q->id === $question->id);
+            if ($pos !== false) $remaining->splice($pos, 1);
+            $picked[] = $question;
+        }
+
+        if (count($picked) < $total) {
+            throw new QuestionQuotaException(sprintf(
+                'Only %d of the %d question(s) could be drawn: the categories without a quota have %d more available.',
+                count($picked),
+                $total,
+                $total - count($picked)
+            ));
         }
 
         return collect($picked)->shuffle()->values()->all();
@@ -134,8 +157,30 @@ final class QuestionQuotaPicker
             }
         }
 
-        while (count($picked) < $total && $remaining->isNotEmpty()) {
-            $picked[] = $remaining->shift();
+        // As above: the remainder may only come from difficulties with no quota,
+        // otherwise a quota'd difficulty overshoots (measured ~9% of draws).
+        while (count($picked) < $total) {
+            $free = $remaining
+                ->filter(fn (Question $q) => ! array_key_exists($q->difficulty, $quotas))
+                ->values();
+
+            if ($free->isEmpty()) {
+                break;
+            }
+
+            $question = $free->shift();
+            $pos = $remaining->search(fn (Question $q) => $q->id === $question->id);
+            if ($pos !== false) $remaining->splice($pos, 1);
+            $picked[] = $question;
+        }
+
+        if (count($picked) < $total) {
+            throw new QuestionQuotaException(sprintf(
+                'Only %d of the %d question(s) could be drawn: the difficulties without a quota have %d more available.',
+                count($picked),
+                $total,
+                $total - count($picked)
+            ));
         }
 
         return collect($picked)->shuffle()->values()->all();
@@ -150,67 +195,36 @@ final class QuestionQuotaPicker
      */
     private function pickByBoth(Collection $pool, int $total, array $categoryQuotas, array $difficultyQuotas): array
     {
-        $remaining = $pool->shuffle()->values();
+        // A quota is an exact count on both dimensions simultaneously, and the
+        // free remainder may only come from buckets that carry no quota. That is
+        // a transportation problem with equality margins on both sides, so it
+        // is solved exactly as a min-cost-free max-flow rather than greedily:
+        // the old greedy fill could strand itself and hand back a set that
+        // silently broke the difficulty quotas (~12.5% of draws) instead of
+        // raising anything.
+        $counts = $this->solveBothDimensions($pool, $total, $categoryQuotas, $difficultyQuotas);
+
+        $byCell = [];
+        foreach ($pool as $question) {
+            $byCell[(int) $question->category_id.'|'.$question->difficulty][] = $question;
+        }
+
         $picked = [];
-        $difficultyTaken = [];
 
-        // Pass 1 — each category, taking under-quota difficulties first.
-        foreach ($categoryQuotas as $categoryId => $wanted) {
-            $bucket = $remaining
-                ->filter(fn (Question $q) => (int) $q->category_id === (int) $categoryId)
-                ->values();
+        foreach ($counts as $categoryId => $byDifficulty) {
+            foreach ($byDifficulty as $difficulty => $count) {
+                $cell = $byCell[($categoryId).'|'.$difficulty] ?? [];
 
-            $this->takeFromBucket($bucket, $remaining, $picked, $wanted, $difficultyQuotas, $difficultyTaken);
+                // Shuffle so the draw stays random within a cell.
+                shuffle($cell);
+
+                foreach (array_slice($cell, 0, $count) as $question) {
+                    $picked[] = $question;
+                }
+            }
         }
 
-        // Pass 2 — repair difficulty shortfalls within same category.
-        foreach ($difficultyQuotas as $difficulty => $quota) {
-            $shortfall = $this->repairDifficulty(
-                $remaining, $picked, $difficulty, $difficultyQuotas, $difficultyTaken
-            );
-
-            if ($shortfall <= 0) {
-                continue;
-            }
-
-            $room = $total - count($picked);
-
-            if ($shortfall > $room) {
-                throw new QuestionQuotaException(sprintf(
-                    'The category quotas already claim %d of the %d slots, leaving no room for the %d "%s" '
-                    .'question(s) still needed. Lower a category quota or raise the set size.',
-                    count($picked),
-                    $total,
-                    $shortfall,
-                    $difficulty
-                ));
-            }
-
-            $available = $remaining->filter(fn (Question $q) => $q->difficulty === $difficulty)->count();
-
-            if ($available < $shortfall) {
-                throw new QuestionQuotaException(sprintf(
-                    'Difficulty "%s" still needs %d question(s), but only %d %s left once the category quotas '
-                    .'are filled. The two sets of quotas cannot be met together.',
-                    $difficulty,
-                    $shortfall,
-                    $available,
-                    $available === 1 ? 'is' : 'are'
-                ));
-            }
-
-            $bucket = $remaining->filter(fn (Question $q) => $q->difficulty === $difficulty)->values();
-            $this->takeFromBucket($bucket, $remaining, $picked, $shortfall, $difficultyQuotas, $difficultyTaken);
-        }
-
-        // Pass 3 — pad the rest.
-        while (count($picked) < $total && $remaining->isNotEmpty()) {
-            $question = $remaining->shift();
-            $picked[] = $question;
-            $difficultyTaken[$question->difficulty] = ($difficultyTaken[$question->difficulty] ?? 0) + 1;
-        }
-
-        if (count($picked) < $total) {
+        if (count($picked) !== $total) {
             throw new QuestionQuotaException(sprintf(
                 'Only %d of the %d question(s) requested could be drawn with these quotas.',
                 count($picked),
@@ -222,100 +236,195 @@ final class QuestionQuotaPicker
     }
 
     /**
-     * Remove $wanted questions from $bucket, preferring under-quota difficulties.
+     * Exact per-(category, difficulty) counts honouring every quota.
      *
-     * @param  array<int, Question>  $picked
+     * Modelled as a circulation with lower bounds:
+     *
+     *   source → category      lower = upper = the category's quota
+     *   category → difficulty  0 … how many of that pairing actually exist
+     *   difficulty → sink      lower = upper = the difficulty's quota
+     *
+     * Quota-less buckets get lower 0 and an upper of $total, which is what
+     * lets the leftover slots land in them. The T → source edge pinned to
+     * $total forces the circulation to carry exactly the set size.
+     *
+     * @param  array<int, int>  $categoryQuotas
      * @param  array<string, int>  $difficultyQuotas
-     * @param  array<string, int>  $difficultyTaken
+     * @return array<int, array<string, int>> category_id => difficulty => count
+     *
+     * @throws QuestionQuotaException
      */
-    private function takeFromBucket(
-        Collection $bucket,
-        Collection $remaining,
-        array &$picked,
-        int $wanted,
-        array $difficultyQuotas,
-        array &$difficultyTaken
-    ): void {
-        while ($wanted > 0 && $bucket->isNotEmpty()) {
-            // Prefer a question whose difficulty is still under quota.
-            $index = $bucket->search(
-                fn (Question $q) => ($difficultyQuotas[$q->difficulty] ?? 0) > ($difficultyTaken[$q->difficulty] ?? 0)
-            );
+    private function solveBothDimensions(
+        Collection $pool,
+        int $total,
+        array $categoryQuotas,
+        array $difficultyQuotas
+    ): array {
+        $available = [];
+        $categoryIds = [];
+        $difficultyNames = [];
 
-            if ($index === false) {
-                $index = 0;
-            }
+        foreach ($pool as $question) {
+            $categoryId = (int) $question->category_id;
+            $difficulty = (string) $question->difficulty;
 
-            $question = $bucket->splice($index, 1)->first();
-
-            $position = $remaining->search(fn (Question $q) => $q->id === $question->id);
-            if ($position !== false) {
-                $remaining->splice($position, 1);
-            }
-
-            $picked[] = $question;
-            $difficultyTaken[$question->difficulty] = ($difficultyTaken[$question->difficulty] ?? 0) + 1;
-            $wanted--;
+            $available[$categoryId][$difficulty] = ($available[$categoryId][$difficulty] ?? 0) + 1;
+            $categoryIds[$categoryId] = true;
+            $difficultyNames[$difficulty] = true;
         }
+
+        // Which buckets may absorb the leftover slots.
+        $freeCategories = array_diff(array_keys($categoryIds), array_map('intval', array_keys($categoryQuotas)));
+        $freeDifficulties = array_diff(array_keys($difficultyNames), array_keys($difficultyQuotas));
+
+        $graph = new FlowNetwork();
+
+        $source = $graph->node();
+        $sink = $graph->node();
+
+        $categoryNode = [];
+        foreach ($categoryIds as $categoryId => $_) {
+            $categoryNode[$categoryId] = $graph->node();
+        }
+
+        $difficultyNode = [];
+        foreach ($difficultyNames as $difficulty => $_) {
+            $difficultyNode[$difficulty] = $graph->node();
+        }
+
+        // Pin the whole set: the circulation must move exactly $total units.
+        $graph->edge($sink, $source, $total, $total);
+
+        foreach ($categoryIds as $categoryId => $_) {
+            $quota = $categoryQuotas[$categoryId] ?? null;
+
+            if ($quota !== null) {
+                $graph->edge($source, $categoryNode[$categoryId], $quota, $quota);
+            } else {
+                $graph->edge($source, $categoryNode[$categoryId], 0, $total);
+            }
+        }
+
+        foreach ($difficultyNames as $difficulty => $_) {
+            $quota = $difficultyQuotas[$difficulty] ?? null;
+
+            if ($quota !== null) {
+                $graph->edge($difficultyNode[$difficulty], $sink, $quota, $quota);
+            } else {
+                $graph->edge($difficultyNode[$difficulty], $sink, 0, $total);
+            }
+        }
+
+        foreach ($available as $categoryId => $byDifficulty) {
+            foreach ($byDifficulty as $difficulty => $count) {
+                $graph->edge($categoryNode[$categoryId], $difficultyNode[$difficulty], 0, $count);
+            }
+        }
+
+        if (! $graph->hasFeasibleCirculation()) {
+            throw $this->unsatisfiableMessage(
+                $total,
+                $categoryQuotas,
+                $difficultyQuotas,
+                $available,
+                $freeCategories,
+                $freeDifficulties
+            );
+        }
+
+        $counts = [];
+        foreach ($available as $categoryId => $byDifficulty) {
+            foreach ($byDifficulty as $difficulty => $_) {
+                $used = $graph->flowOn($categoryNode[$categoryId], $difficultyNode[$difficulty]);
+
+                if ($used > 0) {
+                    $counts[$categoryId][$difficulty] = $used;
+                }
+            }
+        }
+
+        return $counts;
     }
 
     /**
-     * Swap a held question for one of $difficulty in the SAME category,
-     * but only if the held difficulty has already met its own quota.
+     * Name the bucket that actually fell short, rather than a generic refusal.
      *
-     * Returns how many of $difficulty are still owed afterwards.
-     *
-     * @param  array<int, Question>  $picked
+     * @param  array<int, int>  $categoryQuotas
      * @param  array<string, int>  $difficultyQuotas
-     * @param  array<string, int>  $difficultyTaken
+     * @param  array<int, array<string, int>>  $available
+     * @param  array<int, int>  $freeCategories
+     * @param  array<int, string>  $freeDifficulties
      */
-    private function repairDifficulty(
-        Collection $remaining,
-        array &$picked,
-        string $difficulty,
+    private function unsatisfiableMessage(
+        int $total,
+        array $categoryQuotas,
         array $difficultyQuotas,
-        array &$difficultyTaken
-    ): int {
-        $owed = ($difficultyQuotas[$difficulty] ?? 0) - ($difficultyTaken[$difficulty] ?? 0);
-
-        if ($owed <= 0) {
-            return 0;
+        array $available,
+        array $freeCategories,
+        array $freeDifficulties
+    ): QuestionQuotaException {
+        // Try the category quotas on their own first — that is the constraint a
+        // reader is most likely to have gotten wrong.
+        $freeCategoryCapacity = 0;
+        foreach ($freeCategories as $categoryId) {
+            foreach (($available[$categoryId] ?? []) as $count) {
+                $freeCategoryCapacity += $count;
+            }
         }
 
-        foreach ($picked as $index => $held) {
-            if ($owed <= 0) {
-                break;
+        if ($freeCategoryCapacity < $total - array_sum($categoryQuotas)) {
+            foreach ($categoryQuotas as $categoryId => $wanted) {
+                $have = 0;
+                foreach (($available[$categoryId] ?? []) as $count) {
+                    $have += $count;
+                }
+
+                if ($have < $wanted) {
+                    return new QuestionQuotaException(sprintf(
+                        'The category "%s" has only %d question%s available, but %d %s requested.',
+                        $categoryId === 0 ? 'Uncategorised' : 'Category #'.$categoryId,
+                        $have,
+                        $have === 1 ? '' : 's',
+                        $wanted,
+                        $wanted === 1 ? 'was' : 'were'
+                    ));
+                }
             }
 
-            if ($held->difficulty === $difficulty) {
-                continue;
-            }
-
-            // Don't take from a difficulty that is itself still owed.
-            if (($difficultyQuotas[$held->difficulty] ?? 0) > ($difficultyTaken[$held->difficulty] ?? 0)) {
-                continue;
-            }
-
-            $swap = $remaining->search(
-                fn (Question $q) => $q->difficulty === $difficulty
-                    && (int) $q->category_id === (int) $held->category_id
-            );
-
-            if ($swap === false) {
-                continue;
-            }
-
-            $replacement = $remaining->splice($swap, 1)->first();
-
-            $picked[$index] = $replacement;
-            $remaining->push($held);
-
-            $difficultyTaken[$held->difficulty]--;
-            $difficultyTaken[$difficulty] = ($difficultyTaken[$difficulty] ?? 0) + 1;
-            $owed--;
+            return new QuestionQuotaException(sprintf(
+                'The category quotas need %d question(s), but only %d more %s available outside the '
+                .'quota\'d categories to reach %d.',
+                array_sum($categoryQuotas),
+                $freeCategoryCapacity,
+                $freeCategoryCapacity === 1 ? 'is' : 'are',
+                $total
+            ));
         }
 
-        return max(0, $owed);
+        // Otherwise the difficulty side is what cannot be honoured.
+        foreach ($difficultyQuotas as $difficulty => $wanted) {
+            $have = 0;
+            foreach ($available as $byDifficulty) {
+                $have += $byDifficulty[$difficulty] ?? 0;
+            }
+
+            if ($have < $wanted) {
+                return new QuestionQuotaException(sprintf(
+                    'Difficulty "%s" has only %d question%s available, but %d %s requested.',
+                    $difficulty,
+                    $have,
+                    $have === 1 ? '' : 's',
+                    $wanted,
+                    $wanted === 1 ? 'was' : 'were'
+                ));
+            }
+        }
+
+        return new QuestionQuotaException(sprintf(
+            'These category and difficulty quotas cannot be met together for a set of %d. Lower one of the '
+            .'quotas or change the set size.',
+            $total
+        ));
     }
 
     /**

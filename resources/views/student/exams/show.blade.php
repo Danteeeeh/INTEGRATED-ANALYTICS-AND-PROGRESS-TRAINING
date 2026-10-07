@@ -130,7 +130,7 @@
                         <i class="fa-solid fa-ban mr-2"></i> Attempt Limit Reached
                     </button>
                 @else
-                    <a href="{{ route('student.courses.exams.attempt.confirm', [$course, $exam]) }}"
+                    <a href="{{ route('student.courses.exams.confirm', [$course, $exam]) }}"
                        class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium">
                         <i class="fa-solid fa-play mr-2"></i> Start Exam
                     </a>

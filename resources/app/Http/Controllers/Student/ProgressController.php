@@ -1,0 +1,232 @@
+<?php
+
+namespace App\Http\Controllers\Student;
+
+use App\Http\Controllers\Controller;
+use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
+use App\Models\CourseCompletion;
+use App\Models\CourseProgress;
+use App\Models\Enrollment;
+use App\Models\Grade;
+use App\Models\LessonProgress;
+use App\Models\ModuleProgress;
+use App\Models\QuizAttempt;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class ProgressController extends Controller
+{
+    public function __invoke(): View
+    {
+        $studentId = auth()->id();
+
+        // Get student's enrollments
+        $enrollments = Enrollment::where('student_id', $studentId)
+            ->with(['class.course', 'class.instructor', 'class.academicPeriod'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $activeEnrollments = $enrollments->where('status', 'active');
+        $completedEnrollments = $enrollments->where('status', 'completed');
+
+        // Course progress data
+        $contentProgress = app(\App\Services\ContentProgressService::class);
+        $courseProgressData = [];
+        foreach ($activeEnrollments as $enrollment) {
+            $course = $enrollment->class->course;
+            if ($course) {
+                // Use live calculation so progress always reflects the real DB state,
+                // instead of relying on a potentially stale CourseProgress row.
+                $liveProgress = $contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
+
+                $progress = CourseProgress::where('student_id', $studentId)
+                    ->where('class_id', $enrollment->class_id)
+                    ->first();
+
+                $moduleProgress = ModuleProgress::where('student_id', $studentId)
+                    ->whereHas('module', function ($query) use ($course) {
+                        $query->where('course_id', $course->id);
+                    })
+                    ->with('module')
+                    ->get();
+
+                $lessonProgress = LessonProgress::where('student_id', $studentId)
+                    ->whereHas('lesson.module', function ($query) use ($course) {
+                        $query->where('course_id', $course->id);
+                    })
+                    ->get();
+
+                $totalModules = $course->modules()->published()->count();
+                $totalLessons = $course->lessons()->published()->count();
+
+                $courseProgressData[] = [
+                    'course' => $course,
+                    'class' => $enrollment->class,
+                    'progress' => $liveProgress['overall'],
+                    'last_accessed' => $progress ? $progress->updated_at : null,
+                    'modules_completed' => $moduleProgress->where('status', 'completed')->count(),
+                    'total_modules' => $totalModules,
+                    'lessons_completed' => $lessonProgress->where('status', 'completed')->count(),
+                    'total_lessons' => $totalLessons,
+                ];
+            }
+        }
+
+        // Overall statistics
+        $totalCourses = $activeEnrollments->count();
+        $overallProgress = $totalCourses > 0 
+            ? collect($courseProgressData)->avg('progress') 
+            : 0;
+
+        // Assignment progress
+        $classIds = $activeEnrollments->pluck('class_id');
+        $totalAssignments = Assignment::whereIn('class_id', $classIds)->count();
+        $submittedAssignments = AssignmentSubmission::where('student_id', $studentId)
+            ->whereHas('assignment', function ($query) use ($classIds) {
+                $query->whereIn('class_id', $classIds);
+            })
+            ->count();
+        $assignmentProgress = $totalAssignments > 0 
+            ? ($submittedAssignments / $totalAssignments) * 100 
+            : 0;
+
+        // Quiz progress
+        $totalQuizzes = \App\Models\Quiz::whereIn('class_id', $classIds)->count();
+        $quizAttempts = QuizAttempt::where('student_id', $studentId)
+            ->whereHas('quiz', function ($query) use ($classIds) {
+                $query->whereIn('class_id', $classIds);
+            })
+            ->count();
+        $quizProgress = $totalQuizzes > 0 
+            ? ($quizAttempts / $totalQuizzes) * 100 
+            : 0;
+
+        // Grades progress
+        $recentGrades = Grade::where('student_id', $studentId)
+            ->with('item.class.course')
+            ->whereHas('item', fn ($q) => $q->where('is_released', true))
+            ->orderBy('graded_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        $averageGrade = $recentGrades->isNotEmpty() 
+            ? $recentGrades->avg('score_percent') 
+            : 0;
+
+        // Learning streak
+        $learningStreak = $this->calculateLearningStreak($studentId);
+
+        // Course completions
+        $completions = CourseCompletion::where('student_id', $studentId)
+            ->with('class.course')
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
+        // Weekly activity
+        $weeklyActivity = $this->getWeeklyActivity($studentId);
+
+        // Completion timeline
+        $completionTimeline = $this->getCompletionTimeline($studentId);
+
+        return view('student.progress', compact(
+            'courseProgressData',
+            'overallProgress',
+            'totalCourses',
+            'assignmentProgress',
+            'submittedAssignments',
+            'totalAssignments',
+            'quizProgress',
+            'quizAttempts',
+            'totalQuizzes',
+            'recentGrades',
+            'averageGrade',
+            'learningStreak',
+            'completions',
+            'weeklyActivity',
+            'completionTimeline',
+            'activeEnrollments',
+            'completedEnrollments'
+        ));
+    }
+
+    protected function calculateLearningStreak(int $studentId): int
+    {
+        $today = Carbon::today();
+        $streak = 0;
+
+        for ($i = 0; $i < 30; $i++) {
+            $date = $today->copy()->subDays($i);
+            $hasActivity = LessonProgress::where('student_id', $studentId)
+                ->whereDate('completed_at', $date)
+                ->exists();
+
+            if ($hasActivity) {
+                $streak++;
+            } elseif ($i > 0) {
+                break;
+            }
+        }
+
+        return $streak;
+    }
+
+    protected function getWeeklyActivity(int $studentId): array
+    {
+        $activity = [];
+        $maxLessons = 0;
+        $maxQuizzes = 0;
+        $maxAssignments = 0;
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $lessonsCompleted = LessonProgress::where('student_id', $studentId)
+                ->whereDate('completed_at', $date)
+                ->where('status', 'completed')
+                ->count();
+            $quizzesTaken = QuizAttempt::where('student_id', $studentId)
+                ->whereDate('created_at', $date)
+                ->count();
+            $assignmentsSubmitted = AssignmentSubmission::where('student_id', $studentId)
+                ->whereDate('submitted_at', $date)
+                ->count();
+
+            $maxLessons = max($maxLessons, $lessonsCompleted);
+            $maxQuizzes = max($maxQuizzes, $quizzesTaken);
+            $maxAssignments = max($maxAssignments, $assignmentsSubmitted);
+
+            $activity[] = [
+                'date' => $date->format('D'),
+                'lessons_completed' => $lessonsCompleted,
+                'quizzes_taken' => $quizzesTaken,
+                'assignments_submitted' => $assignmentsSubmitted,
+            ];
+        }
+
+        return [
+            'data' => $activity,
+            'max' => [
+                'lessons' => max($maxLessons, 1),
+                'quizzes' => max($maxQuizzes, 1),
+                'assignments' => max($maxAssignments, 1),
+            ],
+        ];
+    }
+
+    protected function getCompletionTimeline(int $studentId): array
+    {
+        return CourseCompletion::where('student_id', $studentId)
+            ->with('class.course')
+            ->orderBy('completed_at')
+            ->get()
+            ->map(function ($completion) {
+                return [
+                    'course' => $completion->class->course->title,
+                    'completed_at' => $completion->completed_at->format('M j, Y'),
+                    'completion_percent' => $completion->completion_percent,
+                ];
+            })
+            ->toArray();
+    }
+}
