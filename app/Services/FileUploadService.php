@@ -36,6 +36,27 @@ class FileUploadService
 
     protected int $maxFileSize = 52428800; // 50MB in bytes
 
+    /**
+     * Signatures of an embedded script inside an uploaded file.
+     *
+     * A user-supplied document that already contains PHP is the classic way to
+     * turn an upload directory into a remote shell, so the head of every file
+     * is scanned for these before it is stored.
+     *
+     * @var array<int, string>
+     */
+    protected array $suspiciousPatterns = [
+        '/<\?php/i',
+        '/<\?=php/i',
+        '/<script[^>]*\bsrc\s*=\s*["\']?(?:https?:)?\/\//i',
+        '/eval\s*\(\s*(?:base64_decode|gzinflate|str_rot13)\s*\(/i',
+        '/powershell[^\r\n]*-enc(?:odedcommand)?\b/i',
+        '/system\s*\(\s*["\']\s*(?:cat|ls|id|whoami|wget|curl)\b/i',
+        '/proc_open\s*\(/i',
+        '/passthru\s*\(/i',
+        '/assert\s*\(\s*\$_(?:POST|GET|REQUEST|COOKIE)/i',
+    ];
+
     public function uploadFile(UploadedFile $file, string $folder = 'uploads', array $options = []): MediaFile
     {
         $this->validateFile($file);
@@ -167,7 +188,7 @@ class FileUploadService
             return;
         }
 
-        foreach ($suspiciousPatterns as $pattern) {
+        foreach ($this->suspiciousPatterns as $pattern) {
             if (preg_match($pattern, $content)) {
                 throw ValidationException::withMessages([
                     'file' => 'The file contains suspicious content and cannot be uploaded.',

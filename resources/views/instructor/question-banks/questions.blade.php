@@ -27,14 +27,14 @@
 @endphp
 @extends($layout)
 
-@section('title', 'Test Bank ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Questions')
+@section('title', 'Test Bank — Questions')
 @php $activeNav = 'question_banks'; @endphp
 
 @section('content')
 <div class="user-page">
     <x-user-page-header
         title="Test Bank"
-        subtitle="Every question you may use ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â your own banks plus anything shared with you."
+        subtitle="Every question you may use — your own banks plus anything shared with you."
         icon="fa-list-check"
     >
         <x-slot name="actions">
@@ -52,7 +52,7 @@
             <select class="form-control" name="course_id" aria-label="Filter course">
                 <option value="">All Courses</option>
                 @foreach($courses as $course)
-                    <option value="{{ $course->id }}" @selected(request('course_id') == $course->id)>{{ $course->code }} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {{ $course->title }}</option>
+                    <option value="{{ $course->id }}" @selected(request('course_id') == $course->id)>{{ $course->code }} — {{ $course->title }}</option>
                 @endforeach
             </select>
 
@@ -145,17 +145,17 @@
                                     <a href="{{ route($routePrefix.'test_bank.questions.preview', $question) }}" class="user-cell-primary">
                                         {{ \Illuminate\Support\Str::limit($question->question_text, 90) }}
                                     </a>
-                                    <div class="user-email">{{ $question->creator?->name ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â' }}</div>
+                                    <div class="user-email">{{ $question->creator?->name ?? '—' }}</div>
                                 </td>
                                 <td>
-                                    {{ $question->bank?->title ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â' }}
+                                    {{ $question->bank?->title ?? '—' }}
                                     @if($question->bank?->is_shared)
                                         <div class="user-email"><em>Shared</em></div>
                                     @elseif($question->bank?->created_by === auth()->id())
                                         <div class="user-email"><em>You</em></div>
                                     @endif
                                 </td>
-                                <td>{{ $question->category?->name ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â' }}</td>
+                                <td>{{ $question->category?->name ?? '—' }}</td>
                                 <td>{{ $question->typeLabel() }}</td>
                                 <td>{{ $question->difficultyLabel() }}</td>
                                 <td><x-user-status-badge :status="$question->status" :label="$question->statusLabel()" /></td>

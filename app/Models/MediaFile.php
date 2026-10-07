@@ -14,6 +14,14 @@ class MediaFile extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Ids already reported as missing this request, so a page listing many
+     * broken attachments logs each one once instead of on every check.
+     *
+     * @var array<int, true>
+     */
+    protected static array $reportedMissing = [];
+
     protected $fillable = [
         'disk',
         'path',
@@ -103,12 +111,37 @@ class MediaFile extends Model
         }
 
         try {
-            return Storage::disk($this->disk)->exists($this->path);
-        } catch (\Throwable) {
-            // Misconfigured/unreachable disk — treat as missing rather than
-            // letting a storage exception bubble up as a 500.
+            $exists = Storage::disk($this->disk)->exists($this->path);
+        } catch (\Throwable $e) {
+            // A misconfigured or unreachable disk must not 500 the whole page,
+            // but it is also not the same as "the file is gone" — record it so
+            // the two are distinguishable in the logs.
+            \Illuminate\Support\Facades\Log::warning('media_file.disk_unreachable', [
+                'media_file_id' => $this->id,
+                'disk' => $this->disk,
+                'path' => $this->path,
+                'error' => $e->getMessage(),
+            ]);
+
             return false;
         }
+
+        if (! $exists && ! isset(self::$reportedMissing[$this->id])) {
+            self::$reportedMissing[$this->id] = true;
+
+            // The row survives but the blob does not. Almost always means the
+            // filesystem is not persistent (or not shared between instances):
+            // the database keeps the metadata while the bytes evaporate.
+            \Illuminate\Support\Facades\Log::warning('media_file.bytes_missing', [
+                'media_file_id' => $this->id,
+                'disk' => $this->disk,
+                'path' => $this->path,
+                'original_name' => $this->original_name,
+                'expected_absolute' => $this->full_path,
+            ]);
+        }
+
+        return $exists;
     }
 
     public function getFullPathAttribute(): string
