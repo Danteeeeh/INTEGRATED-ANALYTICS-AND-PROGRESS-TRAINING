@@ -48,16 +48,7 @@
             <div class="modal-row"><span>Duration:</span><span>{{ $virtualClass->durationLabel() }}</span></div>
 
             <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-video"></i> Meeting Details</div>
-            @php
-                $providerLabel = match($virtualClass->meeting_provider) {
-                    'zoom' => 'Zoom',
-                    'google_meet' => 'Google Meet',
-                    'microsoft_teams' => 'Microsoft Teams',
-                    'other' => 'Other',
-                    default => ucfirst((string) $virtualClass->meeting_provider),
-                };
-            @endphp
-            <div class="modal-row"><span>Provider:</span><span><x-user-status-badge :status="Str::slug($virtualClass->meeting_provider ?? 'other')" :label="$providerLabel" /></span></div>
+            <div class="modal-row"><span>Provider:</span><span><x-user-status-badge :status="Str::slug($virtualClass->meeting_provider ?? 'other')" :label="$virtualClass->providerLabel()" /></span></div>
             <div class="modal-row"><span>Meeting URL:</span><span>
                 @if($virtualClass->meeting_url)
                     <a href="{{ $virtualClass->meeting_url }}" target="_blank" style="color: var(--bcp-cyan-400); text-decoration: none;">{{ $virtualClass->meeting_url }} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.75rem;"></i></a>

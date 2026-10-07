@@ -127,6 +127,28 @@ class VirtualClass extends Model
     }
 
     /**
+     * Human name for the meeting platform.
+     *
+     * Lives here rather than in a `@php` block inside the view. Blade compiles
+     * `@php ... @endphp` by matching the first `@php` anywhere in the file to
+     * the next `@endphp`, so an inline `@php(...)` earlier in the same view
+     * swallowed the whole body and the page died on an undefined variable.
+     * Keeping it a method also means the student and admin pages cannot disagree
+     * about what to call the same provider.
+     */
+    public function providerLabel(): string
+    {
+        return match ($this->meeting_provider) {
+            'zoom' => 'Zoom',
+            'google_meet' => 'Google Meet',
+            'microsoft_teams' => 'Microsoft Teams',
+            'other' => 'Other',
+            null, '' => 'Other',
+            default => ucfirst((string) $this->meeting_provider),
+        };
+    }
+
+    /**
      * Has the scheduled end time already passed?
      */
     public function hasEnded(): bool
