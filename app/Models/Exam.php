@@ -316,9 +316,20 @@ class Exam extends Model
         return $this->questions()->count();
     }
 
+    /**
+     * Total points this exam is worth.
+     *
+     * Summed from the pivot, not the bank: an exam may weight a question
+     * differently from how the question is scored everywhere else. The column
+     * is qualified because only the pivot carries a "points" column, and saying
+     * so explicitly stops this breaking the moment the questions table grows
+     * one of its own.
+     */
     public function getTotalPoints(): float
     {
-        return $this->questions()->sum('points') ?: $this->total_points;
+        $sum = $this->questions()->sum('exam_questions.points');
+
+        return $sum > 0 ? (float) $sum : (float) $this->total_points;
     }
 
     public function getTypeLabel(): string

@@ -270,6 +270,43 @@ class ExamController extends Controller
             ->with('success', 'Question added.');
     }
 
+    /** Import a CSV or TXT file of questions onto the exam. */
+    public function importQuestions(Request $request, Course $course, Exam $exam): RedirectResponse
+    {
+        $this->authorizeExam($exam);
+        $this->assertEditable($exam);
+
+        $validated = $request->validate([
+            'import_file' => [
+                'required',
+                'file',
+                'mimes:csv,txt',
+                'max:'.config('lms.uploads.question_import'),
+            ],
+        ]);
+
+        $result = $this->examService->importQuestionsFromFile(
+            $exam,
+            auth()->id(),
+            $validated['import_file']->getRealPath(),
+            strtolower($validated['import_file']->getClientOriginalExtension())
+        );
+
+        $message = "Imported {$result['created']} question(s).";
+
+        if ($result['errors'] !== []) {
+            $message .= ' Some rows had errors: '.implode('; ', array_slice($result['errors'], 0, 3));
+
+            if (count($result['errors']) > 3) {
+                $message .= ' …and '.(count($result['errors']) - 3).' more.';
+            }
+        }
+
+        return redirect()
+            ->route('instructor.courses.exams.show', [$course, $exam])
+            ->with($result['errors'] === [] ? 'success' : 'error', $message);
+    }
+
     /** Change how many points a question is worth on this exam. */
     public function updateQuestion(Request $request, Course $course, Exam $exam, Question $question): RedirectResponse
     {

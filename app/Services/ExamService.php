@@ -73,6 +73,103 @@ class ExamService
         });
     }
 
+    /**
+     * Import questions from a CSV or plain-text file onto an exam.
+     *
+     * Parsing is shared with the quiz importer through QuestionFileParser, so
+     * both accept the same formats and produce the same questions; only the
+     * pivot they land in differs.
+     *
+     * Each question is written to the exam's own bank first, so it stays
+     * reusable on another exam instead of being stranded here.
+     *
+     * @return array{created: int, errors: array<int, string>}
+     */
+    public function importQuestionsFromFile(
+        Exam $exam,
+        int $userId,
+        string $filePath,
+        ?string $extension = null
+    ): array {
+        $parsed = app(QuestionFileParser::class)->parse($filePath, $extension);
+
+        $errors = $parsed['errors'];
+        $created = 0;
+        $order = (int) ExamQuestion::where('exam_id', $exam->id)->max('order');
+
+        DB::transaction(function () use ($parsed, $exam, $userId, &$created, &$order, &$errors) {
+            $bank = $this->resolveBank($exam, $userId);
+            $now = now();
+
+            foreach ($parsed['records'] as $record) {
+                try {
+                    $question = Question::create([
+                        'question_bank_id' => $bank->id,
+                        'question_type' => $record['question_type'],
+                        'question_text' => $record['question_text'],
+                        'explanation' => $record['explanation'],
+                        'difficulty' => $record['difficulty'],
+                        'default_points' => $record['points'],
+                        'tags' => $record['tags'],
+                        'created_by' => $userId,
+                        'status' => Question::STATUS_ACTIVE,
+                    ]);
+
+                    if ($record['choices'] !== []) {
+                        $rows = [];
+                        $seenCorrect = false;
+
+                        foreach ($record['choices'] as $index => $choice) {
+                            $isCorrect = (bool) $choice['is_correct'];
+                            $seenCorrect = $seenCorrect || $isCorrect;
+
+                            $rows[] = [
+                                'question_id' => $question->id,
+                                'choice_text' => $choice['choice_text'],
+                                'is_correct' => $isCorrect,
+                                'position' => $index + 1,
+                                'points' => 0,
+                                'feedback' => null,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ];
+                        }
+
+                        // A choice question with no answer cannot be graded, so
+                        // it is reported rather than stored unusable.
+                        if (! $seenCorrect) {
+                            $errors[] = 'Skipped "'.$record['question_text'].'": no correct answer was marked.';
+
+                            $question->delete();
+
+                            continue;
+                        }
+
+                        QuestionChoice::insert($rows);
+                    }
+
+                    $order++;
+
+                    ExamQuestion::create([
+                        'exam_id' => $exam->id,
+                        'question_id' => $question->id,
+                        'order' => $order,
+                        'points' => $record['points'],
+                        'is_required' => true,
+                    ]);
+
+                    $created++;
+                } catch (\Throwable $e) {
+                    $errors[] = 'Could not import "'.$record['question_text'].'": '.$e->getMessage();
+                }
+            }
+        });
+
+        $exam->refresh();
+
+        return compact('created', 'errors');
+    }
+
     // ── Question management ───────────────────────────────────────
     //
     // An exam could be created but had no way to hold questions: the panel said

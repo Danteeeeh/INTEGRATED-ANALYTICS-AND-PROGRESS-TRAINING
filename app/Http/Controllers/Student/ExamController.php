@@ -45,9 +45,16 @@ class ExamController extends Controller
                     });
                 });
             })
-            ->with(['attempts' => function ($q) use ($studentId) {
-                $q->ofStudent($studentId)->latest();
-            }])
+            ->with([
+                'attempts' => function ($q) use ($studentId) {
+                    $q->ofStudent($studentId)->latest();
+                },
+                // The card states how many questions an exam holds, so a
+                // student can tell a finished paper from one still being built.
+                'questions',
+            ])
+            ->withCount('questions')
+            ->withSum('questions', 'exam_questions.points')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -115,6 +122,22 @@ class ExamController extends Controller
         return view('student.exams.confirm', compact('course', 'exam', 'enrollment'));
     }
 
+    /**
+ * An exam with nothing on it cannot be sat.
+ *
+ * Without this a student could start an attempt on an exam the instructor had
+ * not finished building, be handed a blank paper, and "complete" it — which
+ * recorded an attempt and a result for work that did not exist.
+ */
+private function assertHasQuestions(Exam $exam): bool
+    {
+        if ($exam->questions()->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function startAttempt(Course $course, Exam $exam): RedirectResponse|View
     {
         $studentId = auth()->id();
@@ -138,6 +161,11 @@ class ExamController extends Controller
         if ($exam->isOverdueForStudent($studentId)) {
             return redirect()->route('student.courses.exams.show', [$course, $exam])
                 ->with('error', 'This exam is overdue and no longer available for attempts.');
+        }
+
+        if (! $this->assertHasQuestions($exam)) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam has no questions yet. Please check back later.');
         }
 
         $inProgress = ExamAttempt::ofExam($exam->id)
@@ -203,6 +231,11 @@ public function beginAttempt(Course $course, Exam $exam): RedirectResponse
         if ($exam->isOverdueForStudent($studentId)) {
             return redirect()->route('student.courses.exams.show', [$course, $exam])
                 ->with('error', 'This exam is overdue and no longer available for attempts.');
+        }
+
+        if (! $this->assertHasQuestions($exam)) {
+            return redirect()->route('student.courses.exams.show', [$course, $exam])
+                ->with('error', 'This exam has no questions yet. Please check back later.');
         }
 
         $existing = ExamAttempt::ofExam($exam->id)

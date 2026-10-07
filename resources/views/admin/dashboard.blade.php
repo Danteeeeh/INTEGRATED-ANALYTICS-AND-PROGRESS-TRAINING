@@ -294,9 +294,58 @@
             <div class="analytics-grid">
                 <div class="analytics-card">
                     <h5><i class="fa-solid fa-user-plus"></i> Enrollment Status</h5>
-                    <div id="adminEnrollmentChart" class="chart-container">
-                        <div class="chart-placeholder"><i class="fa-solid fa-chart-pie"></i><p>Loading…</p></div>
+
+                    {{-- The doughnut alone cannot be checked: when every enrollment
+                         is active it renders as one solid ring, and a legend listing
+                         empty categories looks like a broken chart. The figures are
+                         what the ring is built from, and they are rendered here
+                         rather than only by script. --}}
+                    @php
+                        $enrollmentTotal = (int) ($enrollmentBreakdown['total'] ?? 0);
+                        $enrollmentColours = [
+                            'active' => '#34d399',
+                            'pending' => '#fbbf24',
+                            'completed' => '#62c9f5',
+                            'dropped' => '#fb7185',
+                        ];
+                    @endphp
+
+                    <p id="adminEnrollmentSummary" style="margin:0 0 10px;font-size:.78rem;color:var(--dash-muted,#9eafca);">
+                        @if($enrollmentTotal === 0)
+                            Nothing to chart until students are enrolled.
+                        @else
+                            {{ $enrollmentTotal }} {{ $enrollmentTotal === 1 ? 'enrollment' : 'enrollments' }}
+                        @endif
+                    </p>
+
+                    <div id="adminEnrollmentChart" class="chart-container"
+                         data-enrollment-total="{{ $enrollmentTotal }}"
+                         @foreach(['active', 'pending', 'completed', 'dropped'] as $enrollmentStatus)
+                             data-enrollment-{{ $enrollmentStatus }}="{{ (int) ($enrollmentBreakdown[$enrollmentStatus] ?? 0) }}"
+                         @endforeach>
+                        @if($enrollmentTotal === 0)
+                            <div class="chart-placeholder">
+                                <i class="fa-solid fa-user-plus"></i>
+                                <p>No enrollments yet</p>
+                            </div>
+                        @else
+                            <div class="chart-placeholder"><i class="fa-solid fa-chart-pie"></i><p>Loading…</p></div>
+                        @endif
                     </div>
+
+                    @if($enrollmentTotal > 0)
+                        <ul style="list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;font-size:.78rem;">
+                            @foreach(['active' => 'Active', 'pending' => 'Pending', 'completed' => 'Completed', 'dropped' => 'Dropped'] as $enrollmentKey => $enrollmentLabel)
+                                @php $enrollmentCount = (int) ($enrollmentBreakdown[$enrollmentKey] ?? 0); @endphp
+                                <li style="display:flex;align-items:center;gap:8px;">
+                                    <span style="width:10px;height:10px;border-radius:3px;flex-shrink:0;background:{{ $enrollmentColours[$enrollmentKey] }};"></span>
+                                    <span>{{ $enrollmentLabel }}</span>
+                                    <strong style="margin-left:auto;">{{ $enrollmentCount }}</strong>
+                                    <span style="opacity:.6;">({{ round($enrollmentCount / $enrollmentTotal * 100) }}%)</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
                 <div class="analytics-card">
                     <h5><i class="fa-solid fa-book"></i> Courses by Status</h5>
@@ -361,17 +410,68 @@
 
                     // Enrollment doughnut
                     const ec = document.getElementById('adminEnrollmentChart');
-                    ec.innerHTML = '<canvas id="adminEnrollCanvas"></canvas>';
-                    destroyAdminChart('adminEnrollmentChart');
-                    adminCharts['adminEnrollmentChart'] = new Chart(document.getElementById('adminEnrollCanvas'), {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Active', 'Pending', 'Completed', 'Dropped'],
-                            datasets: [{ data: [d.enrollment.active, d.enrollment.pending, d.enrollment.completed, d.enrollment.dropped],
-                                backgroundColor: ['#34d399', '#fbbf24', '#62c9f5', '#fb7185'], borderColor: '#151c2c', borderWidth: 2 }]
-                        },
-                        options: adminChartOptions()
+                    const summary = document.getElementById('adminEnrollmentSummary');
+                    const legend = document.getElementById('adminEnrollmentLegend');
+
+                    const ENROLLMENT_COLOURS = {
+                        active: '#34d399', pending: '#fbbf24',
+                        completed: '#62c9f5', dropped: '#fb7185'
+                    };
+
+                    const statusCounts = [
+                        { key: 'active', label: 'Active' },
+                        { key: 'pending', label: 'Pending' },
+                        { key: 'completed', label: 'Completed' },
+                        { key: 'dropped', label: 'Dropped' }
+                    ].map(function (s) {
+                        return Object.assign({}, s, { count: Number(d.enrollment[s.key] || 0) });
                     });
+
+                    const enrollmentTotal = Number(d.enrollment.total || 0);
+
+                    // Publish the figures on the page itself so the rendered card
+                    // states them, not just the chart.
+                    ec.dataset.enrollmentTotal = enrollmentTotal;
+                    statusCounts.forEach(function (s) {
+                        ec.dataset['enrollment' + s.key.charAt(0).toUpperCase() + s.key.slice(1)] = s.count;
+                    });
+
+                    if (enrollmentTotal === 0) {
+                        // An empty doughnut reads as a broken chart. Say what it means.
+                        ec.innerHTML = '<div class="chart-placeholder">'
+                            + '<i class="fa-solid fa-user-plus"></i><p>No enrollments yet</p></div>';
+                        summary.textContent = 'Nothing to chart until students are enrolled.';
+                        legend.innerHTML = '';
+                        destroyAdminChart('adminEnrollmentChart');
+                    } else {
+                        summary.textContent = enrollmentTotal
+                            + (enrollmentTotal === 1 ? ' enrollment' : ' enrollments');
+
+                        legend.innerHTML = statusCounts.map(function (s) {
+                            const pct = Math.round((s.count / enrollmentTotal) * 100);
+                            return '<li style="display:flex;align-items:center;gap:8px;">'
+                                + '<span style="width:10px;height:10px;border-radius:3px;background:' + ENROLLMENT_COLOURS[s.key] + ';"></span>'
+                                + '<span>' + s.label + '</span>'
+                                + '<strong style="margin-left:auto;">' + s.count + '</strong>'
+                                + '<span style="opacity:.6;">(' + pct + '%)</span>'
+                                + '</li>';
+                        }).join('');
+
+                        ec.innerHTML = '<canvas id="adminEnrollCanvas"></canvas>';
+                        destroyAdminChart('adminEnrollmentChart');
+                        adminCharts['adminEnrollmentChart'] = new Chart(document.getElementById('adminEnrollCanvas'), {
+                            type: 'doughnut',
+                            data: {
+                                labels: statusCounts.map(function (s) { return s.label; }),
+                                datasets: [{
+                                    data: statusCounts.map(function (s) { return s.count; }),
+                                    backgroundColor: statusCounts.map(function (s) { return ENROLLMENT_COLOURS[s.key]; }),
+                                    borderColor: '#151c2c', borderWidth: 2
+                                }]
+                            },
+                            options: adminChartOptions()
+                        });
+                    }
 
                     // Courses by status bar
                     const cc = document.getElementById('adminCoursesChart');

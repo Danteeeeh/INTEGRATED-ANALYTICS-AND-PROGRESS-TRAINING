@@ -1,6 +1,7 @@
 @extends('layouts.student')
 
 @section('title', 'Exams')
+
 @php
     $activeNav = 'exams';
     $pageTitle = 'Exams';
@@ -8,81 +9,129 @@
 @endphp
 
 @section('content')
-    <div class="container py-8">
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Exams</h1>
-            <p class="text-gray-600">Course: {{ $course->title }}</p>
-        </div>
+    <div class="user-page">
+        <x-user-page-header
+            title="Exams"
+            subtitle="{{ $course->title }}"
+            icon="fa-file-signature"
+        >
+            <x-slot name="actions">
+                <a href="{{ route('student.courses.index') }}" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left"></i> Courses
+                </a>
+            </x-slot>
+        </x-user-page-header>
 
-        @if($exams->count() === 0)
-            <div class="bg-white rounded-lg shadow-sm p-8 text-center">
-                <i class="fa-solid fa-file-alt text-gray-300 text-6xl mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Exams Available</h3>
-                <p class="text-gray-500">There are no exams scheduled for this course yet.</p>
+        @if(session('error'))
+            <div class="alert alert-danger">
+                <i class="fa-solid fa-circle-exclamation"></i> {{ session('error') }}
             </div>
-        @else
-            <div class="grid gap-6">
-                @foreach($exams as $exam)
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $exam->title }}</h3>
-                                <p class="text-gray-600 mb-3">{{ $exam->description ?? 'No description provided' }}</p>
-                            </div>
-                            @if($exam->status === 'published')
-                                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                    Published
+        @endif
+
+        @if(session('status'))
+            <div class="alert alert-success">
+                <i class="fa-solid fa-circle-check"></i> {{ session('status') }}
+            </div>
+        @endif
+
+        @forelse($exams as $exam)
+            @php
+                // An exam with nothing on it is still being built. Saying so
+                // plainly stops a student opening it and finding a blank page.
+                $isReady = ($exam->questions_count ?? 0) > 0;
+                $attempts = $exam->attempts ?? collect();
+                $hasStarted = $attempts->isNotEmpty();
+            @endphp
+
+            <div class="user-panel" style="margin-bottom:16px;">
+                <div class="user-panel-head">
+                    <h3><i class="fa-solid fa-file-alt"></i> {{ $exam->title }}</h3>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <x-user-status-badge :status="$exam->status" />
+                        <span class="user-status {{ $isReady ? 'active' : '' }}">
+                            {{ $exam->questions_count ?? 0 }} question{{ ($exam->questions_count ?? 0) === 1 ? '' : 's' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="user-panel-body">
+                    @if($exam->description)
+                        <p style="margin:0 0 12px;font-size:.86rem;color:var(--dash-muted);">
+                            {{ $exam->description }}
+                        </p>
+                    @endif
+
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;font-size:.8rem;color:var(--dash-muted);">
+                        <span class="user-status"><i class="fa-solid fa-clock"></i> {{ $exam->duration_minutes }} min</span>
+
+                        @if($exam->passing_score_percent)
+                            <span class="user-status"><i class="fa-solid fa-check"></i> {{ $exam->passing_score_percent }}% to pass</span>
+                        @endif
+
+                        @if(($exam->points_total ?? 0) > 0)
+                            <span class="user-status"><i class="fa-solid fa-star"></i> {{ number_format((float) $exam->points_total, 0) }} points</span>
+                        @endif
+
+                        <span class="user-status"><i class="fa-solid fa-graduation-cap"></i> {{ $exam->getTypeLabel() }}</span>
+
+                        @if($exam->attempt_limit)
+                            <span class="user-status"><i class="fa-solid fa-redo"></i> {{ $attempts->count() }}/{{ $exam->attempt_limit }} used</span>
+                        @endif
+                    </div>
+
+                    {{-- Availability, said in words rather than left to the student
+                         to work out from a pair of dates. --}}
+                    <p style="margin:0 0 14px;font-size:.8rem;color:var(--dash-muted);">
+                        @if($exam->starts_at && $exam->ends_at)
+                            <i class="fa-solid fa-calendar"></i>
+                            {{ $exam->starts_at->format('M d, Y g:i A') }}
+                            &rarr;
+                            {{ $exam->ends_at->format('M d, Y g:i A') }}
+                        @elseif($exam->ends_at)
+                            <i class="fa-solid fa-calendar"></i> Closes {{ $exam->ends_at->format('M d, Y g:i A') }}
+                        @elseif($exam->starts_at)
+                            <i class="fa-solid fa-calendar"></i> Opens {{ $exam->starts_at->format('M d, Y g:i A') }}
+                        @else
+                            <i class="fa-solid fa-infinity"></i> No closing date
+                        @endif
+                    </p>
+
+                    @unless($isReady)
+                        <div class="empty-state" style="margin-bottom:12px">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                            This exam has no questions yet, so it cannot be started.
+                            Your instructor is still preparing it.
+                        </div>
+                    @endunless
+
+                    <div class="user-actions" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                        <div>
+                            @if($hasStarted)
+                                <span class="user-status">
+                                    Last attempt {{ $attempts->first()->created_at?->diffForHumans() }}
                                 </span>
                             @else
-                                <span class="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                                    {{ ucfirst($exam->status) }}
-                                </span>
+                                <span class="user-status">Not attempted yet</span>
                             @endif
                         </div>
 
-                        <div class="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-                            @if($exam->duration_minutes)
-                                <div>
-                                    <i class="fa-solid fa-clock mr-1"></i>
-                                    {{ $exam->duration_minutes }} minutes
-                                </div>
-                            @endif
-                            @if($exam->attempt_limit)
-                                <div>
-                                    <i class="fa-solid fa-redo mr-1"></i>
-                                    {{ $exam->attempt_limit }} attempt(s)
-                                </div>
-                            @endif
-                            @if($exam->passing_score_percent)
-                                <div>
-                                    <i class="fa-solid fa-check-circle mr-1"></i>
-                                    {{ $exam->passing_score_percent }}&percnt; to pass
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="flex justify-between items-center pt-4 border-t border-gray-200">
-                            <div class="text-sm text-gray-500">
-                                @if($exam->availability_from && $exam->availability_until)
-                                    Available: {{ $exam->availability_from->format('M d, Y') }} - {{ $exam->availability_until->format('M d, Y') }}
-                                @elseif($exam->availability_from)
-                                    Available from: {{ $exam->availability_from->format('M d, Y') }}
-                                @elseif($exam->availability_until)
-                                    Available until: {{ $exam->availability_until->format('M d, Y') }}
-                                @else
-                                    No availability restrictions
-                                @endif
-                            </div>
-                            <a href="{{ route('student.courses.exams.show', [$course, $exam]) }}"
-                               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                                View Exam
-                            </a>
-                        </div>
+                        <a href="{{ route('student.courses.exams.show', [$course, $exam]) }}"
+                           class="btn btn-secondary">
+                            <i class="fa-solid fa-eye"></i> View details
+                        </a>
                     </div>
-                @endforeach
+                </div>
             </div>
+        @empty
+            <x-user-empty-state
+                icon="fa-file-alt"
+                title="No exams yet"
+                description="There are no exams scheduled for this course yet."
+            />
+        @endforelse
 
-            {{ $exams->links() }}
+        @if($exams->hasPages())
+            <div style="margin-top:8px;">{{ $exams->links() }}</div>
         @endif
     </div>
 @endsection

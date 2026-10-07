@@ -119,7 +119,15 @@
 
         <!-- Action Buttons -->
         <div class="flex gap-4">
-            @if($inProgressAttempt)
+            @php $hasQuestions = $exam->questions->isNotEmpty(); @endphp
+
+            @unless($hasQuestions)
+                {{-- An exam with nothing on it cannot be started, and the
+                     controller refuses it — so the button must not be offered. --}}
+                <button disabled class="bg-gray-400 text-white px-6 py-3 rounded-lg cursor-not-allowed font-medium">
+                    <i class="fa-solid fa-hourglass-half mr-2"></i> No Questions Yet
+                </button>
+            @elseif($inProgressAttempt)
                 <a href="{{ route('student.courses.exams.attempt.start', [$course, $exam]) }}"
                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
                     <i class="fa-solid fa-play mr-2"></i> Continue Attempt

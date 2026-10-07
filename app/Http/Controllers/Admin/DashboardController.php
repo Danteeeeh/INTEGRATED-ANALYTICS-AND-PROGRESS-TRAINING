@@ -32,6 +32,8 @@ class DashboardController extends Controller
     {
         $currentPeriod = AcademicPeriod::where('is_current', true)->first();
 
+        $enrollment = $this->enrollmentStatusBreakdown();
+
         $stats = [
             // User Statistics
             'total_students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
@@ -49,11 +51,13 @@ class DashboardController extends Controller
             'total_classes' => ClassModel::count(),
             'active_classes' => ClassModel::where('classes.status', 'active')->count(),
 
-            // Enrollment Statistics
-            'active_enrollments' => Enrollment::where('enrollments.status', 'active')->count(),
-            'pending_enrollments' => Enrollment::where('enrollments.status', 'pending')->count(),
-            'completed_enrollments' => Enrollment::where('enrollments.status', 'completed')->count(),
-            'dropped_enrollments' => Enrollment::where('enrollments.status', 'dropped')->count(),
+            // Enrollment Statistics - one grouped query, with an explicit total
+            // so the figures can be checked against each other.
+            'active_enrollments' => $enrollment['active'],
+            'pending_enrollments' => $enrollment['pending'],
+            'completed_enrollments' => $enrollment['completed'],
+            'dropped_enrollments' => $enrollment['dropped'],
+            'total_enrollments' => $enrollment['total'],
 
             // Assignment Activity
             'total_assignments' => Assignment::count(),
@@ -122,7 +126,11 @@ class DashboardController extends Controller
             'performance_trends' => $this->getPerformanceTrends(),
         ];
 
-        return view('admin.dashboard', compact('stats'));
+        // Rendered server-side too, so the figures are in the HTML before any
+        // script runs instead of appearing only after the chart loads.
+        return view('admin.dashboard', array_merge(compact('stats'), [
+            'enrollmentBreakdown' => $this->enrollmentStatusBreakdown(),
+        ]));
     }
 
     /**
@@ -148,8 +156,8 @@ class DashboardController extends Controller
                     'total_students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
                     'total_instructors' => User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))->count(),
                     'total_classes' => ClassModel::count(),
-                    'active_enrollments' => Enrollment::where('enrollments.status', 'active')->count(),
-                    'pending_enrollments' => Enrollment::where('enrollments.status', 'pending')->count(),
+                    'active_enrollments' => $this->enrollmentCount('active'),
+                    'pending_enrollments' => $this->enrollmentCount('pending'),
                     'pending_submissions' => AssignmentSubmission::where('assignment_submissions.status', 'submitted')->count(),
                 ],
             ]);
@@ -162,6 +170,48 @@ class DashboardController extends Controller
     }
 
     /**
+     * Number of enrollments in one status.
+ *
+ * Four separate call sites used to count the four statuses inline, which is
+ * how the dashboard and the analytics page drift apart. All of them go through
+ * here now.
+ */
+private function enrollmentCount(string $status): int
+{
+    return Enrollment::where('enrollments.status', $status)->count();
+}
+
+/**
+ * Enrollment counts per status, with a total.
+ *
+ * Counted in one grouped query rather than four COUNTs, and the total is
+ * stated explicitly: when every enrollment is active the doughnut renders as
+ * a single solid ring, and without a figure beside it there is nothing on the
+ * card a reader can check.
+ *
+ * @return array{active: int, pending: int, completed: int, dropped: int, total: int}
+ */
+private function enrollmentStatusBreakdown(): array
+    {
+        $statuses = ['active', 'pending', 'completed', 'dropped'];
+
+        $counts = Enrollment::query()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $breakdown = ['total' => 0];
+
+        foreach ($statuses as $status) {
+            $count = (int) ($counts[$status] ?? 0);
+            $breakdown[$status] = $count;
+            $breakdown['total'] += $count;
+        }
+
+        return $breakdown;
+    }
+
+    /**
      * Analytics data (JSON) for dashboard charts
      */
     public function getAnalyticsJson()
@@ -170,12 +220,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'enrollment' => [
-                        'active' => Enrollment::where('enrollments.status', 'active')->count(),
-                        'pending' => Enrollment::where('enrollments.status', 'pending')->count(),
-                        'completed' => Enrollment::where('enrollments.status', 'completed')->count(),
-                        'dropped' => Enrollment::where('enrollments.status', 'dropped')->count(),
-                    ],
+                    'enrollment' => $this->enrollmentStatusBreakdown(),
                     'courses_by_status' => [
                         'published' => Course::where('courses.status', 'published')->count(),
                         'draft' => Course::where('courses.status', 'draft')->count(),
@@ -211,6 +256,8 @@ class DashboardController extends Controller
     {
         $currentPeriod = AcademicPeriod::where('is_current', true)->first();
 
+        $enrollment = $this->enrollmentStatusBreakdown();
+
         $stats = [
             // User Statistics
             'total_students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
@@ -228,11 +275,13 @@ class DashboardController extends Controller
             'total_classes' => ClassModel::count(),
             'active_classes' => ClassModel::where('classes.status', 'active')->count(),
 
-            // Enrollment Statistics
-            'active_enrollments' => Enrollment::where('enrollments.status', 'active')->count(),
-            'pending_enrollments' => Enrollment::where('enrollments.status', 'pending')->count(),
-            'completed_enrollments' => Enrollment::where('enrollments.status', 'completed')->count(),
-            'dropped_enrollments' => Enrollment::where('enrollments.status', 'dropped')->count(),
+            // Enrollment Statistics - one grouped query, with an explicit total
+            // so the figures can be checked against each other.
+            'active_enrollments' => $enrollment['active'],
+            'pending_enrollments' => $enrollment['pending'],
+            'completed_enrollments' => $enrollment['completed'],
+            'dropped_enrollments' => $enrollment['dropped'],
+            'total_enrollments' => $enrollment['total'],
 
             // Assignment Activity
             'total_assignments' => Assignment::count(),
@@ -387,8 +436,8 @@ class DashboardController extends Controller
             return 0;
         }
 
-        $activeEnrollments = Enrollment::where('enrollments.status', 'active')->count();
-        $completedEnrollments = Enrollment::where('enrollments.status', 'completed')->count();
+        $activeEnrollments = $this->enrollmentCount('active');
+        $completedEnrollments = $this->enrollmentCount('completed');
         $retainedEnrollments = $activeEnrollments + $completedEnrollments;
 
         return ($retainedEnrollments / $totalEnrollments) * 100;
@@ -655,14 +704,14 @@ class DashboardController extends Controller
     protected function calculateCourseCompletionRate(): float
     {
         // Calculate actual course completion rate: (completed enrollments / total active enrollments) * 100
-        $totalActiveEnrollments = Enrollment::where('enrollments.status', 'active')->count();
+        $totalActiveEnrollments = $this->enrollmentCount('active');
         
         if ($totalActiveEnrollments === 0) {
             return 0;
         }
 
         // Count enrollments that have been completed
-        $completedEnrollments = Enrollment::where('enrollments.status', 'completed')->count();
+        $completedEnrollments = $this->enrollmentCount('completed');
 
         return ($completedEnrollments / $totalActiveEnrollments) * 100;
     }
@@ -731,6 +780,8 @@ class DashboardController extends Controller
     {
         $currentPeriod = AcademicPeriod::where('is_current', true)->first();
 
+        $enrollment = $this->enrollmentStatusBreakdown();
+
         $stats = [
             // User Statistics
             'total_students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
@@ -744,9 +795,13 @@ class DashboardController extends Controller
             'total_classes' => ClassModel::count(),
             'active_classes' => ClassModel::where('classes.status', 'active')->count(),
 
-            // Enrollment Statistics
-            'active_enrollments' => Enrollment::where('enrollments.status', 'active')->count(),
-            'pending_enrollments' => Enrollment::where('enrollments.status', 'pending')->count(),
+            // Enrollment Statistics - one grouped query, with an explicit total
+            // so the figures can be checked against each other.
+            'active_enrollments' => $enrollment['active'],
+            'pending_enrollments' => $enrollment['pending'],
+            'completed_enrollments' => $enrollment['completed'],
+            'dropped_enrollments' => $enrollment['dropped'],
+            'total_enrollments' => $enrollment['total'],
 
             // Academic Period
             'current_period' => $currentPeriod,

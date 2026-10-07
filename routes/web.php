@@ -528,6 +528,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     Route::get('/{exam}/questions', [InstructorExamController::class, 'questions'])->name('questions.index');
                     Route::post('/{exam}/questions', [InstructorExamController::class, 'storeQuestion'])->name('questions.store');
                     Route::post('/{exam}/questions/attach', [InstructorExamController::class, 'attachQuestions'])->name('questions.attach');
+                    Route::post('/{exam}/questions/import', [InstructorExamController::class, 'importQuestions'])->name('questions.import');
                     Route::post('/{exam}/questions/reorder', [InstructorExamController::class, 'reorderQuestions'])->name('questions.reorder');
                     Route::put('/{exam}/questions/{question}', [InstructorExamController::class, 'updateQuestion'])->whereNumber('question')->name('questions.update');
                     Route::delete('/{exam}/questions/{question}', [InstructorExamController::class, 'destroyQuestion'])->whereNumber('question')->name('questions.destroy');
