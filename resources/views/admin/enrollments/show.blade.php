@@ -15,7 +15,7 @@
     <div class="page-title-bar">
         <h2 class="page-title"><i class="fa-solid fa-graduation-cap"></i> Enrollment Details</h2>
         <div class="page-actions">
-            <a href="{{ route('admin.enrollments.edit', $enrollment) }}" class="btn btn-primary"><i class="fa-solid fa-pen-to-square"></i> Edit enrollment</a>
+            <span class="btn btn-secondary" style="pointer-events:none;opacity:.8;"><i class="fa-solid fa-lock"></i> Read-only — Sync from AA owns enrollment</span>
             <a href="{{ route('admin.enrollments.index') }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>
         </div>
     </div>

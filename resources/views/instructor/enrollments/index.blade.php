@@ -8,16 +8,17 @@
 @endphp
 
 @section('content')
+{{-- Enrollment is owned by the Super Admin's "Sync from AA" (AA = source of
+     truth), hindi ng faculty. Ang page na ito ay view-only na; ang create/edit
+     routes ay buhay pa para sa existing tests. --}}
 <div class="user-page">
     <x-user-page-header
-        title="Student Enrollments"
-        subtitle="Review enrollments in your classes."
+        title="Student Enrollments (view only)"
+        subtitle="Review enrollments in your classes — synced from AA."
         icon="fa-graduation-cap"
     >
         <x-slot name="actions">
-            <a href="{{ route('instructor.enrollments.create') }}" class="btn btn-primary">
-                <i class="fa-solid fa-plus"></i> Enroll Student
-            </a>
+            <span style="font-size:.8rem;color:var(--dash-muted,#64748b);"><i class="fa-solid fa-circle-info"></i> Enrollment is synced from AA — managed by the Super Admin.</span>
         </x-slot>
     </x-user-page-header>
 
@@ -73,13 +74,14 @@
                                     </td>
                                     <td>
                                         <div class="user-actions">
+                                            {{-- Enrollment is owned by the AA sync — faculty may only look. --}}
                                             <a href="{{ route('instructor.enrollments.show', $enrollment) }}" class="btn btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>
-                                            <a href="{{ route('instructor.enrollments.edit', $enrollment) }}" class="btn btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                            {{-- <a href="{{ route('instructor.enrollments.edit', $enrollment) }}" class="btn btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
                                             <form action="{{ route('instructor.enrollments.destroy', $enrollment) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this enrollment?')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-icon btn-danger" title="Remove"><i class="fa-solid fa-trash"></i></button>
-                                            </form>
+                                            </form> --}}
                                         </div>
                                     </td>
                                 </tr>

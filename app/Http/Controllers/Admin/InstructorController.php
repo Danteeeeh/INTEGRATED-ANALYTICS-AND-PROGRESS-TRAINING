@@ -11,7 +11,6 @@ use App\Models\Program;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,7 +70,7 @@ class InstructorController extends Controller
     {
         $this->authorize('update', $instructor);
 
-        $roles = Role::assignable()->orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -93,57 +92,6 @@ class InstructorController extends Controller
         $this->users->deactivateUser($instructor->id);
 
         return redirect()->route('admin.instructors.index')->with('status', 'Instructor deactivated.');
-    }
-
-    public function assignClasses(Request $request, User $instructor): RedirectResponse
-    {
-        $this->authorize('update', $instructor);
-
-        $validated = $request->validate([
-            'class_ids' => ['nullable', 'array'],
-            'class_ids.*' => ['integer', 'exists:classes,id'],
-        ]);
-
-        $classIds = array_map('intval', $validated['class_ids'] ?? []);
-
-        DB::transaction(function () use ($instructor, $classIds) {
-            // Assign newly selected classes to this instructor.
-            // NB: in MySQL, `instructor_id != X` excludes NULL rows, so unassigned classes must be matched explicitly.
-            ClassModel::whereIn('id', $classIds)
-                ->where(function ($q) use ($instructor) {
-                    $q->where('instructor_id', '!=', $instructor->id)
-                        ->orWhereNull('instructor_id');
-                })
-                ->update(['instructor_id' => $instructor->id]);
-
-            // Unassign classes that were un-checked (and still belong to this instructor).
-            ClassModel::where('instructor_id', $instructor->id)
-                ->whereNotIn('id', $classIds)
-                ->update(['instructor_id' => null]);
-        });
-
-        return back()->with('status', 'Instructor class assignments updated successfully.');
-    }
-
-    public function assignSection(Request $request, User $instructor): RedirectResponse
-    {
-        $this->authorize('update', $instructor);
-
-        $validated = $request->validate([
-            'section_id' => ['nullable', 'exists:sections,id'],
-        ]);
-
-        $instructor->update([
-            'section_id' => $validated['section_id'] ?? null,
-            'program_id' => $validated['section_id']
-                ? optional(Section::find($validated['section_id'])->program)->id
-                : null,
-            'department_id' => $validated['section_id']
-                ? optional(Section::find($validated['section_id'])->program?->department)->id
-                : null,
-        ]);
-
-        return back()->with('status', 'Instructor section assignment updated.');
     }
 
     public function import(Request $request): RedirectResponse

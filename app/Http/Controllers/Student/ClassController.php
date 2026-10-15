@@ -14,7 +14,6 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\VirtualClass;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ClassController extends Controller
@@ -226,45 +225,7 @@ class ClassController extends Controller
         return view('student.classes.show', compact('class', 'isEnrolled', 'enrollment', 'isFull', 'progress', 'upcomingActivities', 'announcements'));
     }
 
-    public function enroll(Request $request, ClassModel $class)
-    {
-        $this->authorize('enroll', $class);
-
-        $studentId = auth()->id();
-
-        // Check if already enrolled
-        $existing = Enrollment::where('student_id', $studentId)
-            ->where('class_id', $class->id)
-            ->where('status', '!=', 'dropped')
-            ->first();
-
-        if ($existing) {
-            return back()->with('error', 'You are already enrolled in this class.');
-        }
-
-        // Check if class is active
-        if (! $class->is_active) {
-            return back()->with('error', 'This class is not currently accepting enrollments.');
-        }
-
-        // Check class capacity
-        $currentEnrollments = Enrollment::where('class_id', $class->id)
-            ->where('status', '!=', 'dropped')
-            ->count();
-
-        if ($class->isFull()) {
-            return back()->with('error', 'This class is already at full capacity.');
-        }
-
-        Enrollment::create([
-            'student_id' => $studentId,
-            'class_id' => $class->id,
-            'status' => 'active',
-        ]);
-
-        return redirect()->route('student.classes.show', $class)
-            ->with('status', 'Successfully enrolled in the class!');
-    }
+    // Self-enrollment removed: enrolled subjects arrive via the AA sync only.
 
     public function calendar(): View
     {

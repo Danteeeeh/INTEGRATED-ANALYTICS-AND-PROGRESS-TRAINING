@@ -51,47 +51,22 @@
                     <span class="field-error"></span>
                 </div>
 
-                <div class="form-field">
-                    <label>Provider <span class="req">*</span></label>
-                    <select name="meeting_provider" required>
-                        <option value="">Select a provider</option>
-                        @foreach($providers as $value => $label)
-                            <option value="{{ $value }}" {{ old('meeting_provider') == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
+                {{-- Built-in Virtual Classroom (LiveKit) is the only workflow:
+                     students join from inside the LMS, no external links. --}}
+                <input type="hidden" name="meeting_provider" value="livekit">
+                <div class="form-field full">
+                    <div style="padding:12px 14px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.3);border-radius:8px;font-size:.85rem;color:#475569;display:flex;align-items:center;gap:10px;">
+                        <i class="fa-solid fa-video" style="color:#0ea5e9"></i>
+                        <span><strong>Built-in Virtual Classroom.</strong> Ang meeting ay gaganap sa loob ng LMS — ang students ay sumasali mula sa course page nila. Hindi na kailangan ng Zoom/Meet/Teams link.</span>
+                    </div>
                     <span class="field-error"></span>
                 </div>
 
                 <div class="form-field full">
-                    <label>Meeting URL</label>
-                    <input type="url" name="meeting_url" placeholder="https://..." value="{{ old('meeting_url') }}">
-                    <span class="field-error"></span>
-                </div>
-
-                <div class="form-field">
-                    <label>Meeting ID</label>
-                    <input type="text" name="meeting_id" placeholder="e.g. 123 456 7890" value="{{ old('meeting_id') }}">
-                    <span class="field-error"></span>
-                </div>
-
-                <div class="form-field">
-                    <label>Meeting Password</label>
-                    <input type="text" name="meeting_password" placeholder="e.g. Abc123" value="{{ old('meeting_password') }}">
-                    <span class="field-error"></span>
-                </div>
-
-                <div class="form-field">
-                    <label>Status <span class="req">*</span></label>
-                    <select name="status" required>
-                        @foreach($statusOptions as $value => $label)
-                            <option value="{{ $value }}" {{ old('status', 'scheduled') == $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <span class="field-error"></span>
+                    <div style="padding:12px 14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:8px;font-size:.85rem;color:#475569;display:flex;align-items:center;gap:10px;">
+                        <i class="fa-solid fa-circle-info" style="color:#34d399"></i>
+                        <span>Pagkatapos i-save, pindutin ang <strong>Start Class</strong> sa oras ng klase — awtomatiko kang makakapasok sa virtual classroom, at ang enrolled students ay may <strong>Join</strong> button sa kanilang page.</span>
+                    </div>
                 </div>
             </div>
             <div class="form-submit">

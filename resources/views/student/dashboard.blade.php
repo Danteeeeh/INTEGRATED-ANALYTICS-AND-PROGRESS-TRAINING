@@ -10,6 +10,44 @@
     $progressData = $stats['course_progress'] ?? [];
     $firstClassId = $stats['my_enrollments']?->first()?->class_id;
     $overdueCount = ($stats['overdue_assignments'] ?? collect())->count() + ($stats['overdue_quizzes'] ?? collect())->count() + ($stats['overdue_exams'] ?? collect())->count();
+    // Plain array for the progress chart — Eloquent models are not JSON-serialised directly.
+    $progressChartData = collect($progressData)->map(fn ($item) => [
+        'title' => Str::limit($item['course']?->title ?? 'Course', 28),
+        'progress' => round($item['progress'] ?? 0, 1),
+    ])->values();
+    $progressLookup = collect($progressData)->pluck('progress', 'course.id');
+
+    // Compact calendar items: assignments, quizzes, exams and virtual classes
+    // merged and sorted by their real date. Display-only computation over the
+    // same collections the dashboard already renders.
+    $calendarItems = collect()
+        ->merge(($stats['upcoming_assignments'] ?? collect())->map(fn ($item) => [
+            'date' => $item->due_date,
+            'title' => $item->title,
+            'type' => 'Assignment',
+            'url' => $item->class_id ? route('student.courses.assignments.show', [$item->class->course, $item]) : '#',
+        ]))
+        ->merge(($stats['upcoming_quizzes'] ?? collect())->map(fn ($item) => [
+            'date' => ($item->availability_from && $item->availability_from->isFuture() ? $item->availability_from : ($item->availability_until ?? $item->availability_from)),
+            'title' => $item->title,
+            'type' => 'Quiz',
+            'url' => $item->class_id ? route('student.courses.quizzes.show', [$item->class->course, $item]) : '#',
+        ]))
+        ->merge(($stats['upcoming_exams'] ?? collect())->map(fn ($item) => [
+            'date' => ($item->starts_at && $item->starts_at->isFuture() ? $item->starts_at : ($item->ends_at ?? $item->starts_at)),
+            'title' => $item->title,
+            'type' => 'Exam',
+            'url' => $item->class_id ? route('student.courses.exams.show', [$item->class->course, $item]) : '#',
+        ]))
+        ->merge(($stats['upcoming_virtual_classes'] ?? collect())->map(fn ($item) => [
+            'date' => \Carbon\Carbon::parse($item->meeting_date->format('Y-m-d').' '.$item->start_time),
+            'title' => $item->title,
+            'type' => 'Virtual Class',
+            'url' => $item->class_id ? route('student.classes.virtual_classes.show', ['class' => $item->class_id, 'virtualClass' => $item->id]) : '#',
+        ]))
+        ->filter(fn ($item) => $item['date'])
+        ->sortBy('date')
+        ->take(8);
 @endphp
 
 @section('page-title-bar')
@@ -51,10 +89,10 @@
             @endif
         </x-slot>
         <x-slot name="actions">
-            <a href="{{ route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> Browse courses</a>
+            <a href="{{ route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> My courses</a>
             <a href="{{ route('student.incomplete') }}" class="btn btn-secondary"><i class="fa-solid fa-clock"></i> Incomplete Items</a>
-            <a href="{{ route('student.enrollments.index') }}" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Enrollments</a>
-            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-graduation-cap"></i> My grades</a>
+            <a href="{{ route('student.calendar') }}" class="btn btn-secondary"><i class="fa-solid fa-calendar"></i> Calendar</a>
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-graduation-cap"></i> My grades</a>
             <button onclick="refreshDashboard()" class="btn btn-secondary"><i class="fa-solid fa-sync-alt"></i> Refresh</button>
         </x-slot>
     </x-user-page-header>
@@ -82,17 +120,17 @@
         <div class="qa-grid">
             <a href="{{ route('student.courses.index') }}" class="qa-card">
                 <i class="fa-solid fa-book-open"></i>
-                <div><span class="qa-label">Browse courses</span><span class="qa-sub">Explore new subjects</span></div>
+                <div><span class="qa-label">My courses</span><span class="qa-sub"> enrolled subjects from AA</span></div>
             </a>
-            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="qa-card">
+            <a href="{{ route('student.calendar') }}" class="qa-card">
+                <i class="fa-solid fa-calendar"></i>
+                <div><span class="qa-label">Calendar</span><span class="qa-sub">Schedules & deadlines</span></div>
+            </a>
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.courses.index') }}" class="qa-card">
                 <i class="fa-solid fa-building-columns"></i>
                 <div><span class="qa-label">My classes</span><span class="qa-sub">{{ $stats['active_enrollments'] ?? 0 }} active</span></div>
             </a>
-            <a href="{{ route('student.enrollments.index') }}" class="qa-card">
-                <i class="fa-solid fa-user-plus"></i>
-                <div><span class="qa-label">Enrollments</span><span class="qa-sub">{{ $stats['total_enrollments'] ?? 0 }} total</span></div>
-            </a>
-            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.classes.index') }}" class="qa-card">
+            <a href="{{ $firstClassId ? route('student.classes.gradebook.index', $firstClassId) : route('student.courses.index') }}" class="qa-card">
                 <i class="fa-solid fa-file-lines"></i>
                 <div><span class="qa-label">My grades</span><span class="qa-sub">{{ $stats['total_grades'] ?? 0 }} released</span></div>
             </a>
@@ -100,15 +138,42 @@
     </div>
 
     {{-- ═══ STAT TILES ═══ --}}
-    @php $overall = (float)($stats['overall_progress'] ?? 0); @endphp
-    <div class="user-stat-grid">
+    @php
+        $overall = (float)($stats['overall_progress'] ?? 0);
+        $upcomingTasksCount = ($stats['upcoming_assignments'] ?? collect())->count()
+            + ($stats['upcoming_quizzes'] ?? collect())->count()
+            + ($stats['upcoming_exams'] ?? collect())->count();
+    @endphp
+    <div class="dash-cards-grid">
         <x-user-stat-card
-            label="My Courses"
+            label="Enrolled Courses"
             value="{{ $stats['my_courses'] ?? 0 }}"
             icon="fa-book"
             valueId="stat-courses-value"
             trend="{{ (($stats['active_enrollments'] ?? 0) > 0 ? 'Active' : 'New') }}"
             footer="{{ $stats['completed_enrollments'] ?? 0 }} completed"
+        />
+        <x-user-stat-card
+            label="Pending Assignments"
+            value="{{ ($stats['upcoming_assignments'] ?? collect())->count() }}"
+            icon="fa-file-pen"
+            trend="Due soon"
+        >
+            <x-slot name="footer"><span id="stat-tasks-value">{{ $upcomingTasksCount }}</span> tasks due this week</x-slot>
+        </x-user-stat-card>
+        <x-user-stat-card
+            label="Upcoming Quizzes"
+            value="{{ ($stats['upcoming_quizzes'] ?? collect())->count() }}"
+            icon="fa-circle-question"
+            trend="Next 7 days"
+            footer="{{ $stats['total_quizzes'] ?? 0 }} quizzes total"
+        />
+        <x-user-stat-card
+            label="Completed Activities"
+            value="{{ $stats['completed_enrollments'] ?? 0 }}"
+            icon="fa-circle-check"
+            trend="LMS activity"
+            footer="{{ $stats['total_grades'] ?? 0 }} grades released"
         />
         <x-user-stat-card
             label="Overall Progress"
@@ -127,14 +192,63 @@
         />
         <x-user-stat-card
             label="Upcoming Tasks"
-            value="{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}"
+            value="{{ $upcomingTasksCount }}"
             icon="fa-bell"
-            valueId="stat-tasks-value"
             trend="{{ $overdueCount > 0 ? 'Due soon' : 'On track' }}"
         >
             <x-slot name="footer"><i class="fa-solid fa-triangle-exclamation" style="color:#fb7185"></i> <span id="stat-overdue-value">{{ $overdueCount }}</span> overdue</x-slot>
         </x-user-stat-card>
     </div>
+
+    {{-- ═══ MAIN + SIDE LAYOUT ═══ --}}
+    <div class="dash-split">
+        <div class="dash-split-main">
+    {{-- ═══ MY COURSES (Canvas zone 1) — enrolled subjects, synced from AA ═══ --}}
+    <section class="dash-panel">
+        <div class="dash-panel-head">
+            <h4><i class="fa-solid fa-book-open"></i> My courses</h4>
+            <span class="panel-count">{{ count($stats['my_enrollments'] ?? []) }}</span>
+        </div>
+        <div class="course-card-grid">
+            @forelse(($stats['my_enrollments'] ?? []) as $enrollment)
+                @php
+                    $course = $enrollment->class?->course;
+                    $courseProgress = $progressLookup[$course->id ?? 0] ?? 0;
+                    // Canvas-style per-course color: deterministic from the course id.
+                    $palette = ['#4d8ff0', '#62c9f5', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#22d3ee', '#f472b6'];
+                    $courseColor = $palette[($course->id ?? 0) % count($palette)];
+                    $sectionName = $enrollment->class?->section?->name ?? auth()->user()->section?->name;
+                @endphp
+                <a class="course-card" href="{{ $course?->id ? route('student.courses.show', $course->id) : '#' }}" style="border-top:3px solid {{ $courseColor }};">
+                    <div class="course-card-top">
+                        <span class="course-card-code" style="color:{{ $courseColor }};">{{ $course?->code ?? 'COURSE' }}</span>
+                        <span class="dash-meta-chip {{ $enrollment->status === 'active' ? 'm-green' : 'm-gray' }}">{{ ucfirst($enrollment->status) }}</span>
+                    </div>
+                    <p class="course-card-title">{{ $course?->title ?? 'Course' }}</p>
+                    <p class="course-card-instructor">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        {{ $enrollment->class?->instructor?->name ?? 'Instructor TBA' }}
+                        @if($sectionName)
+                            <span class="course-card-class">· {{ $sectionName }}</span>
+                        @endif
+                    </p>
+                    <div class="course-card-progress">
+                        <div class="dash-progress"><span style="width: {{ $courseProgress }}%"></span></div>
+                        <span class="dash-progress-label">{{ round($courseProgress) }}%</span>
+                    </div>
+                    <div class="course-card-foot">
+                        <span class="course-card-count"><i class="fa-solid fa-chalkboard-user"></i> {{ $enrollment->class?->instructor?->name ?? 'Instructor TBA' }}</span>
+                        <span class="btn btn-secondary btn-sm">Open Course <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </a>
+            @empty
+                <div class="empty-state">
+                    <i class="fa-solid fa-book-open"></i>
+                    No enrolled courses yet — subjects synced from AA will appear here.
+                </div>
+            @endforelse
+        </div>
+    </section>
 
     {{-- ═══ AI-ASSISTED PERFORMANCE ASSESSMENT ═══ --}}
     @php
@@ -273,11 +387,27 @@
         </div>
     @endif
 
-    <div class="dash-grid">
-        {{-- ═══ UPCOMING ASSIGNMENTS, QUIZZES & EXAMS ═══ --}}
-        <section class="dash-panel">
+            {{-- ═══ MY PROGRESS (Canvas zone 2) — graph ng progress per course ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-chart-column"></i> My progress</h4>
+                    <span class="panel-count">{{ round($overall) }}% overall</span>
+                </div>
+                <div style="padding:14px">
+                    <div id="progressChart" class="chart-container" style="height:280px"></div>
+                    <p style="margin:12px 0 0;font-size:.78rem;color:var(--dash-muted,#98a7c4);">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <strong>Paano kino-compute:</strong> ang progress ay batay sa aktwal mong aktibidad sa LMS — natapos na lessons, modules, quizzes, at assignments sa bawat course. LMS activity lang ito; ang official grade ay hawak ng AA.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <div class="dash-split-side">
+            {{-- ═══ TO-DO LIST (Canvas zone 3) — assignments, quizzes & exams due ═══ --}}
+            <section class="dash-panel">
             <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-bell"></i> Upcoming this week</h4>
+                <h4><i class="fa-solid fa-list-check"></i> To-do list</h4>
                 <span class="panel-count">{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}</span>
             </div>
             <ul class="dash-list">
@@ -346,38 +476,89 @@
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming exams</li>
                 @endforelse
-                @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty() && ($stats['upcoming_exams'] ?? [])->isEmpty())
+            @if(($stats['upcoming_assignments'] ?? [])->isEmpty() && ($stats['upcoming_quizzes'] ?? [])->isEmpty() && ($stats['upcoming_exams'] ?? [])->isEmpty())
                     <li class="dash-list-empty"><i class="fa-solid fa-mug-hot"></i> All caught up — nothing due soon</li>
                 @endif
             </ul>
         </section>
 
-        {{-- ═══ MY COURSE PROGRESS ═══ --}}
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-chart-simple"></i> My course progress</h4>
-                <span class="panel-count">{{ count($progressData) }}</span>
-            </div>
-            <ul class="dash-list">
-                @forelse($progressData as $item)
-                    <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ ($item['course']->id ?? null) ? route('student.courses.show', $item['course']->id) : '#' }}">
-                            <span class="dash-list-icon i-green"><i class="fa-solid fa-book"></i></span>
-                            <div class="dash-list-body">
-                                <p class="dash-list-title">{{ $item['course']->title }}</p>
-                                <p class="dash-list-sub">{{ $item['course']->code ?? '' }}</p>
+            {{-- ═══ UPCOMING DEADLINES (compact calendar) ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-calendar-days"></i> Upcoming deadlines</h4>
+                    <a href="{{ route('student.calendar') }}" class="view-all">Calendar</a>
+                </div>
+                <ul class="dash-cal">
+                    @forelse($calendarItems as $item)
+                        <li>
+                            <a href="{{ $item['url'] }}">
+                                <span class="dash-cal-date">
+                                    <span class="dc-d">{{ $item['date']->format('j') }}</span>
+                                    <span class="dc-m">{{ $item['date']->format('M') }}</span>
+                                </span>
+                                <span class="dash-cal-body">
+                                    <span class="dash-cal-title">{{ $item['title'] }}</span>
+                                    <span class="dash-cal-meta">{{ $item['type'] }} · {{ $item['date']->format('g:i A') }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> Nothing scheduled in the next days</li>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- ═══ UPCOMING VIRTUAL CLASSES ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-video"></i> Upcoming virtual classes</h4>
+                    <span class="panel-count">{{ $stats['total_virtual_classes'] ?? 0 }}</span>
+                </div>
+                <ul class="dash-list">
+                    @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
+                        <li class="dash-list-item">
+                            <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
+                                <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
+                                <div class="dash-list-body">
+                                    <p class="dash-list-title">{{ $vc->title }}</p>
+                                    <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
+                                </div>
+                                <div class="dash-list-meta">
+                                    <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
+                                    <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
+                                </div>
+                            </a>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- ═══ RECENT ANNOUNCEMENTS ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-bullhorn"></i> Announcements</h4>
+                    <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
+                </div>
+                <ul class="announce-feed">
+                    @forelse(($stats['announcements'] ?? []) as $announcement)
+                        <li class="announce-item">
+                            <div class="announce-date">
+                                <span class="ad-day">{{ $announcement->publish_at?->format('j') }}</span>
+                                <span class="ad-mon">{{ $announcement->publish_at?->format('M') }}</span>
                             </div>
-                            <div class="dash-list-meta">
-                                <div class="dash-progress"><span style="width: {{ $item['progress'] }}%"></span></div>
-                                <span class="dash-progress-label">{{ round($item['progress']) }}%</span>
+                            <div class="announce-body">
+                                <p class="announce-title">{{ $announcement->title }}</p>
+                                <p>{{ Str::limit($announcement->body ?? $announcement->content ?? '', 90) }}</p>
                             </div>
-                        </a>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-book-open"></i> Enroll in a course to start learning</li>
-                @endforelse
-            </ul>
-        </section>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-bullhorn"></i> No announcements yet</li>
+                    @endforelse
+                </ul>
+            </section>
+        </div>
     </div>
 
     {{-- ═══ UPCOMING ACTIVITIES ═══ --}}
@@ -403,7 +584,7 @@
         </div>
     </section>
 
-    {{-- ═══ ACHIEVEMENTS + ANNOUNCEMENTS ═══ --}}
+    {{-- ═══ MY ACHIEVEMENTS ═══ --}}
     <div class="dash-grid">
         <section class="dash-panel">
             <div class="dash-panel-head">
@@ -443,32 +624,9 @@
                 @endif
             </div>
         </section>
-
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-bullhorn"></i> Announcements</h4>
-                <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
-            </div>
-            <ul class="announce-feed">
-                @forelse(($stats['announcements'] ?? []) as $announcement)
-                    <li class="announce-item">
-                        <div class="announce-date">
-                            <span class="ad-day">{{ $announcement->publish_at?->format('j') }}</span>
-                            <span class="ad-mon">{{ $announcement->publish_at?->format('M') }}</span>
-                        </div>
-                        <div class="announce-body">
-                            <p class="announce-title">{{ $announcement->title }}</p>
-                            <p>{{ Str::limit($announcement->body ?? $announcement->content ?? '', 90) }}</p>
-                        </div>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-bullhorn"></i> No announcements yet</li>
-                @endforelse
-            </ul>
-        </section>
     </div>
 
-    {{-- ═══ RECENT GRADES + VIRTUAL CLASSES ═══ --}}
+    {{-- ═══ RECENT GRADES ═══ --}}
     <div class="dash-grid">
         <section class="dash-panel">
             <div class="dash-panel-head">
@@ -492,32 +650,6 @@
                     </li>
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-file-lines"></i> No grades released yet</li>
-                @endforelse
-            </ul>
-        </section>
-
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-video"></i> Upcoming virtual classes</h4>
-                <span class="panel-count">{{ $stats['total_virtual_classes'] ?? 0 }}</span>
-            </div>
-            <ul class="dash-list">
-                @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
-                    <li class="dash-list-item">
-                        <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
-                            <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
-                            <div class="dash-list-body">
-                                <p class="dash-list-title">{{ $vc->title }}</p>
-                                <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
-                            </div>
-                            <div class="dash-list-meta">
-                                <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
-                                <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
-                            </div>
-                        </a>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
                 @endforelse
             </ul>
         </section>
@@ -664,6 +796,66 @@
     {{-- ═══ STUDENT FUNCTIONALITY ═══ --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
+        // Palette-safe chart text colours. These are the exact values the
+        // --dash-* tokens already hold for each theme (dark default / light
+        // mode), so charts stay readable after the theme flip without
+        // introducing any new colour.
+        const isLightTheme = document.body.classList.contains('light-mode');
+        const CHART_TICK = isLightTheme ? '#5f708c' : '#98a7c4';
+        const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
+        const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
+
+        // My Progress chart — per-course completion bars (Canvas zone 2).
+        // Server-rendered data; no extra request needed to draw it.
+        (function renderProgressChart() {
+            const container = document.getElementById('progressChart');
+            if (!container || typeof Chart === 'undefined') return;
+
+            const progressData = @json($progressChartData);
+            if (!progressData.length) {
+                container.innerHTML = '<div class="chart-placeholder"><i class="fa-solid fa-book-open"></i><p>Enroll in a course to see your progress</p></div>';
+                return;
+            }
+
+            container.innerHTML = '<canvas id="progressChartCanvas"></canvas>';
+            new Chart(document.getElementById('progressChartCanvas'), {
+                type: 'bar',
+                data: {
+                    labels: progressData.map(d => d.title),
+                    datasets: [{
+                        label: 'Completion',
+                        data: progressData.map(d => d.progress),
+                        backgroundColor: progressData.map(d =>
+                            d.progress >= 75 ? 'rgba(52, 211, 153, .85)'
+                            : d.progress >= 40 ? 'rgba(251, 191, 36, .85)'
+                            : 'rgba(91, 140, 255, .7)'),
+                        borderRadius: 6,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: CHART_TICK, callback: value => value + '%' },
+                            grid: { color: CHART_GRID },
+                        },
+                        y: {
+                            ticks: { color: CHART_TICK },
+                            grid: { display: false },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ctx.parsed.x + '% complete' } },
+                    },
+                },
+            });
+        })();
+
         // Real-time dashboard refresh
         async function refreshDashboard() {
             const refreshBtn = document.querySelector('[onclick="refreshDashboard()"]');
@@ -882,8 +1074,8 @@
                             tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}%` } }
                         },
                         scales: {
-                            y: { beginAtZero: true, max: 100, ticks: { color: '#98a7c4', callback: (v) => v + '%' }, grid: { color: 'rgba(153,174,214,.12)' } },
-                            x: { grid: { display: false }, ticks: { color: '#c7d4ec', maxRotation: 30 } }
+                            y: { beginAtZero: true, max: 100, ticks: { color: CHART_TICK, callback: (v) => v + '%' }, grid: { color: CHART_GRID } },
+                            x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
                 });
@@ -915,8 +1107,8 @@
                             tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}%` } }
                         },
                         scales: {
-                            y: { beginAtZero: true, max: 100, ticks: { color: '#98a7c4', callback: (v) => v + '%' }, grid: { color: 'rgba(153,174,214,.12)' } },
-                            x: { grid: { display: false }, ticks: { color: '#c7d4ec', maxRotation: 30 } }
+                            y: { beginAtZero: true, max: 100, ticks: { color: CHART_TICK, callback: (v) => v + '%' }, grid: { color: CHART_GRID } },
+                            x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
                 });
@@ -948,8 +1140,8 @@
                             tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}%` } }
                         },
                         scales: {
-                            y: { beginAtZero: true, max: 100, ticks: { color: '#98a7c4', callback: (v) => v + '%' }, grid: { color: 'rgba(153,174,214,.12)' } },
-                            x: { grid: { display: false }, ticks: { color: '#c7d4ec', maxRotation: 30 } }
+                            y: { beginAtZero: true, max: 100, ticks: { color: CHART_TICK, callback: (v) => v + '%' }, grid: { color: CHART_GRID } },
+                            x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
                 });
@@ -981,8 +1173,8 @@
                             tooltip: { callbacks: { label: (c) => ` ${c.parsed.x}%` } }
                         },
                         scales: {
-                            x: { beginAtZero: true, max: 100, ticks: { color: '#98a7c4', callback: (v) => v + '%' }, grid: { color: 'rgba(153,174,214,.12)' } },
-                            y: { grid: { display: false }, ticks: { color: '#c7d4ec' } }
+                            x: { beginAtZero: true, max: 100, ticks: { color: CHART_TICK, callback: (v) => v + '%' }, grid: { color: CHART_GRID } },
+                            y: { grid: { display: false }, ticks: { color: CHART_TEXT } }
                         }
                     }
                 });
@@ -1009,36 +1201,19 @@
 
     <style>
         /* Quick action row */
-        .dash-quick { margin-bottom: 18px; }
+        /* .learning-shell is a grid with a 16px gap, so blocks no longer stack
+           their own margins on top of it — every section rides the same rhythm. */
+        .dash-quick { margin-bottom: 0; }
         .qa-card { position: relative; overflow: hidden; }
         .qa-card::after { content:""; position:absolute; right:-18px; bottom:-24px; width:64px; height:64px; border-radius:50%; background:radial-gradient(circle,rgba(98,201,245,.16),transparent 70%); pointer-events:none; }
         .qa-card:nth-child(2) i { color:#6ee7b7; background:rgba(16,185,129,.13); }
         .qa-card:nth-child(3) i { color:#fcd34d; background:rgba(251,191,36,.13); }
         .qa-card:nth-child(4) i { color:#fda4af; background:rgba(244,63,94,.13); }
 
-        /* Stat tile accent glows per tile */
-        .dash-stat:nth-child(1)::after { background:radial-gradient(circle,rgba(59,130,246,.20),transparent 70%); }
-        .dash-stat:nth-child(2)::after { background:radial-gradient(circle,rgba(34,211,238,.18),transparent 70%); }
-        .dash-stat:nth-child(3)::after { background:radial-gradient(circle,rgba(139,92,246,.18),transparent 70%); }
-        .dash-stat:nth-child(4)::after { background:radial-gradient(circle,rgba(251,191,36,.18),transparent 70%); }
-        .dash-stat-sep { color:rgba(153,174,214,.4); margin:0 2px; }
-
-        /* Hero grid overlay */
-        .dash-hero { background:
-            radial-gradient(circle at 88% 12%, rgba(77,143,240,.38), transparent 42%),
-            linear-gradient(135deg, rgba(23,58,168,.88), rgba(10,16,32,.97));
-        }
-        .dash-hero::after {
-            content:""; position:absolute; inset:0;
-            background-image:
-                linear-gradient(rgba(98,201,245,.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(98,201,245,.05) 1px, transparent 1px);
-            background-size: 34px 34px;
-            -webkit-mask-image: radial-gradient(circle at 78% 30%, #000 0%, transparent 62%);
-            mask-image: radial-gradient(circle at 78% 30%, #000 0%, transparent 62%);
-            pointer-events:none;
-        }
-        .dash-hero > div { position:relative; z-index:2; }
+        /* Stat tiles are rendered by x-user-stat-card (`.user-stat-card`) and the
+           hero by x-user-page-header (`.user-hero`) — both fully styled by
+           user-ui-system.css. The old .dash-stat / .dash-hero rules targeted
+           earlier markup and were dead on this page. */
 
         /* Panel-head accent underline */
         .dash-panel-head { position:relative; }
@@ -1067,7 +1242,7 @@
         .earned-badge i { font-size: .72rem; }
 
         /* Search */
-        .dash-search { margin: 20px 0; }
+        .dash-search { margin: 0; }
         .search-container { position: relative; max-width: 800px; margin: 0 auto; }
         .search-input-wrapper {
             position: relative; display: flex; align-items: center;
@@ -1111,6 +1286,7 @@
         .type-badge.type-course { background: rgba(59,130,246,.14); color: #93c5fd; }
         .type-badge.type-assignment { background: rgba(251,191,36,.13); color: #fcd34d; }
         .type-badge.type-quiz { background: rgba(139,92,246,.14); color: #c4b5fd; }
+        .type-badge.type-exam { background: rgba(244,63,94,.13); color: #fda4af; }
 
         /* Clickable dash-list items */
         .dash-list-link {
@@ -1121,7 +1297,7 @@
 
         /* Overdue strip */
         .overdue-strip {
-            margin: 0 0 22px; padding: 16px 18px;
+            margin: 0; padding: 16px 18px;
             background: rgba(244,63,94,.08);
             border: 1px solid rgba(244,63,94,.25);
             border-radius: 14px;
@@ -1145,7 +1321,7 @@
 
         /* AI-assisted performance assessment */
         .student-assessment {
-            margin: 0 0 22px;
+            margin: 0;
             overflow: hidden;
             border: 1px solid var(--dash-line, rgba(153,174,214,.18));
             border-radius: 18px;
@@ -1211,7 +1387,7 @@
         .student-assessment:focus-within { border-color:var(--assessment-accent); }
 
         /* Analytics */
-        .dash-analytics { margin: 30px 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
+        .dash-analytics { margin: 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
         .dash-analytics .dash-panel-head { padding: 0 0 16px; border-bottom: 1px solid var(--dash-line, rgba(153,174,214,.18)); margin-bottom: 20px; }
         .analytics-toast {
             display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
@@ -1251,6 +1427,9 @@
         .summary-item { display: flex; flex-direction: column; gap: 4px; }
         .summary-label { font-size: 11px; color: var(--dash-muted, #98a7c4); font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
         .summary-value { font-size: 22px; font-weight: 800; color: var(--dash-text, #eef4ff); }
+
+        /* Course cards (.course-card-grid / .course-card) now live in the shared
+           dashboard-layout.css so Faculty and Student render identically. */
 
         @media (max-width: 900px) {
             .student-assessment-signals { grid-template-columns:repeat(3,minmax(0,1fr)); }

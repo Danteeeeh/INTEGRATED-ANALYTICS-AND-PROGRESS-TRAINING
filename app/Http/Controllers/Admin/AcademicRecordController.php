@@ -11,10 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Produces the academic record (transcript) the registrar's office receives.
+ * Produces the academic record (transcript) the Academic Affairs (AA) receives.
  *
  * Records are generated from released, graded grade items only, using the same
- * GradeService computation as every gradebook in the app, so what the registrar
+ * GradeService computation as every gradebook in the app, so what Academic Affairs (AA)
  * reads is exactly what the instructor submitted.
  */
 class AcademicRecordController extends Controller
@@ -67,7 +67,7 @@ class AcademicRecordController extends Controller
     }
 
     /**
-     * CSV hand-off so the registrar can load the record into their own sheet.
+     * CSV hand-off so Academic Affairs (AA) can load the record into their own sheet.
      */
     public function export(Request $request, User $student)
     {

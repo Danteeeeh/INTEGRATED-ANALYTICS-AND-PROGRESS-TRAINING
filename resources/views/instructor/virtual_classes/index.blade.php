@@ -71,6 +71,22 @@
                                                 <i class="fa-solid fa-play"></i>
                                             </button>
                                         </form>
+                                        <a href="{{ route('instructor.classes.virtual_classes.edit', [$class, $vc]) }}" class="btn-icon btn-edit" title="Edit / Reschedule">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                    @endif
+                                    @if($vc->canCancel())
+                                        <form method="POST" action="{{ route('instructor.classes.virtual_classes.cancel', [$class, $vc]) }}" style="display:inline;" onsubmit="return confirm('Cancel this virtual class? Students will no longer see it as upcoming.');">
+                                            @csrf
+                                            <button type="submit" class="btn-icon btn-edit" title="Cancel Class" style="color:#dc2626;">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($vc->meeting_provider === \App\Models\VirtualClass::PROVIDER_LIVEKIT && $vc->status === 'ongoing' && ! $vc->hasEnded())
+                                        <a href="{{ route('instructor.classes.virtual_classes.room', [$class, $vc]) }}" class="btn-icon btn-view" title="Join the built-in virtual classroom" style="background:#2563eb;color:#fff;">
+                                            <i class="fa-solid fa-video"></i>
+                                        </a>
                                     @endif
                                     <a href="{{ route('instructor.classes.virtual_classes.show', [$class, $vc]) }}" class="btn-icon btn-view" title="View">
                                         <i class="fa-solid fa-eye"></i>

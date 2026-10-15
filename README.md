@@ -2,7 +2,8 @@
 
 Foundation phase: Laravel setup, MySQL schema for identity/access, authentication
 (web + Sanctum API), roles, permissions, Blade layouts, Tailwind, and role-specific
-dashboards. No Super Admin — exactly three roles: **admin**, **instructor**, **student**.
+dashboards. Exactly four roles: **Super Admin** (IT/System Admin), **AA Staff**
+(Academic Officer), **Faculty/Instructor**, and **Student**.
 
 ## Setup (WSL / Ubuntu)
 
@@ -22,12 +23,12 @@ php artisan serve
 
 Seeded accounts (password for all: `Password123!`):
 
-| Role       | Email                  |
-|------------|-------------------------|
-| Admin      | admin@lms.local         |
-| Instructor | instructor@lms.local    |
-| Student    | student@lms.local       |
-| Registrar  | registrar@lms.local     |
+| Role        | Email                 |
+|-------------|-----------------------|
+| Super Admin | admin@lms.local       |
+| Faculty     | instructor@lms.local  |
+| Student     | student@lms.local     |
+| AA Staff    | aa-staff@lms.local    |
 
 ## Run tests
 
@@ -98,14 +99,20 @@ Generate one at Google Account → Security → 2-Step Verification → App pass
 - Feature tests covering login, role-gated dashboard access, inactive-user
   blocking, and API token issuance
 
-## Not yet built (later phases, per the spec)
+## What is built
 
-Academic periods, courses, classes, enrollment (Phase 2); modules/lessons/materials
-(Phase 3); assignments/rubrics (Phase 4); quizzes/question bank (Phase 5); announcements/
-messaging/calendar (Phase 6); virtual classes/attendance (Phase 7);
-gradebook/progress/competencies/learning plans (Phase 8); analytics/reports (Phase 9);
-full REST API surface + Postman collection (Phase 10); security hardening/deployment
-(Phase 11).
+Beyond Phase 1, this repository ships the rest of the LMS: academic periods, courses,
+classes and AA-sourced enrollment (Phase 2); modules/lessons/materials (Phase 3);
+assignments/rubrics (Phase 4); quizzes/question bank (Phase 5); announcements/messaging/
+calendar (Phase 6); virtual classes/attendance (Phase 7, with a built-in LiveKit
+classroom); gradebook/progress/competencies/learning plans (Phase 8); analytics/reports
+(Phase 9); the `/api/v1` REST API (Phase 10 — see [docs/API.md](docs/API.md)); and
+"Sync from AA" data synchronisation (Phase 11).
+
+AA (Academic Affairs) is the system of record for official student records, official
+course enrollment, official faculty assignments, and final grades. The LMS owns learning
+modules and resources, virtual classes, quizzes and assignments, LMS assessment scores,
+and learning progress/activity completion.
 
 **Removed:** Achievements (Badges and Certificates) have been removed from this
 build's requirements — no `badges`/`certificates` tables, models, controllers, routes,

@@ -25,7 +25,7 @@ class AIAssistantService
             ->pluck('class_id');
 
         if ($classIds->isEmpty()) {
-            return 'You are not enrolled in any active class yet. Ask your instructor or registrar about enrolling — once you have a class, I can help you plan your studies.';
+            return 'You are not enrolled in any active class yet. Enrollment is handled by the school through Academic Affairs — once your subjects are synced, I can help you plan your studies.';
         }
 
         if ($this->containsAny($text, ['deadline', 'due', 'due date', 'upcoming', 'takdang', 'aralin', 'naka-isked', 'schedule'])) {

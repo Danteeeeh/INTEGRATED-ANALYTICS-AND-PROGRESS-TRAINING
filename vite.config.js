@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/css/admin-ui.css',
                 'resources/css/compact-ui.css',
                 'resources/css/dashboard-palette.css',
+                'resources/css/dashboard-layout.css',
                 'resources/css/sidebar-polish.css',
                 'resources/css/user-list-ui.css',
                 'resources/css/admin-consistency.css',

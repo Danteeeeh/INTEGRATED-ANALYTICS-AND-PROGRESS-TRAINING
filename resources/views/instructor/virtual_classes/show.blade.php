@@ -31,6 +31,14 @@
                 </form>
             @endif
 
+            {{-- Built-in Virtual Classroom: once ongoing, the instructor enters the room directly from the LMS. --}}
+            @if($virtualClass->meeting_provider === \App\Models\VirtualClass::PROVIDER_LIVEKIT && $virtualClass->status === 'ongoing' && ! $virtualClass->hasEnded())
+                <a href="{{ route('instructor.classes.virtual_classes.room', [$class, $virtualClass]) }}" class="btn-add" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background:#2563eb; border-color:#2563eb; color:#fff;">
+                    <i class="fa-solid fa-video"></i>
+                    Join Virtual Classroom
+                </a>
+            @endif
+
             @if($virtualClass->canEnd())
                 <form method="POST" action="{{ route('instructor.classes.virtual_classes.end', [$class, $virtualClass]) }}" onsubmit="return confirm('Close this virtual class now? Students will no longer be able to join.');">
                     @csrf
@@ -41,7 +49,24 @@
                 </form>
             @endif
 
-            @if($virtualClass->meeting_url && ! $virtualClass->hasEnded())
+            @if($virtualClass->status === \App\Models\VirtualClass::STATUS_SCHEDULED)
+                <a href="{{ route('instructor.classes.virtual_classes.edit', [$class, $virtualClass]) }}" class="btn-add" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                    <i class="fa-solid fa-pen"></i>
+                    Edit / Reschedule
+                </a>
+            @endif
+
+            @if($virtualClass->canCancel())
+                <form method="POST" action="{{ route('instructor.classes.virtual_classes.cancel', [$class, $virtualClass]) }}" onsubmit="return confirm('Cancel this virtual class? Students will no longer see it as upcoming.');">
+                    @csrf
+                    <button type="submit" class="btn-submit" style="display: inline-flex; align-items: center; gap: 8px; background:#dc2626; border-color:#dc2626;">
+                        <i class="fa-solid fa-ban"></i>
+                        Cancel Class
+                    </button>
+                </form>
+            @endif
+
+            @if($virtualClass->meeting_url && $virtualClass->meeting_provider !== \App\Models\VirtualClass::PROVIDER_LIVEKIT && ! $virtualClass->hasEnded())
                 <a href="{{ $virtualClass->meeting_url }}" target="_blank" rel="noopener" class="btn-add" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     Open Meeting

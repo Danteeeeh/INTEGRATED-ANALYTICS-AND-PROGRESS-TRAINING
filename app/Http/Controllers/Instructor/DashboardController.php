@@ -108,6 +108,15 @@ class DashboardController extends Controller
             $gradedEnrollments += collect($classSummaries[$class->id])->where('is_graded', true)->count();
         }
 
+        // Per-class completion counts for the faculty completion graph
+        // ("ilang students na nakatapos" per class). Uses the same enrollments
+        // relation already eager-loaded above — no extra queries.
+        $completionByClass = $myClasses->map(fn ($class) => [
+            'label' => trim(($class->code ?? '').' — '.($class->course?->title ?? 'Class')),
+            'completed' => $class->enrollments->where('status', 'completed')->count(),
+            'active' => $class->enrollments->where('status', 'active')->count(),
+        ])->values();
+
         // Get instructor's class IDs
         $classIds = $myClasses->pluck('id');
         $courseIds = $myCourses->pluck('id');
@@ -117,6 +126,67 @@ class DashboardController extends Controller
             $query->whereIn('class_id', $classIds)
                 ->orWhereIn('course_id', $courseIds);
         })->where('status', 'submitted')->count();
+
+        // To-check queue: submitted-but-ungraded assignment submissions plus
+        // quiz attempts still waiting for a manual score — the faculty
+        // dashboard's "list ng to-check na assignments", each with a direct
+        // link to the grading screen.
+        $pendingSubmissionsList = AssignmentSubmission::whereHas('assignment', function ($query) use ($classIds, $courseIds) {
+            $query->whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds);
+        })
+            ->where('status', AssignmentSubmission::STATUS_SUBMITTED)
+            ->with(['assignment.class', 'student'])
+            ->orderBy('submitted_at')
+            ->limit(20)
+            ->get()
+            ->map(function ($submission) {
+                $assignment = $submission->assignment;
+                $courseId = $assignment?->resolveCourseId();
+
+                return [
+                    'kind' => 'Assignment',
+                    'title' => $assignment?->title ?? 'Assignment',
+                    'student' => $submission->student?->name ?? 'Student',
+                    'class_code' => $assignment?->class?->code ?? '',
+                    'submitted_at' => $submission->submitted_at,
+                    'url' => ($courseId && $assignment && $submission->id)
+                        ? route('instructor.courses.assignments.submissions.show', [$courseId, $assignment->id, $submission->id])
+                        : null,
+                ];
+            });
+
+        // Auto-submitted quiz attempts also await grading, not just 'submitted'.
+        $pendingQuizAttempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds, $courseIds) {
+            $query->whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds);
+        })
+            ->whereIn('status', [QuizAttempt::STATUS_SUBMITTED, QuizAttempt::STATUS_AUTO_SUBMITTED])
+            ->with(['quiz.class', 'student'])
+            ->orderBy('submitted_at')
+            ->limit(20)
+            ->get()
+            ->map(function ($attempt) {
+                $quiz = $attempt->quiz;
+                $courseId = $quiz?->resolveCourseId();
+
+                return [
+                    'kind' => 'Quiz',
+                    'title' => $quiz?->title ?? 'Quiz',
+                    'student' => $attempt->student?->name ?? 'Student',
+                    'class_code' => $quiz?->class?->code ?? '',
+                    'submitted_at' => $attempt->submitted_at,
+                    'url' => ($courseId && $quiz && $attempt->id)
+                        ? route('instructor.courses.quizzes.attempts.show', [$courseId, $quiz->id, $attempt->id])
+                        : null,
+                ];
+            });
+
+        $toCheck = $pendingSubmissionsList
+            ->concat($pendingQuizAttempts)
+            ->sortBy('submitted_at')
+            ->take(20)
+            ->values();
 
         $upcomingAssignments = Assignment::whereHas('class', function ($query) use ($classIds) {
             $query->whereIn('id', $classIds);
@@ -373,6 +443,11 @@ class DashboardController extends Controller
             // At-risk indicators
             'at_risk_students' => $atRiskStudents,
             'at_risk_count' => $atRiskStudents->count(),
+
+            // Faculty dashboard: to-check queue + per-class completion counts
+            'to_check' => $toCheck,
+            'to_check_count' => $toCheck->count(),
+            'completion_by_class' => $completionByClass,
         ];
     }
 
@@ -401,7 +476,7 @@ class DashboardController extends Controller
     {
         try {
             $validated = $request->validate([
-                'type' => 'required|in:students,grades,attendance,performance',
+                'type' => 'required|in:students,grades,attendance,performance,aa',
                 'format' => 'required|in:csv,xlsx',
             ]);
 
@@ -469,6 +544,35 @@ class DashboardController extends Controller
                                 fputcsv($file, ['At-Risk Students', $stats['at_risk_count']]);
                                 break;
 
+                            case 'aa':
+                                // Purpose-built export for the Academic Affairs
+                                // (AA) system: per-student, per-subject LMS
+                                // results so AA can reconcile against the
+                                // official record. LMS scores only — the final
+                                // grade stays with AA, not with the LMS.
+                                fputcsv($file, ['Student ID', 'Student Name', 'Email', 'Course Code', 'Course Title', 'Class Code', 'Enrollment Status', 'LMS Score %', 'Letter Grade', 'Completed At']);
+                                foreach ($stats['my_classes_list'] as $class) {
+                                    $summaries = $stats['class_summaries'][$class->id] ?? [];
+
+                                    foreach ($class->enrollments as $enrollment) {
+                                        $summary = $summaries[$enrollment->student_id] ?? null;
+
+                                        fputcsv($file, [
+                                            $enrollment->student?->identifier ?? $enrollment->student_id,
+                                            $enrollment->student?->name ?? 'N/A',
+                                            $enrollment->student?->email ?? 'N/A',
+                                            $class->course?->code ?? 'N/A',
+                                            $class->course?->title ?? 'N/A',
+                                            $class->code,
+                                            $enrollment->status,
+                                            ($summary['is_graded'] ?? false) ? number_format($summary['percent'], 2) : '',
+                                            ($summary['is_graded'] ?? false) ? $summary['letter_grade'] : '',
+                                            $enrollment->completed_at?->format('Y-m-d') ?? '',
+                                        ]);
+                                    }
+                                }
+                                break;
+
                             default:
                                 fputcsv($file, ['No data available for this type']);
                         }
@@ -501,6 +605,7 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => [
                     'pending_submissions' => $stats['pending_submissions'],
+                    'to_check_count' => $stats['to_check_count'],
                     'upcoming_assignments_count' => $stats['upcoming_assignments']->count(),
                     'upcoming_quizzes_count' => $stats['upcoming_quizzes']->count(),
                     'at_risk_count' => $stats['at_risk_count'],

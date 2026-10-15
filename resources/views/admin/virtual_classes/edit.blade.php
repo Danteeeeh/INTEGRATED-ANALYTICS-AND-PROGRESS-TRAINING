@@ -102,35 +102,45 @@
 
                 <div class="modal-section-title"><i class="fa-solid fa-video"></i> Meeting Details</div>
                 <div class="form-grid">
-                    <div class="form-field">
-                        <label>Meeting Provider <span class="req">*</span></label>
-                        <select name="meeting_provider" required>
-                            <option value="">Select Provider</option>
-                            <option value="zoom" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'zoom' ? 'selected' : '' }}>Zoom</option>
-                            <option value="google_meet" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
-                            <option value="microsoft_teams" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'microsoft_teams' ? 'selected' : '' }}>Microsoft Teams</option>
-                            <option value="other" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'other' ? 'selected' : '' }}>Other</option>
-                        </select>
-                        <span class="field-error"></span>
-                    </div>
-
-                    <div class="form-field full">
-                        <label>Meeting URL</label>
-                        <input type="url" name="meeting_url" placeholder="https://..." value="{{ old('meeting_url', $virtualClass->meeting_url) }}">
-                        <span class="field-error"></span>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Meeting ID</label>
-                        <input type="text" name="meeting_id" placeholder="e.g. 123 456 7890" value="{{ old('meeting_id', $virtualClass->meeting_id) }}">
-                        <span class="field-error"></span>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Meeting Password</label>
-                        <input type="text" name="meeting_password" placeholder="e.g. abc123" value="{{ old('meeting_password', $virtualClass->meeting_password) }}">
-                        <span class="field-error"></span>
-                    </div>
+                    @if($virtualClass->meeting_provider === \App\Models\VirtualClass::PROVIDER_LIVEKIT)
+                        {{-- Built-in Virtual Classroom: room auto-generated, no external links. --}}
+                        <input type="hidden" name="meeting_provider" value="livekit">
+                        <div class="form-field full">
+                            <div style="padding:12px 14px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.3);border-radius:8px;font-size:.85rem;color:#475569;display:flex;align-items:center;gap:10px;">
+                                <i class="fa-solid fa-video" style="color:#0ea5e9"></i>
+                                <span><strong>Built-in Virtual Classroom.</strong> Room: <code>{{ $virtualClass->livekit_room_name }}</code> — ang instructor at ang enrolled students ay sumasali sa loob ng LMS.</span>
+                            </div>
+                        </div>
+                    @else
+                        {{-- Legacy external-provider record: keep the editable fields so history stays intact. --}}
+                        <div class="form-field full">
+                            <div style="padding:12px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:.85rem;color:#475569;">
+                                <i class="fa-solid fa-triangle-exclamation" style="color:#fbbf24"></i>
+                                Legacy external provider (<strong>{{ $virtualClass->providerLabel() }}</strong>). Ang bagong virtual class ay built-in na (LiveKit) — ito ay pinapanatili para sa existing records.
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>Meeting Provider</label>
+                            <select name="meeting_provider">
+                                <option value="zoom" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'zoom' ? 'selected' : '' }}>Zoom</option>
+                                <option value="google_meet" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
+                                <option value="microsoft_teams" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'microsoft_teams' ? 'selected' : '' }}>Microsoft Teams</option>
+                                <option value="other" {{ old('meeting_provider', $virtualClass->meeting_provider) == 'other' ? 'selected' : '' }}>Other</option>
+                            </select>
+                        </div>
+                        <div class="form-field full">
+                            <label>Meeting URL</label>
+                            <input type="url" name="meeting_url" placeholder="https://..." value="{{ old('meeting_url', $virtualClass->meeting_url) }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Meeting ID</label>
+                            <input type="text" name="meeting_id" value="{{ old('meeting_id', $virtualClass->meeting_id) }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Meeting Password</label>
+                            <input type="text" name="meeting_password" value="{{ old('meeting_password', $virtualClass->meeting_password) }}">
+                        </div>
+                    @endif
 
                     <div class="form-field">
                         <label>Status <span class="req">*</span></label>

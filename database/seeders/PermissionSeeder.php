@@ -16,7 +16,9 @@ class PermissionSeeder extends Seeder
             'sections' => ['view', 'create', 'update', 'delete'],
             'courses' => ['view', 'create', 'update', 'delete', 'publish', 'archive', 'duplicate', 'export'],
             'classes' => ['view', 'create', 'update', 'delete', 'archive', 'roster', 'export'],
-            'enrollments' => ['view', 'create', 'update', 'delete', 'approve', 'reject', 'drop', 'transfer', 'bulk', 'export'],
+            // Enrollment is read-only in the LMS: AA is authoritative, and
+            // enrollments arrive via "Sync from AA" only.
+            'enrollments' => ['view', 'export'],
             'academic_periods' => ['view', 'create', 'update', 'delete'],
             'users' => ['view', 'create', 'update', 'delete', 'import', 'export', 'reset_password', 'deactivate', 'reactivate'],
             'students' => ['view', 'create', 'update', 'delete', 'import', 'export'],

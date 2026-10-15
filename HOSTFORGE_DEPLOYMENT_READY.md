@@ -191,9 +191,9 @@ If you get "419 Your session expired" on login:
 2. Ensure `SESSION_DOMAIN` is EMPTY (not set to any value)
 3. Ensure `SESSION_SECURE_COOKIE=true`
 4. Ensure `SESSION_SAME_SITE=lax`
-5. Clear session cache: Add to release command
+5. Rebuild the cached config so the new SESSION_* values take effect
    ```bash
-   php artisan session:clear
+   php artisan config:cache
    ```
 6. Clear browser cookies for the site
 7. Redeploy the application
@@ -216,7 +216,7 @@ If you get "419 Your session expired" on login:
 #### If login fails
 - Verify sessions table exists
 - Check if seeders ran successfully
-- Clear session cache: `php artisan session:clear`
+- Clear stale sessions with `php artisan tinker --execute="DB::table('sessions')->truncate();"` (SESSION_DRIVER=database)
 
 #### If frontend assets don't load
 - Verify npm build ran successfully

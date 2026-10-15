@@ -30,7 +30,7 @@ class FullAppFunctionAuditTest extends TestCase
     private User $gmailAdmin;
     private User $instructor;
     private User $student;
-    private User $registrar;
+    private User $aaStaff;
 
     private Course $course;
     private ClassModel $class;
@@ -50,7 +50,7 @@ class FullAppFunctionAuditTest extends TestCase
         $this->gmailAdmin = User::where('email', 'johncedrickdayandante6@gmail.com')->firstOrFail();
         $this->instructor = User::where('email', 'instructor@lms.local')->firstOrFail();
         $this->student = User::where('email', 'student@lms.local')->firstOrFail();
-        $this->registrar = User::where('email', 'registrar@lms.local')->firstOrFail();
+        $this->aaStaff = User::where('email', 'aa-staff@lms.local')->firstOrFail();
 
         // Real entities owned by the instructor, enrolled by the student.
         $this->course = Course::factory()->create(['status' => 'published', 'created_by' => $this->instructor->id]);
@@ -163,6 +163,16 @@ class FullAppFunctionAuditTest extends TestCase
             ['GET', '/student/courses/'.$this->course->id, 'student'],
             ['GET', '/student/classes/'.$this->class->id, 'student'],
             ['GET', '/student/dashboard/analytics', 'student'],
+
+            // ---------- AA Staff (view-only panel) ----------
+            ['GET', '/aa/dashboard', 'aa'],
+            ['GET', '/aa/courses', 'aa'],
+            ['GET', '/aa/students', 'aa'],
+            ['GET', '/aa/enrollments', 'aa'],
+            ['GET', '/aa/progress', 'aa'],
+            ['GET', '/aa/reports', 'aa'],
+            ['GET', '/aa/reports/'.$this->course->id, 'aa'],
+            ['GET', '/admin/dashboard', 'aa', 403], // must be forbidden for AA Staff
         ];
 
         $actors = [
@@ -170,10 +180,16 @@ class FullAppFunctionAuditTest extends TestCase
             'gmail' => $this->gmailAdmin,
             'instructor' => $this->instructor,
             'student' => $this->student,
+            'aa' => $this->aaStaff,
             'guest' => null,
         ];
 
-        foreach ($probes as [$method, $uri, $as]) {
+        foreach ($probes as $probe) {
+            [$method, $uri, $as] = $probe;
+            // A probe may declare the status code it must get (e.g. a role that
+            // must be denied). Everything else must simply not error out.
+            $expect = $probe[3] ?? null;
+
             $response = $as === 'guest'
                 ? $this->call($method, $uri)
                 : $this->actingAs($actors[$as])->call($method, $uri);
@@ -181,7 +197,9 @@ class FullAppFunctionAuditTest extends TestCase
             $status = $response->getStatusCode();
             $line = sprintf('%-5s %-58s as=%-11s => %d', $method, $uri, $as, $status);
 
-            if ($status >= 400) {
+            $failed = $expect === null ? $status >= 400 : $status !== $expect;
+
+            if ($failed) {
                 $body = $response->getContent();
                 if (preg_match('/<title>(.*?)<\/title>/s', $body, $m)) {
                     $line .= '  || '.trim(html_entity_decode(strip_tags($m[1])));

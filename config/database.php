@@ -65,6 +65,34 @@ return [
             ]) : [],
         ],
 
+        /*
+         * Academic Affairs (AA) — the source of truth for enrollment and
+         * official records. READ from here by the admin "Sync from AA"
+         * (see config/aa_sync.php for the table/column mapping).
+         */
+        'aa' => [
+            'driver' => 'mysql',
+            'url' => env('AA_DB_URL'),
+            'host' => env('AA_DB_HOST', '127.0.0.1'),
+            'port' => env('AA_DB_PORT', '3306'),
+            'database' => env('AA_DB_DATABASE', 'aa_system'),
+            'username' => env('AA_DB_USERNAME', 'root'),
+            'password' => env('AA_DB_PASSWORD', ''),
+            'unix_socket' => env('AA_DB_SOCKET', ''),
+            'charset' => env('AA_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('AA_DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('AA_DB_SSL_CA'),
+                PDO::ATTR_TIMEOUT => (int) env('AA_DB_CONNECT_TIMEOUT', 5),
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

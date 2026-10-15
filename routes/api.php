@@ -71,22 +71,12 @@ Route::prefix('v1')->group(function () {
             Route::delete('/classes/{class}', [ClassController::class, 'destroy']);
         });
 
-        // Enrollments
+        // Enrollments — READ-ONLY: AA is the source of truth, so there are no
+        // API writes for enrollment/official grades (writes happen via the
+        // admin's "Sync from AA" only).
         Route::middleware('permission:enrollments.view')->group(function () {
             Route::get('/enrollments', [EnrollmentController::class, 'index']);
             Route::get('/enrollments/{enrollment}', [EnrollmentController::class, 'show']);
-        });
-
-        Route::middleware('permission:enrollments.create')->group(function () {
-            Route::post('/enrollments', [EnrollmentController::class, 'store']);
-        });
-
-        Route::middleware('permission:enrollments.update')->group(function () {
-            Route::put('/enrollments/{enrollment}', [EnrollmentController::class, 'update']);
-        });
-
-        Route::middleware('permission:enrollments.delete')->group(function () {
-            Route::delete('/enrollments/{enrollment}', [EnrollmentController::class, 'destroy']);
         });
 
         // File Management

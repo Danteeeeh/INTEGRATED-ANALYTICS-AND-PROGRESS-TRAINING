@@ -14,10 +14,10 @@ use Illuminate\Support\Collection;
 
 /**
  * Backs the "LMS Subjects" list for every role, the "Check Available Scores"
- * drill-down, and the academic record the admin hands to the registrar.
+ * drill-down, and the academic record the admin hands to Academic Affairs (AA).
  *
  * A "subject" here is a class block: one course taught to one section in one
- * academic period. That is the unit the registrar's office actually signs off
+ * academic period. That is the unit the Academic Affairs (AA) actually signs off
  * on, so verification is tracked per class rather than per course.
  */
 class SubjectService
@@ -222,7 +222,7 @@ class SubjectService
      *
      * Deliberately does not reuse {@see scoreAvailability()}: that report is
      * cohort-wide by design (enrollment counts, class average, who is still
-     * pending) and is instructor/registrar information. Passing it to a student
+     * pending) and is instructor/Academic Affairs information. Passing it to a student
      * would expose every classmate's score, so the student's payload is built
      * from scratch and only ever carries that one student's rows.
      *
@@ -285,7 +285,7 @@ class SubjectService
      * Build a full academic record (transcript) for one student.
      *
      * Every line is the canonical GradeService computation, so the record the
-     * registrar receives matches the gradebook exactly.
+     * Academic Affairs receives matches the gradebook exactly.
      *
      * @return array<string, mixed>
      */

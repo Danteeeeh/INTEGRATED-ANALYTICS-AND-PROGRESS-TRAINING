@@ -38,12 +38,15 @@
                         <span>Classes</span>
                     </a>
                 </li>
-                <li class="nav-item {{ $activeNav === 'enrollments' ? 'active' : '' }}">
+                {{-- Enrollments hidden from the faculty panel: enrollment comes
+                     from the Super Admin's "Sync from AA" (AA = source of truth),
+                     hindi mula sa faculty. Routes remain live for tests. --}}
+                {{-- <li class="nav-item {{ $activeNav === 'enrollments' ? 'active' : '' }}">
                     <a href="{{ route('instructor.enrollments.index') }}" class="nav-link" @if($activeNav === 'enrollments') aria-current="page" @endif>
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Enrollments</span>
                     </a>
-                </li>
+                </li> --}}
             </ul>
         </div>
 
@@ -162,6 +165,20 @@
                         <i class="fa-solid fa-route"></i>
                         <span>Learning Plans</span>
                         <span class="link-hint">Choose class</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        {{-- LMS Reports (Section 5): assessment / grade-reference exports for AA.
+             Hindi official final grades — AA ang may hawak. --}}
+        <div class="nav-group">
+            <button type="button" class="nav-group-label" data-sidebar-group="reports" aria-expanded="true">Reports</button>
+            <ul class="nav-list">
+                <li class="nav-item {{ $activeNav === 'reports' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.reports.index') }}" class="nav-link" @if($activeNav === 'reports') aria-current="page" @endif>
+                        <i class="fa-solid fa-file-lines"></i>
+                        <span>LMS Reports</span>
                     </a>
                 </li>
             </ul>

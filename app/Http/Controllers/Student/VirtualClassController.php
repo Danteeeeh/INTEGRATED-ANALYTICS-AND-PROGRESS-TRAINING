@@ -80,6 +80,18 @@ class VirtualClassController extends Controller
             abort(403);
         }
 
+        // Built-in Virtual Classroom (LiveKit): the student joins inside the
+        // LMS. The room controller re-validates enrollment + class status
+        // before issuing a token, and records attendance on token issue.
+        if ($virtualClass->meeting_provider === VirtualClass::PROVIDER_LIVEKIT) {
+            if ($virtualClass->status !== VirtualClass::STATUS_ONGOING || $virtualClass->hasEnded()) {
+                return back()->with('error', 'The instructor must start the virtual class before you can join.');
+            }
+
+            return redirect()->route('student.classes.virtual_classes.room', [$class, $virtualClass]);
+        }
+
+        // Legacy external-provider records (Zoom/Meet/Teams) keep their link.
         $attendee = VirtualClassAttendee::firstOrCreate(
             ['virtual_class_id' => $virtualClass->id, 'user_id' => $studentId],
             [

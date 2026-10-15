@@ -51,8 +51,8 @@ class UserFactory extends Factory
         return $this->state(fn () => ['role_id' => $this->roleIdFor(Role::STUDENT)]);
     }
 
-    public function registrar(): static
+    public function aaStaff(): static
     {
-        return $this->state(fn () => ['role_id' => $this->roleIdFor(Role::REGISTRAR)]);
+        return $this->state(fn () => ['role_id' => $this->roleIdFor(Role::AA_STAFF)]);
     }
 }

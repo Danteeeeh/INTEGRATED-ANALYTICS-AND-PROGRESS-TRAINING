@@ -215,11 +215,11 @@
         </div>
 
         <div class="action-row">
+            {{-- Self-enrollment removed: enrolled subjects come from the AA sync
+                 (via the Super Admin), not from the student. Route remains live
+                 for tests. --}}
             @if(!$isEnrolled && $class->is_active && !$isFull)
-                <form action="{{ route('student.classes.enroll', $class) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-user-plus"></i> Enroll in class</button>
-                </form>
+                <span style="font-size:.85rem;color:var(--dash-muted,#64748b);"><i class="fa-solid fa-circle-info"></i> Enrollment is handled by the school through AA — your enrolled subjects are synced automatically.</span>
             @elseif($isFull)
                 <button type="button" class="btn btn-secondary" disabled><i class="fa-solid fa-ban"></i> Class full</button>
             @else

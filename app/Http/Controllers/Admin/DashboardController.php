@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AaSyncLog;
 use App\Models\AcademicPeriod;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
@@ -22,17 +23,21 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\VirtualClass;
 use App\Models\VirtualClassAttendee;
+use App\Services\AaSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(AaSyncService $sync): View
     {
         $currentPeriod = AcademicPeriod::where('is_current', true)->first();
 
         $enrollment = $this->enrollmentStatusBreakdown();
+
+        // ── AA sync status (Section 6: Super Admin dashboard) ──────────
+        $lastSync = AaSyncLog::with('performedBy')->latest('id')->first();
 
         $stats = [
             // User Statistics
@@ -98,7 +103,7 @@ class DashboardController extends Controller
             'unread_notifications' => Notification::whereNull('read_at')->count(),
 
             // Recent Activity
-            'recent_users' => User::with('role')->withoutRegistrar()->orderBy('created_at', 'desc')->limit(5)->get(),
+            'recent_users' => User::with('role')->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_courses' => Course::orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_enrollments' => Enrollment::with(['student', 'class.course'])->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_audit_logs' => AuditLog::orderBy('created_at', 'desc')->limit(5)->get(),
@@ -124,12 +129,25 @@ class DashboardController extends Controller
             'learning_analytics' => $this->getLearningAnalytics(),
             'engagement_metrics' => $this->getEngagementMetrics(),
             'performance_trends' => $this->getPerformanceTrends(),
+
+            // AA sync status (Super Admin dashboard, Section 6)
+            'aa_last_sync' => $lastSync?->started_at,
+            'aa_last_sync_status' => $lastSync?->status,
+            'aa_last_sync_created' => $lastSync?->records_created ?? 0,
+            'aa_last_sync_updated' => $lastSync?->records_updated ?? 0,
+            'aa_last_sync_skipped' => $lastSync?->records_skipped ?? 0,
+            'aa_last_sync_failed' => $lastSync?->records_failed ?? 0,
+            'aa_last_sync_by' => $lastSync?->performedBy?->name,
+            'aa_sync_recent' => AaSyncLog::latest('id')->limit(5)->get(),
+            'aa_sync_failed_count' => AaSyncLog::where('status', AaSyncLog::STATUS_FAILED)->count(),
         ];
 
         // Rendered server-side too, so the figures are in the HTML before any
         // script runs instead of appearing only after the chart loads.
         return view('admin.dashboard', array_merge(compact('stats'), [
             'enrollmentBreakdown' => $this->enrollmentStatusBreakdown(),
+            'lastSync' => $lastSync,
+            'aaConnected' => $sync->available(),
         ]));
     }
 
@@ -807,7 +825,7 @@ private function enrollmentStatusBreakdown(): array
             'current_period' => $currentPeriod,
 
             // Recent Activity
-            'recent_users' => User::with('role')->withoutRegistrar()->orderBy('created_at', 'desc')->limit(5)->get(),
+            'recent_users' => User::with('role')->orderBy('created_at', 'desc')->limit(5)->get(),
             'recent_courses' => Course::orderBy('created_at', 'desc')->limit(5)->get(),
         ];
 

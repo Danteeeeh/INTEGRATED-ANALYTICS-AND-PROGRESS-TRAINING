@@ -133,7 +133,13 @@ class VirtualClassAutoCloseTest extends TestCase
 
     public function test_instructor_can_manually_end_a_meeting(): void
     {
-        $vc = $this->makeVirtualClass(['status' => VirtualClass::STATUS_ONGOING]);
+        // The meeting must still be live for canEnd() to allow a manual end,
+        // so date it in the future instead of relying on the default 08:30-09:30
+        // window (which is already in the past for most of the day).
+        $vc = $this->makeVirtualClass([
+            'meeting_date' => now()->addDay()->toDateString(),
+            'status' => VirtualClass::STATUS_ONGOING,
+        ]);
 
         $this->actingAs($this->instructor)
             ->post("/instructor/classes/{$this->class->id}/virtual_classes/{$vc->id}/end")

@@ -87,6 +87,15 @@ use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Student\ExamController as StudentExamController;
 use App\Http\Controllers\Student\VirtualClassController as StudentVirtualClassController;
+use App\Http\Controllers\VirtualClassRoomController;
+use App\Http\Controllers\Aa\DashboardController as AaDashboardController;
+use App\Http\Controllers\Aa\CourseController as AaCourseController;
+use App\Http\Controllers\Aa\StudentController as AaStudentController;
+use App\Http\Controllers\Aa\EnrollmentController as AaEnrollmentController;
+use App\Http\Controllers\Aa\ProgressController as AaProgressController;
+use App\Http\Controllers\Aa\ReportController as AaReportController;
+use App\Http\Controllers\Admin\AaSyncController;
+use App\Http\Controllers\Instructor\ReportController as InstructorReportController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
@@ -125,6 +134,12 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/dashboard/analytics-json', [AdminDashboard::class, 'getAnalyticsJson'])->name('dashboard.analytics-json');
         Route::get('/analytics', [AdminDashboard::class, 'analytics'])->name('analytics');
 
+        // Sync from AA — the only enrollment source in the Canvas-style model.
+        Route::prefix('aa-sync')->name('aa-sync.')->group(function () {
+            Route::get('/', [AaSyncController::class, 'index'])->name('index');
+            Route::post('/run', [AaSyncController::class, 'run'])->name('run');
+        });
+
         Route::get('search', [SearchController::class, 'index'])->name('search');
         Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
 
@@ -156,14 +171,12 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         Route::get('students/export', [StudentController::class, 'export'])->name('students.export');
         Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
-        Route::post('students/{student}/assign-classes', [StudentController::class, 'assignClasses'])->name('students.assign-classes');
-        Route::post('students/{student}/assign-section', [StudentController::class, 'assignSection'])->name('students.assign-section');
-        Route::post('instructors/{instructor}/assign-section', [InstructorController::class, 'assignSection'])->name('instructors.assign-section');
+        // Section/class assignment is owned by the AA sync — no manual routes.
         Route::resource('students', StudentController::class);
 
         Route::get('instructors/export', [InstructorController::class, 'export'])->name('instructors.export');
         Route::post('instructors/import', [InstructorController::class, 'import'])->name('instructors.import');
-        Route::post('instructors/{instructor}/assign-classes', [InstructorController::class, 'assignClasses'])->name('instructors.assign-classes');
+        // Class/section assignment is owned by the AA sync — no manual routes.
         Route::resource('instructors', InstructorController::class);
 
         Route::prefix('academic-periods')->name('academic_periods.')->group(function () {
@@ -224,16 +237,12 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('classes-schedules', [AdminClassController::class, 'schedules'])->name('classes.schedules.index');
         Route::post('classes/{class}/archive', [AdminClassController::class, 'archive'])->name('classes.archive');
 
-        Route::resource('enrollments', AdminEnrollmentController::class);
-        Route::post('enrollments/bulk', [AdminEnrollmentController::class, 'bulkStore'])->name('enrollments.bulk');
-        Route::post('enrollments/{enrollment}/approve', [AdminEnrollmentController::class, 'approve'])->name('enrollments.approve');
-        Route::post('enrollments/{enrollment}/reject', [AdminEnrollmentController::class, 'reject'])->name('enrollments.reject');
-        Route::post('enrollments/{enrollment}/drop', [AdminEnrollmentController::class, 'drop'])->name('enrollments.drop');
-        Route::post('enrollments/{enrollment}/transfer', [AdminEnrollmentController::class, 'transfer'])->name('enrollments.transfer');
-        Route::get('enrollments/{enrollment}/transfer', [AdminEnrollmentController::class, 'transferForm'])->name('enrollments.transfer-form');
-        Route::post('enrollments/{enrollment}/activate', [AdminEnrollmentController::class, 'activate'])->name('enrollments.activate');
-        Route::post('enrollments/{enrollment}/deactivate', [AdminEnrollmentController::class, 'deactivate'])->name('enrollments.deactivate');
-        Route::post('enrollments/bulk-auto-enroll', [AdminEnrollmentController::class, 'bulkAutoEnroll'])->name('enrollments.bulk-auto-enroll');
+        // Enrollment records are VIEW-ONLY: they arrive via "Sync from AA"
+        // (AA = source of truth). Manual enrollment, bulk enrollment, status
+        // changes, and grade encoding were removed — see the AA-sync
+        // architecture notes in AGENTS.md.
+        Route::get('enrollments', [AdminEnrollmentController::class, 'index'])->name('enrollments.index');
+        Route::get('enrollments/{enrollment}', [AdminEnrollmentController::class, 'show'])->name('enrollments.show');
 
         Route::resource('assignments', AdminAssignmentController::class);
         Route::post('assignments/{assignment}/publish', [AdminAssignmentController::class, 'publish'])->name('assignments.publish');
@@ -357,7 +366,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::post('subjects/{class}/verify', [SubjectController::class, 'verify'])->name('subjects.verify');
         Route::post('subjects/{class}/unverify', [SubjectController::class, 'unverify'])->name('subjects.unverify');
 
-        // Academic record handed to the registrar's office.
+        // Academic record handed to Academic Affairs (AA).
         Route::prefix('academic-records')->name('academic-records.')->group(function () {
             Route::get('/', [AcademicRecordController::class, 'index'])->name('index');
             // export must be declared before the {student} wildcard, otherwise
@@ -409,6 +418,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/dashboard/real-time-stats', [InstructorDashboard::class, 'getRealTimeStats'])->name('dashboard.real-time-stats');
         Route::get('/dashboard/search', [InstructorDashboard::class, 'search'])->name('dashboard.search');
         Route::get('/dashboard/analytics', [InstructorDashboard::class, 'getAnalytics'])->name('dashboard.analytics');
+
+        // LMS Reports — exportable assessment/grade-reference reports (Section 5).
+        Route::get('/reports', [InstructorReportController::class, 'index'])->name('reports.index');
 
         // Course-agnostic exam listing/creation. ExamController@index and @create
         // do not depend on a course, so these avoid a dummy course segment.
@@ -597,6 +609,18 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::get('/create', [InstructorVirtualClassController::class, 'create'])->name('create');
                 Route::post('/', [InstructorVirtualClassController::class, 'store'])->name('store');
                 Route::get('/{virtualClass}', [InstructorVirtualClassController::class, 'show'])->name('show');
+                // Edit / reschedule / cancel (master prompt §3).
+                Route::get('/{virtualClass}/edit', [InstructorVirtualClassController::class, 'edit'])->name('edit');
+                Route::put('/{virtualClass}', [InstructorVirtualClassController::class, 'update'])->name('update');
+                Route::post('/{virtualClass}/cancel', [InstructorVirtualClassController::class, 'cancel'])->name('cancel');
+
+                // Built-in Virtual Classroom (LiveKit): room, token, leave.
+                // Token generation is the expensive, abuse-prone action — rate
+                // limit it (master prompt §12).
+                Route::get('/{virtualClass}/room', [VirtualClassRoomController::class, 'instructorRoom'])->name('room');
+                Route::post('/{virtualClass}/token', [VirtualClassRoomController::class, 'instructorToken'])->name('token')->middleware('throttle:20,1');
+                Route::post('/{virtualClass}/leave', [VirtualClassRoomController::class, 'instructorLeave'])->name('leave');
+
                 Route::post('/{virtualClass}/start', [InstructorVirtualClassController::class, 'start'])->name('start');
                 Route::post('/{virtualClass}/end', [InstructorVirtualClassController::class, 'end'])->name('end');
             });
@@ -668,17 +692,11 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::post('/{submission}/suggest-feedback', [InstructorGradebookController::class, 'suggestFeedback'])->name('suggest-feedback');
         });
 
+        // Enrollment records are VIEW-ONLY for faculty: enrollment arrives
+        // via the Super Admin's "Sync from AA" (AA = source of truth).
         Route::prefix('enrollments')->name('enrollments.')->group(function () {
             Route::get('/', [InstructorEnrollmentController::class, 'index'])->name('index');
-            Route::get('/create', [InstructorEnrollmentController::class, 'create'])->name('create');
-            Route::post('/', [InstructorEnrollmentController::class, 'store'])->name('store');
             Route::get('/{enrollment}', [InstructorEnrollmentController::class, 'show'])->name('show');
-            Route::post('/{enrollment}/complete', [InstructorEnrollmentController::class, 'complete'])->name('complete');
-            Route::post('/{enrollment}/drop', [InstructorEnrollmentController::class, 'drop'])->name('drop');
-            Route::post('/{enrollment}/activate', [InstructorEnrollmentController::class, 'activate'])->name('activate');
-            Route::get('/{enrollment}/edit', [InstructorEnrollmentController::class, 'edit'])->name('edit');
-            Route::put('/{enrollment}', [InstructorEnrollmentController::class, 'update'])->name('update');
-            Route::delete('/{enrollment}', [InstructorEnrollmentController::class, 'destroy'])->name('destroy');
         });
     });
 
@@ -773,7 +791,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::prefix('classes')->name('classes.')->group(function () {
             Route::get('/', [StudentClassController::class, 'index'])->name('index');
             Route::get('/{class}', [StudentClassController::class, 'show'])->name('show');
-            Route::post('/{class}/enroll', [StudentClassController::class, 'enroll'])->name('enroll');
+            // Self-enrollment removed: enrollment arrives via the AA sync only.
 
             Route::prefix('{class}/gradebook')->name('gradebook.')->group(function () {
                 Route::get('/', [StudentGradebookController::class, 'index'])->name('index');
@@ -782,9 +800,39 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::prefix('{class}/virtual_classes')->name('virtual_classes.')->group(function () {
                 Route::get('/', [StudentVirtualClassController::class, 'index'])->name('index');
                 Route::get('/{virtualClass}', [StudentVirtualClassController::class, 'show'])->name('show');
+
+                // Built-in Virtual Classroom (LiveKit): room, token, leave.
+                // Token generation is the expensive, abuse-prone action — rate
+                // limit it (master prompt §12).
+                Route::get('/{virtualClass}/room', [VirtualClassRoomController::class, 'studentRoom'])->name('room');
+                Route::post('/{virtualClass}/token', [VirtualClassRoomController::class, 'studentToken'])->name('token')->middleware('throttle:20,1');
+                Route::post('/{virtualClass}/leave', [VirtualClassRoomController::class, 'studentLeave'])->name('leave');
+
                 Route::post('/{virtualClass}/join', [StudentVirtualClassController::class, 'join'])->name('join');
             });
         });
     });
 
+    // AA Staff / Academic Officer — VIEW-ONLY panel. GET routes only:
+    // the official records and final grades stay in the AA system, so this
+    // panel deliberately exposes no create/update/delete actions.
+    Route::middleware('role:'.Role::AA_STAFF)->prefix('aa')->name('aa.')->group(function () {
+        Route::get('/dashboard', AaDashboardController::class)->name('dashboard');
+
+        Route::get('/courses', [AaCourseController::class, 'index'])->name('courses.index');
+        Route::get('/courses/{course}', [AaCourseController::class, 'show'])->name('courses.show');
+
+        Route::get('/students', [AaStudentController::class, 'index'])->name('students.index');
+
+        Route::get('/enrollments', [AaEnrollmentController::class, 'index'])->name('enrollments.index');
+
+        // LMS assessment reports (grade reference — hindi official grades).
+        // export must precede {course}: otherwise "export" is swallowed by the
+        // course wildcard and route-model binding 404s.
+        Route::get('/reports/export', [AaReportController::class, 'export'])->name('reports.export');
+        Route::get('/reports', [AaReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/{course}', [AaReportController::class, 'show'])->name('reports.show');
+
+        Route::get('/progress', [AaProgressController::class, 'index'])->name('progress.index');
+    });
 });

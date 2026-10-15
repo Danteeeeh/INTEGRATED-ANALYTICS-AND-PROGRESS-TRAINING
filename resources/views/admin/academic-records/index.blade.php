@@ -22,7 +22,7 @@
         <h3><i class="fa-solid fa-graduation-cap"></i> Produce an Academic Record</h3>
 
         <p style="margin:8px 0 18px;font-size:.83rem;color:#64748b;">
-            Pick a student to generate the transcript you hand to the registrar's office.
+            Pick a student to generate the transcript you hand to the Academic Affairs (AA).
             Only subjects whose grade items are released and graded are computed, using the same
             formula as the gradebooks.
         </p>

@@ -15,7 +15,7 @@ class UserController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = User::with('role')->withoutRegistrar();
+        $query = User::with('role');
 
         // Apply filters
         if ($request->filled('search')) {

@@ -1,18 +1,26 @@
 @extends('layouts.instructor')
 
-@section('title', 'Instructor Dashboard')
+@section('title', 'Faculty Dashboard')
 @php
     $activeNav = 'dashboard';
-    $pageTitle = 'Instructor Dashboard';
+    $pageTitle = 'Faculty Dashboard';
     $pageIcon = '<i class="fa-solid fa-chalkboard-user"></i>';
     $stats ??= [];
+    // Quick-action targets: deep-link into the instructor's first course/class
+    // when one exists, otherwise fall back to the index pages. Display-only
+    // helpers — no data, route or permission changes.
+    $firstCourse = $stats['my_courses_list']?->first();
+    $firstClass = $stats['my_classes_list']?->first();
+    $academicTerm = $firstClass?->academicPeriod?->name
+        ?? $firstCourse?->academicPeriod?->name
+        ?? \App\Models\AcademicPeriod::where('is_current', true)->value('name');
 @endphp
 
 @section('page-title-bar')
     <div class="page-title-bar">
         <h2 class="page-title">
             <i class="fa-solid fa-chalkboard-user"></i>
-            Instructor Dashboard
+            Faculty Dashboard
         </h2>
     </div>
 @endsection
@@ -56,13 +64,17 @@
         <x-slot name="meta">
             <span class="live-dot"></span>
             <span>{{ now()->format('l, F j, Y') }}</span>
+            @if($academicTerm)
+                <span>·</span>
+                <span><i class="fa-solid fa-calendar-days"></i> {{ $academicTerm }}</span>
+            @endif
             <span>·</span>
             <span>{{ ($stats['published_courses'] ?? 0) }} published · {{ ($stats['draft_courses'] ?? 0) }} draft</span>
         </x-slot>
         <x-slot name="actions">
             <a href="{{ route('instructor.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> My courses</a>
             <a href="{{ route('instructor.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-school"></i> My classes</a>
-            <a href="{{ route('instructor.enrollments.index') }}" class="btn btn-secondary"><i class="fa-solid fa-user-plus"></i> Enrollments</a>
+            <a href="{{ route('instructor.reports.index') }}" class="btn btn-secondary"><i class="fa-solid fa-file-lines"></i> Reports</a>
             <div class="dash-action dropdown">
                 <button class="dash-action-btn"><i class="fa-solid fa-download"></i> Export</button>
                 <div class="dropdown-content">
@@ -71,9 +83,26 @@
                     <a href="{{ route('instructor.dashboard.export', ['type' => 'performance', 'format' => 'csv']) }}" class="dropdown-item"><i class="fa-solid fa-poll"></i> Performance Data</a>
                 </div>
             </div>
+            {{-- Report export for the Academic Affairs (AA) system — one click,
+                 AA-ready CSV of per-student LMS scores per subject. --}}
+            <a href="{{ route('instructor.dashboard.export', ['type' => 'aa', 'format' => 'csv']) }}" class="btn btn-primary"><i class="fa-solid fa-file-export"></i> Export Report for AA</a>
             <button onclick="refreshDashboard()" class="btn btn-secondary"><i class="fa-solid fa-sync-alt"></i> Refresh</button>
         </x-slot>
     </x-user-page-header>
+
+    {{-- ═══ QUICK ACTIONS ═══ --}}
+    <section class="dash-panel">
+        <div class="dash-panel-head">
+            <h4><i class="fa-solid fa-bolt"></i> Quick actions</h4>
+            <span class="panel-count" title="Active course/class context">{{ $firstClass?->code ?? $firstCourse?->code ?? '—' }}</span>
+        </div>
+        <div class="dash-quick-actions">
+            <a href="{{ $firstCourse ? route('instructor.courses.modules.create', $firstCourse) : route('instructor.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-layer-group"></i> Create module</a>
+            <a href="{{ $firstCourse ? route('instructor.courses.assignments.create', $firstCourse) : route('instructor.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-file-pen"></i> Create assignment</a>
+            <a href="{{ $firstCourse ? route('instructor.courses.quizzes.create', $firstCourse) : route('instructor.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-circle-question"></i> Create quiz</a>
+            <a href="{{ $firstClass ? route('instructor.classes.virtual_classes.create', $firstClass) : route('instructor.classes.index') }}" class="btn btn-primary"><i class="fa-solid fa-video"></i> Create virtual class</a>
+        </div>
+    </section>
 
     {{-- ═══ SEARCH BAR ═══ --}}
     <section class="dash-search">
@@ -105,32 +134,28 @@
             footer="Courses you teach"
         />
         <x-user-stat-card
-            label="My Classes"
-            value="{{ $stats['my_classes'] ?? 0 }}"
-            icon="fa-school"
-            valueId="stat-classes-value"
-            trend="Live"
-        >
-            <x-slot name="footer"><span id="stat-students-value">{{ $stats['total_students'] ?? 0 }}</span> total students</x-slot>
-        </x-user-stat-card>
-        @php $compRate = (float)($stats['completion_rate'] ?? 0); @endphp
-        <x-user-stat-card
-            label="Completion Rate"
-            value="{{ round($compRate) }}%"
-            icon="fa-chart-line"
-            valueId="stat-completion-value"
-            trend="Avg"
-            footer="{{ $stats['completed_enrollments'] ?? 0 }} of {{ $stats['active_enrollments'] ?? 0 }} marked completed"
-        />
-        <x-user-stat-card
-            label="Pending Submissions"
-            value="{{ $stats['pending_submissions'] ?? 0 }}"
-            icon="fa-clock"
-            valueId="stat-pending-value"
-            trend="Action needed"
+            label="Total Students"
+            value="{{ $stats['total_students'] ?? 0 }}"
+            icon="fa-user-graduate"
+            valueId="stat-students-value"
+            trend="{{ $stats['active_enrollments'] ?? 0 }} active"
         >
             <x-slot name="footer"><span id="stat-atrisk-value">{{ $stats['at_risk_count'] ?? 0 }}</span> at-risk students</x-slot>
         </x-user-stat-card>
+        <x-user-stat-card
+            label="Pending to Check"
+            value="{{ $stats['to_check_count'] ?? 0 }}"
+            icon="fa-clipboard-check"
+            trend="Action needed"
+            footer="{{ $stats['pending_submissions'] ?? 0 }} submissions waiting"
+        />
+        <x-user-stat-card
+            label="Upcoming Virtual Classes"
+            value="{{ count($stats['upcoming_virtual_classes'] ?? []) }}"
+            icon="fa-video"
+            trend="Next 7 days"
+            footer="{{ $stats['total_virtual_classes'] ?? 0 }} classes total"
+        />
     </div>
 
     {{-- ═══ CLASS PERFORMANCE + NEEDS ATTENTION ═══ --}}
@@ -167,6 +192,12 @@
                     <li class="dash-list-empty"><i class="fa-solid fa-school"></i> No classes yet</li>
                 @endforelse
             </ul>
+            @if(count($stats['completion_by_class'] ?? []))
+                {{-- Completion graph: ilang students na nakatapos per class (vs. active). --}}
+                <div style="padding:0 14px 14px">
+                    <div id="completionChart" class="chart-container" style="height:230px"></div>
+                </div>
+            @endif
         </section>
 
         <section class="dash-panel">
@@ -192,82 +223,194 @@
                 @endforelse
             </ul>
         </section>
-    </div>
 
-    {{-- ═══ UPCOMING ACTIVITIES ═══ --}}
+            {{-- ═══ MY COURSES (course cards) ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-book-open"></i> My courses</h4>
+                    <a href="{{ route('instructor.courses.index') }}" class="view-all">View all</a>
+                </div>
+                <div class="course-card-grid">
+                    @forelse(($stats['class_performance'] ?? []) as $perf)
+                        @php
+                            $cClass = $perf['class'] ?? null;
+                            $cCourse = $cClass?->course;
+                            $cColor = ['#4d8ff0', '#62c9f5', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#22d3ee', '#f472b6'][($cClass?->id ?? 0) % 8];
+                        @endphp
+                        @if($cClass)
+                            <a class="course-card" href="{{ route('instructor.classes.show', $cClass) }}" style="border-top:3px solid {{ $cColor }};">
+                                <div class="course-card-top">
+                                    <span class="course-card-code" style="color:{{ $cColor }};">{{ $cCourse?->code ?? $cClass->code }}</span>
+                                    <span class="dash-meta-chip {{ ($perf['active_students'] ?? 0) > 0 ? 'm-green' : 'm-gray' }}">{{ ($perf['active_students'] ?? 0) > 0 ? 'Active' : 'Empty' }}</span>
+                                </div>
+                                <p class="course-card-title">{{ $cCourse?->title ?? 'Class' }}</p>
+                                <p class="course-card-instructor">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                    {{ $cClass->instructor?->name ?? 'Instructor TBA' }}
+                                    @if($cClass->section?->name)<span class="course-card-class">· {{ $cClass->section->name }}</span>@endif
+                                </p>
+                                <div class="course-card-progress">
+                                    <div class="dash-progress"><span style="width: {{ min((float) ($perf['completion_rate'] ?? 0), 100) }}%"></span></div>
+                                    <span class="dash-progress-label">{{ round($perf['completion_rate'] ?? 0) }}%</span>
+                                </div>
+                                <div class="course-card-foot">
+                                    <span class="course-card-count"><i class="fa-solid fa-users"></i> {{ $perf['active_students'] ?? 0 }} enrolled</span>
+                                    <span class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-right"></i> Open</span>
+                                </div>
+                            </a>
+                        @endif
+                    @empty
+                        <div class="empty-state"><i class="fa-solid fa-book-open"></i> No classes assigned yet.</div>
+                    @endforelse
+                </div>
+            </section>
+
+            {{-- ═══ RECENT COURSE ACTIVITY ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-user-plus"></i> Recent course activity</h4>
+                    <span class="panel-count">{{ ($stats['recent_enrollments'] ?? collect())->count() }}</span>
+                </div>
+                <ul class="dash-list">
+                    @forelse(($stats['recent_enrollments'] ?? []) as $enrollment)
+                        <li class="dash-list-item">
+                            <span class="dash-list-icon i-green"><i class="fa-solid fa-user-graduate"></i></span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">{{ $enrollment->student?->name }}</p>
+                                <p class="dash-list-sub">{{ $enrollment->class?->course?->title ?? $enrollment->class?->code }}</p>
+                            </div>
+                            <div class="dash-list-meta">
+                                <span class="dash-meta-chip {{ $enrollment->status === 'active' ? 'm-green' : 'm-gray' }}">{{ ucfirst($enrollment->status) }}</span>
+                                <span class="dash-list-date">{{ $enrollment->created_at?->diffForHumans() }}</span>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-user-plus"></i> No recent enrollments</li>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- ═══ REPORTS ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-file-lines"></i> Reports</h4>
+                    <a href="{{ route('instructor.reports.index') }}" class="view-all">Open reports</a>
+                </div>
+                <div class="dash-quick-actions">
+                    <a href="{{ route('instructor.dashboard.export', ['type' => 'students', 'format' => 'csv']) }}" class="btn btn-secondary"><i class="fa-solid fa-users"></i> Assignment submissions</a>
+                    <a href="{{ route('instructor.dashboard.export', ['type' => 'grades', 'format' => 'csv']) }}" class="btn btn-secondary"><i class="fa-solid fa-chart-line"></i> Quiz performance</a>
+                    <a href="{{ route('instructor.dashboard.export', ['type' => 'performance', 'format' => 'csv']) }}" class="btn btn-secondary"><i class="fa-solid fa-poll"></i> Student progress</a>
+                    <a href="{{ route('instructor.dashboard.export', ['type' => 'aa', 'format' => 'csv']) }}" class="btn btn-primary"><i class="fa-solid fa-file-export"></i> Export for AA</a>
+                </div>
+                <p style="margin:0;padding:0 14px 14px;font-size:.72rem;color:var(--dash-muted,#98a7c4);">
+                    <i class="fa-solid fa-circle-info"></i> LMS scores lang — ang official final grade ay hawak ng AA.
+                </p>
+            </section>
+        </div>
+
+        <div class="dash-split-side">
+            {{-- ═══ TO-DO LIST ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-list-check"></i> To-do list</h4>
+                    <span class="panel-count" id="upcoming-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+                </div>
+                <div style="padding:14px">
+                    @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
+                        <div class="activity-list">
+                            @foreach($stats['upcoming_activities'] as $activity)
+                                <div class="activity-item">
+                                    <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : ($activity['type'] === 'Exam' ? 'fa-graduation-cap' : 'fa-video')) }}" aria-hidden="true"></i>
+                                    <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
+                                    @if(!empty($activity['url']))<a href="{{ $activity['url'] }}">Open <i class="fa-solid fa-arrow-right"></i></a>@endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="empty-state"><i class="fa-solid fa-calendar-check"></i>No upcoming activities</div>
+                    @endif
+                </div>
+            </section>
+
+            {{-- ═══ ASSIGNMENTS AWAITING GRADING ═══ --}}
+    {{-- ═══ TO-CHECK QUEUE ═══ --}}
     <section class="dash-panel">
         <div class="dash-panel-head">
-            <h4><i class="fa-solid fa-calendar-days"></i> Upcoming activities</h4>
-            <span class="panel-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+            <h4><i class="fa-solid fa-clipboard-check"></i> To check</h4>
+            <span class="panel-count" id="to-check-count">{{ $stats['to_check_count'] ?? 0 }}</span>
         </div>
-        <div style="padding:14px">
-            @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
-                <div class="activity-list">
-                    @foreach($stats['upcoming_activities'] as $activity)
-                        <div class="activity-item">
-                            <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : 'fa-video') }}" aria-hidden="true"></i>
-                            <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
-                            @if(!empty($activity['url']))<a href="{{ $activity['url'] }}">Open <i class="fa-solid fa-arrow-right"></i></a>@endif
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <div class="empty-state"><i class="fa-solid fa-calendar-check"></i>No upcoming activities</div>
-            @endif
-        </div>
+        <ul class="dash-list">
+            @forelse(($stats['to_check'] ?? []) as $item)
+                <li class="dash-list-item">
+                    <span class="dash-list-icon {{ $item['kind'] === 'Quiz' ? 'i-violet' : 'i-amber' }}">
+                        <i class="fa-solid {{ $item['kind'] === 'Quiz' ? 'fa-circle-question' : 'fa-file-pen' }}"></i>
+                    </span>
+                    <div class="dash-list-body">
+                        <p class="dash-list-title">{{ $item['title'] }} <span style="opacity:.65;font-weight:400">· {{ $item['kind'] }}</span></p>
+                        <p class="dash-list-sub">{{ $item['student'] }} · {{ $item['class_code'] }}</p>
+                    </div>
+                    <div class="dash-list-meta">
+                        <span class="dash-list-date">Submitted {{ $item['submitted_at']?->diffForHumans() ?? 'recently' }}</span>
+                        @if(!empty($item['url']))
+                            <a href="{{ $item['url'] }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-pen-to-square"></i> Score</a>
+                        @endif
+                    </div>
+                </li>
+            @empty
+                <li class="dash-list-empty"><i class="fa-solid fa-mug-hot"></i> Nothing to check — all scored!</li>
+            @endforelse
+        </ul>
     </section>
 
-    {{-- ═══ RECENT ACTIVITY ═══ --}}
-    <div class="dash-grid">
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-user-plus"></i> Recent enrollments</h4>
-                <span class="panel-count">{{ ($stats['recent_enrollments'] ?? collect())->count() }}</span>
-            </div>
-            <ul class="dash-list">
-                @forelse(($stats['recent_enrollments'] ?? []) as $enrollment)
-                    <li class="dash-list-item">
-                        <span class="dash-list-icon i-green"><i class="fa-solid fa-user-graduate"></i></span>
-                        <div class="dash-list-body">
-                            <p class="dash-list-title">{{ $enrollment->student?->name }}</p>
-                            <p class="dash-list-sub">{{ $enrollment->class?->course?->title ?? $enrollment->class?->code }}</p>
-                        </div>
-                        <div class="dash-list-meta">
-                            <span class="dash-meta-chip {{ $enrollment->status === 'active' ? 'm-green' : 'm-gray' }}">{{ ucfirst($enrollment->status) }}</span>
-                            <span class="dash-list-date">{{ $enrollment->created_at?->diffForHumans() }}</span>
-                        </div>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-user-plus"></i> No recent enrollments</li>
-                @endforelse
-            </ul>
-        </section>
-    </div>
+            {{-- ═══ UPCOMING VIRTUAL CLASSES ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-video"></i> Upcoming virtual classes</h4>
+                    <span class="panel-count">{{ count($stats['upcoming_virtual_classes'] ?? []) }}</span>
+                </div>
+                <ul class="dash-list">
+                    @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
+                        <li class="dash-list-item">
+                            <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">{{ $vc->title }}</p>
+                                <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }} · {{ $vc->class?->code ?? '' }}</p>
+                            </div>
+                            <div class="dash-list-meta">
+                                <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
+                                <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
+                    @endforelse
+                </ul>
+            </section>
 
-    {{-- ═══ ANNOUNCEMENTS ═══ --}}
-    <div class="dash-grid">
-        <section class="dash-panel">
-            <div class="dash-panel-head">
-                <h4><i class="fa-solid fa-bullhorn"></i> Announcements</h4>
-                <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
-            </div>
-            <ul class="announce-feed">
-                @forelse(($stats['recent_announcements'] ?? []) as $announcement)
-                    <li class="announce-item">
-                        <div class="announce-date">
-                            <span class="ad-day">{{ $announcement->created_at?->format('j') }}</span>
-                            <span class="ad-mon">{{ $announcement->created_at?->format('M') }}</span>
-                        </div>
-                        <div class="announce-body">
-                            <p class="announce-title">{{ $announcement->title }}</p>
-                            <p>{{ Str::limit($announcement->body ?? $announcement->content ?? '', 90) }}</p>
-                        </div>
-                    </li>
-                @empty
-                    <li class="dash-list-empty"><i class="fa-solid fa-bullhorn"></i> No announcements yet</li>
-                @endforelse
-            </ul>
-        </section>
+            {{-- ═══ RECENT NOTIFICATIONS ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-bullhorn"></i> Recent notifications</h4>
+                    <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
+                </div>
+                <ul class="announce-feed">
+                    @forelse(($stats['recent_announcements'] ?? []) as $announcement)
+                        <li class="announce-item">
+                            <div class="announce-date">
+                                <span class="ad-day">{{ $announcement->created_at?->format('j') }}</span>
+                                <span class="ad-mon">{{ $announcement->created_at?->format('M') }}</span>
+                            </div>
+                            <div class="announce-body">
+                                <p class="announce-title">{{ $announcement->title }}</p>
+                                <p>{{ Str::limit($announcement->body ?? $announcement->content ?? '', 90) }}</p>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-bullhorn"></i> No announcements yet</li>
+                    @endforelse
+                </ul>
+            </section>
+        </div>
     </div>
 
     {{-- ═══ ANALYTICS OVERVIEW ═══ --}}
@@ -327,6 +470,16 @@
     {{-- ═══ ENHANCED DASHBOARD FUNCTIONALITY ═══ --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
+        // Palette-safe chart text colours. These are the exact values the
+        // --dash-* tokens already hold for each theme (dark default / light
+        // mode), so charts stay readable after the theme flip without
+        // introducing any new colour.
+        const isLightTheme = document.body.classList.contains('light-mode');
+        const CHART_TICK = isLightTheme ? '#5f708c' : '#98a7c4';
+        const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
+        const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
+        const CHART_SLICE_BORDER = isLightTheme ? '#ffffff' : '#151c2c';
+
         // Dropdown functionality
         document.querySelectorAll('.dropdown').forEach(dropdown => {
             const button = dropdown.querySelector('.dash-action-btn');
@@ -342,6 +495,68 @@
                 content.classList.remove('show');
             });
         });
+
+        // Completion graph — ilang students na nakatapos (vs. active) per class.
+        // Server-rendered data; no extra request needed to draw it.
+        (function renderCompletionChart() {
+            const container = document.getElementById('completionChart');
+            if (!container || typeof Chart === 'undefined') return;
+
+            const completionData = @json($stats['completion_by_class'] ?? []);
+            if (!completionData.length) return;
+
+            const style = getComputedStyle(document.querySelector('.main:has(.dash-scope) .content') || document.body);
+            const axisColor = style.getPropertyValue('--id-faint').trim() || '#72809e';
+            const gridColor = style.getPropertyValue('--id-line').trim() || 'rgba(140,163,210,.14)';
+
+            container.innerHTML = '<canvas id="completionChartCanvas"></canvas>';
+            new Chart(document.getElementById('completionChartCanvas'), {
+                type: 'bar',
+                data: {
+                    labels: completionData.map(d => d.label),
+                    datasets: [
+                        {
+                            label: 'Completed',
+                            data: completionData.map(d => d.completed),
+                            backgroundColor: 'rgba(52, 211, 153, .85)',
+                            borderRadius: 6,
+                        },
+                        {
+                            label: 'Active',
+                            data: completionData.map(d => d.active),
+                            backgroundColor: 'rgba(91, 140, 255, .55)',
+                            borderRadius: 6,
+                        },
+                    ],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { color: axisColor, precision: 0 },
+                            grid: { color: gridColor },
+                        },
+                        y: {
+                            stacked: true,
+                            ticks: { color: axisColor },
+                            grid: { display: false },
+                        },
+                    },
+                    plugins: {
+                        legend: { labels: { color: axisColor } },
+                        title: {
+                            display: true,
+                            text: 'Students completed vs. active per class',
+                            color: axisColor,
+                        },
+                    },
+                },
+            });
+        })();
 
         // Real-time dashboard refresh
         async function refreshDashboard() {
@@ -393,6 +608,10 @@
                     const atRiskEl = document.getElementById('stat-atrisk-value');
                     if (atRiskEl && stats.at_risk_count !== undefined) {
                         atRiskEl.textContent = stats.at_risk_count;
+                    }
+                    const toCheckEl = document.getElementById('to-check-count');
+                    if (toCheckEl && stats.to_check_count !== undefined) {
+                        toCheckEl.textContent = stats.to_check_count;
                     }
                     const upcomingCountEl = document.getElementById('upcoming-count');
                     if (upcomingCountEl && stats.upcoming_assignments_count !== undefined && stats.upcoming_quizzes_count !== undefined) {
@@ -694,10 +913,10 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: { precision: 0, color: '#98a7c4' },
-                            grid: { color: 'rgba(153,174,214,.12)' }
+                            ticks: { precision: 0, color: CHART_TICK },
+                            grid: { color: CHART_GRID }
                         },
-                        x: { grid: { display: false }, ticks: { color: '#98a7c4' } }
+                        x: { grid: { display: false }, ticks: { color: CHART_TICK } }
                     }
                 }
             });
@@ -747,7 +966,7 @@
                     datasets: [{
                         data: buckets.map(k => Number(distribution[k]) || 0),
                         backgroundColor: ['#34d399', '#62c9f5', '#fbbf24', '#fb923c', '#fb7185'],
-                        borderColor: '#151c2c',
+                        borderColor: CHART_SLICE_BORDER,
                         borderWidth: 2
                     }]
                 },
@@ -757,7 +976,7 @@
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: '#c7d4ec', boxWidth: 12, padding: 12 }
+                            labels: { color: CHART_TEXT, boxWidth: 12, padding: 12 }
                         },
                         tooltip: {
                             callbacks: {
@@ -831,10 +1050,10 @@
                         x: {
                             beginAtZero: true,
                             max: 100,
-                            grid: { color: 'rgba(153,174,214,.12)' },
-                            ticks: { callback: (v) => v + '%', color: '#98a7c4' }
+                            grid: { color: CHART_GRID },
+                            ticks: { callback: (v) => v + '%', color: CHART_TICK }
                         },
-                        y: { grid: { display: false }, ticks: { color: '#c7d4ec' } }
+                        y: { grid: { display: false }, ticks: { color: CHART_TEXT } }
                     }
                 }
             });
@@ -902,40 +1121,10 @@
 
     {{-- ═══ DESIGN ENHANCEMENT: scoped styles (instructor dashboard only) ═══ --}}
     <style>
-        /* ── Hero ─────────────────────────────────────────── */
-        .dash-scope .dash-hero{
-            position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
-            padding:30px 32px;margin-bottom:22px;border-radius:20px;
-            border:1px solid rgba(120,160,255,.22);
-            background:
-                radial-gradient(700px 260px at 88% -20%,rgba(92,201,245,.20),transparent 60%),
-                radial-gradient(500px 300px at 8% 120%,rgba(167,139,250,.14),transparent 60%),
-                linear-gradient(135deg,#16318f 0%,#1a3fb5 45%,#0e1530 100%);
-            box-shadow:var(--id-shadow-lg);
-        }
-        .dash-scope .dash-hero::before{
-            content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-            background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);
-            background-size:22px 22px;
-            mask-image:linear-gradient(115deg,transparent 30%,#000 75%);
-        }
-        .dash-scope .dash-hero::after{
-            content:"";position:absolute;right:-90px;top:-90px;width:280px;height:280px;border-radius:50%;
-            border:1px solid rgba(255,255,255,.14);pointer-events:none;
-        }
-        .dash-scope .dash-hero>div{position:relative;z-index:1}
-        .dash-scope .dash-hero-kicker{
-            display:inline-flex;align-items:center;gap:7px;margin-bottom:12px;padding:5px 11px;border-radius:999px;
-            background:rgba(92,201,245,.14);border:1px solid rgba(92,201,245,.3);
-            color:#9be0ff;font-size:.66rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
-        }
-        .dash-scope .dash-hero h1{margin:0;color:#fff;font-size:clamp(1.55rem,2.6vw,2.15rem);letter-spacing:-.035em;line-height:1.1}
-        .dash-scope .dash-hero p{margin:9px 0 0;max-width:560px;color:#c9d8f6;font-size:.9rem;line-height:1.6}
-        .dash-scope .dash-hero-meta{display:flex;align-items:center;gap:10px;margin-top:16px;color:#a9bce4;font-size:.76rem;font-weight:600}
-        .dash-scope .dash-hero-sep{width:3px;height:3px;border-radius:50%;background:#a9bce4;opacity:.6}
-        .dash-scope .live-dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.18);animation:idPulse 2.2s ease infinite}
-        @keyframes idPulse{0%,100%{box-shadow:0 0 0 3px rgba(52,211,153,.18)}50%{box-shadow:0 0 0 6px rgba(52,211,153,.05)}}
-        .dash-scope .dash-hero-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+        /* The hero is rendered by x-user-page-header (`.user-hero`), already
+           fully styled by the shared user-ui-system stylesheet; the old
+           .dash-hero / .live-dot rules targeted earlier markup and were dead
+           on this page. */
         .dash-scope .dash-action{
             display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border-radius:11px;
             border:1px solid rgba(255,255,255,.2);color:#fff;background:rgba(255,255,255,.08);
@@ -945,7 +1134,7 @@
         .dash-scope .dash-action:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.34);transform:translateY(-2px);box-shadow:0 12px 26px rgba(0,0,0,.3)}
 
         /* ── Search ───────────────────────────────────────── */
-        .dash-scope .dash-search{margin:0 0 22px}
+        .dash-scope .dash-search{margin:0}
         .dash-scope .search-container{position:relative;max-width:680px;margin:0 auto}
         .dash-scope .search-input-wrapper{
             display:flex;align-items:center;padding:13px 16px;border-radius:14px;
@@ -983,36 +1172,10 @@
         .dash-scope .status-badge.draft{background:rgba(251,191,36,.13);color:#fcd34d}
         .dash-scope .status-badge.active{background:rgba(91,140,255,.15);color:#9db9ff}
 
-        /* ── Stat tiles ───────────────────────────────────── */
-        .dash-scope .dash-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:24px}
-        .dash-scope .dash-stat{
-            position:relative;overflow:hidden;display:flex;flex-direction:column;gap:11px;padding:20px 20px 18px;
-            background:var(--id-surface);border:1px solid var(--id-line);border-radius:16px;box-shadow:var(--id-shadow);
-            transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
-        }
-        .dash-scope .dash-stat::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--id-accent,linear-gradient(90deg,var(--id-brand),var(--id-cyan)));opacity:.9}
-        .dash-scope .dash-stat::after{display:none}
-        .dash-scope .dash-stat:hover{transform:translateY(-3px);border-color:var(--id-line-strong);box-shadow:var(--id-shadow-lg)}
-        .dash-scope #stat-courses{--id-accent:linear-gradient(90deg,#3b82f6,#60a5fa)}
-        .dash-scope #stat-classes{--id-accent:linear-gradient(90deg,#06b6d4,#5cc9f5)}
-        .dash-scope #stat-completion{--id-accent:linear-gradient(90deg,#8b5cf6,#a78bfa)}
-        .dash-scope #stat-pending{--id-accent:linear-gradient(90deg,#fb7185,#fda4af)}
-        .dash-scope .dash-stat-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;color:#fff;font-size:.95rem}
-        .dash-scope .dash-stat-icon.c-blue{background:linear-gradient(135deg,#3b82f6,#1d4ed8);box-shadow:0 8px 18px rgba(59,130,246,.32)}
-        .dash-scope .dash-stat-icon.c-cyan{background:linear-gradient(135deg,#22d3ee,#0891b2);box-shadow:0 8px 18px rgba(34,211,238,.3)}
-        .dash-scope .dash-stat-icon.c-violet{background:linear-gradient(135deg,#8b5cf6,#6d28d9);box-shadow:0 8px 18px rgba(139,92,246,.32)}
-        .dash-scope .dash-stat-icon.c-rose{background:linear-gradient(135deg,#fb7185,#e11d48);box-shadow:0 8px 18px rgba(251,113,133,.3)}
-        .dash-scope .dash-stat-label{color:var(--id-muted);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-        .dash-scope .dash-stat-value{font-size:1.85rem;font-weight:800;color:var(--id-text);letter-spacing:-.025em;line-height:1.05}
-        .dash-scope .dash-stat-value small{font-size:.9rem;font-weight:700;color:var(--id-muted)}
-        .dash-scope .dash-stat-foot{display:flex;align-items:center;gap:7px;color:var(--id-muted);font-size:.73rem;margin-top:-2px}
-        .dash-scope .trend-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:.63rem;font-weight:800;letter-spacing:.04em}
-        .dash-scope .trend-chip.up{color:#6ee7b7;background:rgba(52,211,153,.13);border:1px solid rgba(52,211,153,.28)}
-        .dash-scope .trend-chip.flat{color:#9db9ff;background:rgba(91,140,255,.13);border:1px solid rgba(91,140,255,.28)}
-        .dash-scope .trend-chip.new{color:#fda4af;background:rgba(251,113,133,.13);border:1px solid rgba(251,113,133,.3)}
-        body.light-mode .dash-scope .trend-chip.up{color:#047857}
-        body.light-mode .dash-scope .trend-chip.flat{color:#1d4ed8}
-        body.light-mode .dash-scope .trend-chip.new{color:#be123c}
+        /* Stat tiles are rendered by x-user-stat-card (`.user-stat-card`),
+           already fully styled by user-ui-system.css; the old
+           .dash-stat / .trend-chip rules targeted earlier markup and were
+           dead on this page. */
 
         /* ── Panels & lists ───────────────────────────────── */
         .dash-scope .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;margin-bottom:18px}
@@ -1069,11 +1232,8 @@
         body.light-mode .dash-scope .announce-date{color:#1d4ed8}
         .dash-scope .announce-title{color:var(--id-text)}
 
-        /* ── Completion ring ──────────────────────────────── */
-        .dash-scope .ring-bg{stroke:var(--id-surface-3)}
-
         /* ── Analytics ────────────────────────────────────── */
-        .dash-scope .dash-analytics{margin:26px 0 8px;padding:22px;background:var(--id-surface);border:1px solid var(--id-line);border-radius:18px;box-shadow:var(--id-shadow)}
+        .dash-scope .dash-analytics{margin:0;padding:22px;background:var(--id-surface);border:1px solid var(--id-line);border-radius:18px;box-shadow:var(--id-shadow)}
         .dash-scope .dash-analytics .dash-panel-head{padding:0 0 16px;border-bottom:1px solid var(--id-line);margin-bottom:20px}
         .dash-scope .analytics-toast{display:none;margin-bottom:16px;padding:10px 14px;border-radius:10px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#6ee7b7;font-size:.8rem;font-weight:650}
         .dash-scope .analytics-toast.show{display:block;animation:idFadeInOut 3s ease}
@@ -1122,11 +1282,8 @@
         .dash-scope .dropdown-item i{margin-right:8px;color:var(--id-muted)}
 
         /* ── Light mode / responsive ──────────────────────── */
-        body.light-mode .dash-scope .dash-stat-label{color:var(--id-muted)}
-        @media (max-width:820px){
-            .dash-scope .dash-hero{align-items:flex-start;flex-direction:column;padding:24px}
-            .dash-scope .dash-hero-actions{justify-content:flex-start}
-        }
+        /* The light-mode / responsive tweaks for the shared .user-hero live in
+           user-ui-system.css — no local overrides needed. */
         @media (max-width:640px){
             .dash-scope .analytics-grid{grid-template-columns:1fr}
             .dash-scope .analytics-summary,.dash-scope .attendance-summary{grid-template-columns:1fr 1fr}
