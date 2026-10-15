@@ -1,0 +1,126 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Dashboard layout system — arrangement, spacing and responsive behaviour.
+
+   LAYOUT ONLY. Every background, border, text and accent colour below comes
+   from the existing design tokens (--dash-*, --bcp-*) or the chart/status
+   hexes already in use across the dashboards (#34d399, #fbbf24, #fb7185,
+   #62c9f5, #4d8ff0). No new colour is introduced, and the existing theme,
+   branding and typography are untouched.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Two-column split: main content + side column ──
+   Used by the Faculty and Student dashboards for the Canvas-style
+   main/side arrangement. Collapses to one column on tablet. */
+.dash-split { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:18px; align-items:start; }
+.dash-split > .dash-split-main,
+.dash-split > .dash-split-side { display:grid; gap:18px; min-width:0; align-content:start; }
+@media (max-width:1100px) { .dash-split { grid-template-columns:1fr; } }
+
+/* ── Quick-action row (Faculty dashboard) ──
+   Reuses the existing .btn styles; this only governs arrangement. */
+.dash-quick-actions { display:flex; flex-wrap:wrap; gap:10px; padding:14px; }
+.dash-quick-actions .btn { flex:1 1 auto; justify-content:center; min-width:160px; white-space:nowrap; }
+@media (max-width:560px) { .dash-quick-actions .btn { flex:1 1 100%; } }
+
+/* ── Consistent card grid (course cards on Faculty + Student) ── */
+.dash-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; padding:14px; }
+.dash-cards-grid > .empty-state { grid-column:1 / -1; }
+@media (max-width:640px) { .dash-cards-grid { grid-template-columns:1fr; } }
+
+/* ── Course card (shared by Faculty and Student dashboards) ──
+   Same tokens the Student course cards already used; now shared. */
+.course-card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; padding:14px; }
+.course-card {
+    display:flex; flex-direction:column; gap:8px; padding:14px;
+    border:1px solid var(--dash-line, rgba(140,163,210,.14));
+    border-radius:12px;
+    background:var(--dash-surface-2, rgba(21,28,46,.6));
+    text-decoration:none; color:inherit;
+    transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.course-card:hover { transform:translateY(-2px); border-color:rgba(91,140,255,.45); box-shadow:0 10px 26px rgba(2,6,18,.35); }
+.course-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.course-card-code { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--bcp-cyan-400, #62c9f5); }
+.course-card-title { margin:0; font-size:15px; font-weight:700; color:var(--dash-text, #eef4ff); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:40px; }
+.course-card-instructor { margin:0; font-size:12.5px; color:var(--dash-muted, #98a7c4); }
+.course-card-class { opacity:.75; }
+.course-card-progress { display:flex; align-items:center; gap:10px; margin-top:auto; }
+.course-card-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--dash-line, rgba(140,163,210,.14)); }
+.course-card-count { display:inline-flex; align-items:center; gap:6px; font-size:.7rem; font-weight:700; color:var(--dash-muted, #98a7c4); }
+.course-card-count i { color:var(--bcp-cyan-400, #62c9f5); }
+.course-card-grid .empty-state { grid-column:1 / -1; }
+@media (max-width:640px) { .course-card-grid { grid-template-columns:1fr; } }
+
+/* ── Quick-access link list (Admin / AA dashboards) ── */
+.dash-link-list { list-style:none; margin:0; padding:8px; display:grid; gap:4px; }
+.dash-link-list a {
+    display:flex; align-items:center; gap:11px; padding:11px 12px;
+    border-radius:11px; text-decoration:none; color:var(--dash-text);
+    font-size:.82rem; font-weight:650;
+    border:1px solid transparent;
+    transition:background .16s, border-color .16s;
+}
+.dash-link-list a:hover { background:rgba(77,143,240,.08); border-color:var(--dash-line); }
+.dash-link-list a > i:first-child {
+    display:grid; place-items:center; width:32px; height:32px; flex:none;
+    border-radius:9px; font-size:.8rem;
+    color:var(--bcp-cyan-400, #62c9f5); background:rgba(77,143,240,.13);
+}
+.dash-link-list a .dash-link-go { margin-left:auto; color:var(--dash-muted); font-size:.68rem; font-weight:700; }
+
+/* ── Sync status band (Super Admin dashboard) ── */
+.dash-status-band { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; padding:14px 18px; }
+.dash-band-item { display:flex; align-items:center; gap:10px; min-width:0; }
+.dash-band-icon {
+    display:grid; place-items:center; width:38px; height:38px; flex:none;
+    border-radius:11px; font-size:.95rem;
+    color:var(--bcp-cyan-400, #62c9f5); background:rgba(77,143,240,.13);
+}
+.dash-band-label { display:block; color:var(--dash-muted); font-size:.62rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+.dash-band-value { display:block; color:var(--dash-text); font-size:.86rem; font-weight:750; }
+.dash-band-action { margin-left:auto; }
+
+/* ── Sync outcome chips: success / warning / error summary ──
+   Colours are the palette's existing status greens/ambers/rose. */
+.dash-outcome-row { display:flex; flex-wrap:wrap; gap:10px; padding:0 18px 14px; }
+.dash-outcome {
+    display:inline-flex; align-items:center; gap:8px; padding:8px 13px;
+    border-radius:999px; font-size:.72rem; font-weight:700;
+    border:1px solid var(--dash-line); background:var(--dash-surface-raised);
+    color:var(--dash-text);
+}
+.dash-outcome i { font-size:.78rem; }
+.dash-outcome.d-ok i { color:#34d399; }
+.dash-outcome.d-warn i { color:#fbbf24; }
+.dash-outcome.d-err i { color:#fb7185; }
+
+/* ── Compact calendar strip (Student dashboard) ──
+   Upcoming virtual classes, quizzes and assignment deadlines grouped by day. */
+.dash-cal { list-style:none; margin:0; padding:8px 10px; display:grid; gap:8px; }
+.dash-cal a {
+    display:flex; align-items:center; gap:12px; padding:10px;
+    border:1px solid var(--dash-line); border-radius:12px;
+    background:var(--dash-surface-raised);
+    text-decoration:none; color:inherit;
+    transition:border-color .16s, background .16s;
+}
+.dash-cal a:hover { border-color:rgba(91,140,255,.45); }
+.dash-cal-date {
+    flex:none; display:grid; place-items:center; align-content:center; width:44px; height:44px;
+    border-radius:11px; background:rgba(77,143,240,.13); color:var(--bcp-cyan-400, #62c9f5); line-height:1.1;
+}
+.dash-cal-date .dc-d { font-size:.95rem; font-weight:800; }
+.dash-cal-date .dc-m { font-size:.56rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-top:2px; }
+.dash-cal-body { min-width:0; flex:1; }
+.dash-cal-title { color:var(--dash-text); font-size:.8rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dash-cal-meta { color:var(--dash-muted); font-size:.68rem; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ── Narrow screens: keep every dashboard readable without overflow ── */
+@media (max-width:900px) {
+    .dash-status-band { gap:10px 14px; }
+    .dash-band-action { margin-left:0; flex:1 1 100%; }
+    .dash-band-action .btn { width:100%; justify-content:center; }
+}
+@media (max-width:560px) {
+    .dash-outcome-row { padding:0 14px 14px; }
+}

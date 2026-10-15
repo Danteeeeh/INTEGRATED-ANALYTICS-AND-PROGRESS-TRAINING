@@ -80,18 +80,28 @@ class AppServiceProvider extends ServiceProvider
 
         if ($sessionDbBacked && ! $dbReachable) {
             $fallback = env('SESSION_FALLBACK_DRIVER', 'file');
+            logger()->warning('Database is unreachable; falling back to the "'.$fallback.'" session driver.', [
+                'configured_driver' => $sessionDriver,
+            ]);
             $this->app['config']->set('session.driver', $fallback);
         }
 
         if ($cacheDbBacked && ! $dbReachable) {
             $fallback = env('CACHE_FALLBACK_STORE', 'file');
+            logger()->warning('Database is unreachable; falling back to the "'.$fallback.'" cache store.', [
+                'configured_store' => $cacheDefault,
+            ]);
             $this->app['config']->set('cache.default', $fallback);
         }
     }
 
     private function isDatabaseReachable(): bool
     {
-        $defaultConn = env('DB_CONNECTION', 'mysql');
+        // Read the resolved configuration, not env(). Once `config:cache` has
+        // run (the production/HostForge release step) dotenv is no longer
+        // loaded, so env() would return null here and this probe would test the
+        // wrong connection, silently downgrading sessions/cache to "file".
+        $defaultConn = $this->app['config']->get('database.default', 'mysql');
         $config = $this->app['config']->get("database.connections.$defaultConn");
         if (! is_array($config)) {
             return false;

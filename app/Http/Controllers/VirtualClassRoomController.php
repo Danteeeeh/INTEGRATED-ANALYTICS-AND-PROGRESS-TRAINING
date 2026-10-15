@@ -106,6 +106,13 @@ class VirtualClassRoomController extends Controller
         ]);
     }
 
+    /**
+     * Issue a short-lived LiveKit JWT. Rate limiting lives on the two token
+     * routes (`throttle:20,1` on instructor + student POST /token) — that
+     * middleware is sufficient, so this method does not add a second in-app
+     * quota check. (Only two token endpoints exist; there is no admin/AA
+     * token route.)
+     */
     private function issueToken(User $user, VirtualClass $virtualClass, LiveKitTokenService $tokens): JsonResponse
     {
         $this->assertLiveKitRoomOpen($virtualClass);

@@ -8,6 +8,7 @@ use App\Models\VirtualClass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Str;
 
 class VirtualClassController extends Controller
 {
@@ -35,21 +36,10 @@ class VirtualClassController extends Controller
 
         abort_if($class->instructor_id !== auth()->id(), 403);
 
-        $providers = [
-            VirtualClass::PROVIDER_ZOOM => 'Zoom',
-            VirtualClass::PROVIDER_GOOGLE_MEET => 'Google Meet',
-            VirtualClass::PROVIDER_MICROSOFT_TEAMS => 'Microsoft Teams',
-            VirtualClass::PROVIDER_OTHER => 'Other',
-        ];
-
-        $statusOptions = [
-            VirtualClass::STATUS_SCHEDULED => 'Scheduled',
-            VirtualClass::STATUS_ONGOING => 'Ongoing',
-            VirtualClass::STATUS_COMPLETED => 'Completed',
-            VirtualClass::STATUS_CANCELLED => 'Cancelled',
-        ];
-
-        return view('instructor.virtual_classes.create', compact('class', 'providers', 'statusOptions'));
+        // Built-in Virtual Classroom (LiveKit) is the only workflow — the
+        // provider is forced on the server at store() time, so the form only
+        // edits the schedule. No legacy provider/status pickers here.
+        return view('instructor.virtual_classes.create', compact('class'));
     }
 
     public function store(Request $request, ClassModel $class): RedirectResponse
@@ -64,12 +54,21 @@ class VirtualClassController extends Controller
             'meeting_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
-            'meeting_provider' => 'required|string|in:zoom,google_meet,microsoft_teams,other',
-            'meeting_url' => 'nullable|url',
-            'meeting_id' => 'nullable|string|max:255',
-            'meeting_password' => 'nullable|string|max:255',
-            'status' => 'required|string|in:scheduled,ongoing,completed,cancelled',
+            'status' => 'sometimes|string|in:scheduled,ongoing,completed,cancelled',
         ]);
+
+        // The built-in form always schedules; any caller-supplied status is
+        // clamped to scheduled so a class cannot be created already-live.
+        $validated['status'] = VirtualClass::STATUS_SCHEDULED;
+
+        // Built-in Virtual Classroom (LiveKit) is the only workflow — the
+        // instructor hosts from inside the LMS and students join from their
+        // course page. No external provider links for new classes.
+        $validated['meeting_provider'] = VirtualClass::PROVIDER_LIVEKIT;
+        $validated['livekit_room_name'] = 'lms-class-'.$class->id.'-'.Str::lower(Str::random(20));
+        $validated['meeting_url'] = null;
+        $validated['meeting_id'] = null;
+        $validated['meeting_password'] = null;
 
         $validated['course_id'] = $class->course_id;
         $validated['class_id'] = $class->id;
@@ -97,12 +96,73 @@ class VirtualClassController extends Controller
         return view('instructor.virtual_classes.show', compact('class', 'virtualClass'));
     }
 
+    public function edit(ClassModel $class, VirtualClass $virtualClass): View
+    {
+        $this->authorize('update', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+
+        // Only an upcoming (scheduled) class can be edited or rescheduled.
+        abort_unless($virtualClass->status === VirtualClass::STATUS_SCHEDULED, 403, 'Only scheduled virtual classes can be edited.');
+
+        return view('instructor.virtual_classes.edit', compact('class', 'virtualClass'));
+    }
+
+    public function update(Request $request, ClassModel $class, VirtualClass $virtualClass): RedirectResponse
+    {
+        $this->authorize('update', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+        abort_unless($virtualClass->status === VirtualClass::STATUS_SCHEDULED, 403, 'Only scheduled virtual classes can be updated.');
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'meeting_date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+        ]);
+
+        // Built-in Virtual Classroom only: keep the provider and the generated
+        // room name untouched (never let the client re-point the room).
+        $validated['meeting_provider'] = $virtualClass->meeting_provider ?: VirtualClass::PROVIDER_LIVEKIT;
+
+        $virtualClass->update($validated);
+
+        return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
+            ->with('success', 'Virtual class updated successfully.');
+    }
+
+    public function cancel(ClassModel $class, VirtualClass $virtualClass): RedirectResponse
+    {
+        $this->authorize('update', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+
+        if (! $virtualClass->canCancel()) {
+            return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
+                ->with('error', 'This virtual class cannot be cancelled in its current state.');
+        }
+
+        $virtualClass->update(['status' => VirtualClass::STATUS_CANCELLED]);
+
+        return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
+            ->with('success', 'Virtual class cancelled.');
+    }
+
     public function start(ClassModel $class, VirtualClass $virtualClass): RedirectResponse
     {
         $this->authorize('update', $virtualClass);
 
         abort_if($class->instructor_id !== auth()->id(), 403);
         abort_if($virtualClass->class_id !== $class->id, 404);
+
+        // A class can only be started from Scheduled and before its end time
+        // — a completed or cancelled class cannot be force-reopened.
+        abort_unless($virtualClass->canStart(), 403, 'This virtual class cannot be started in its current state.');
 
         $virtualClass->update(['status' => VirtualClass::STATUS_ONGOING]);
 
@@ -112,7 +172,8 @@ class VirtualClassController extends Controller
 
     /**
      * Manually close the meeting (the instructor-driven equivalent of the
-     * automatic close that fires once the end time passes).
+     * automatic close that fires once the end time passes). Only a live
+     * (ongoing) class can be closed this way.
      */
     public function end(ClassModel $class, VirtualClass $virtualClass): RedirectResponse
     {

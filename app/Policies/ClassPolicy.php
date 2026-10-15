@@ -122,39 +122,6 @@ class ClassPolicy
         return false;
     }
 
-    public function enroll(User $user, ClassModel $class): bool
-    {
-        // Only students can enroll
-        if (! $user->isStudent()) {
-            return false;
-        }
-
-        // Student cannot enroll if already enrolled
-        if (Enrollment::where('student_id', $user->id)->where('class_id', $class->id)->where('status', '!=', 'dropped')->exists()) {
-            return false;
-        }
-
-        // Class must be active
-        if (! $class->is_active) {
-            return false;
-        }
-
-        // Class must not be full
-        if ($class->isFull()) {
-            return false;
-        }
-
-        return true;
-    }
-
-    public function drop(User $user, ClassModel $class): bool
-    {
-        // Only students can drop their own enrollment
-        if (! $user->isStudent()) {
-            return false;
-        }
-
-        // Student must be enrolled in the class
-        return Enrollment::where('student_id', $user->id)->where('class_id', $class->id)->where('status', '!=', 'dropped')->exists();
-    }
+    // Student self-enrollment and self-drop were removed: enrollment arrives
+    // via the Super Admin's "Sync from AA" (AA = source of truth).
 }

@@ -322,7 +322,7 @@
     <div class="cls-card">
         <div class="cls-card-head">
             <h4><i class="fa-solid fa-user-graduate"></i> Enrolled Students ({{ $enrolledCount }})</h4>
-            <a href="{{ route('instructor.enrollments.create') }}" class="view-link"><i class="fa-solid fa-plus"></i> Enroll student</a>
+            {{-- "Enroll student" tinanggal: enrollment galing na sa AA sync. --}}
         </div>
         @if($enrollments->isNotEmpty())
             <div class="cls-table-wrap">
@@ -366,11 +366,9 @@
                                     @endif
                                 </td>
                                 <td class="actions-cell" style="white-space:nowrap;">
+                                    {{-- View lang — ang enrollment ay hawak ng AA sync. --}}
                                     <a href="{{ route('instructor.enrollments.show', $enrollment) }}" class="btn-icon btn-view" title="View">
                                         <i class="fa-solid fa-eye"></i>
-                                    </a>
-                                    <a href="{{ route('instructor.enrollments.edit', $enrollment) }}" class="btn-icon btn-edit" title="Edit">
-                                        <i class="fa-solid fa-pen-to-square"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -382,9 +380,7 @@
             <div class="cls-empty">
                 <i class="fa-solid fa-user-graduate"></i>
                 No students enrolled in this class yet.
-                <div style="margin-top:12px;">
-                    <a href="{{ route('instructor.enrollments.create') }}" style="color:#a78bfa;text-decoration:underline;font-weight:650;">Enroll a student</a>
-                </div>
+                {{-- Ang enrollment ay galing na sa AA sync (Super Admin → Sync from AA). --}}
             </div>
         @endif
     </div>

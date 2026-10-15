@@ -1,6 +1,6 @@
 @php
     /**
-     * Printable academic record for the registrar's office.
+     * Printable academic record for the Academic Affairs (AA).
      *
      * Deliberately standalone — no admin chrome, no sidebar — because this is
      * the sheet that gets printed, signed and filed.
@@ -86,7 +86,7 @@
     <div class="sheet">
         <header class="head">
             <h1>Academic Record</h1>
-            <p>Official transcript for the registrar's office &middot; generated {{ $printedAt }}</p>
+            <p>Official transcript for the Academic Affairs (AA) &middot; generated {{ $printedAt }}</p>
         </header>
 
         <dl class="meta">
@@ -189,7 +189,7 @@
             <div>
                 <div class="line"></div>
                 <div class="who">Noted by</div>
-                College Registrar
+                Academic Affairs
             </div>
             <div>
                 <div class="line"></div>

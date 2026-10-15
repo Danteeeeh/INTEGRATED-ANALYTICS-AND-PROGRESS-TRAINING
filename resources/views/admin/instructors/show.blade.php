@@ -60,17 +60,8 @@
                     <div>{{ $instructor->section?->name ?? '—' }}@if($instructor->section?->code) ({{ $instructor->section->code }})@endif</div>
                 </div>
                 <div class="form-field full">
-                    <label>Assign Section</label>
-                    <form method="POST" action="{{ route('admin.instructors.assign-section', $instructor) }}" style="display:inline-flex;gap:8px;align-items:center">
-                        @csrf
-                        <select name="section_id" style="padding:6px 10px;border:1px solid var(--dash-line,#dce4f0);border-radius:8px;font-size:.78rem">
-                            <option value="">No Section</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->id }}" @selected($instructor->section_id === $section->id)>{{ $section->name }} ({{ $section->code }}) — {{ $section->program?->code ?? '—' }}</option>
-                            @endforeach
-                        </select>
-                        <button type="submit" class="btn btn-primary" style="padding:6px 14px;font-size:.75rem"><i class="fa-solid fa-check"></i> Save</button>
-                    </form>
+                    <label>Section Changes</label>
+                    <div style="color:#64748b;font-size:.8rem;">Handled by Sync from AA — faculty section assignment is authoritative in AA.</div>
                 </div>
                 <div class="form-field">
                     <label>Instructor ID</label>
@@ -127,50 +118,14 @@
 
     <div class="user-panel">
         <div class="user-panel-head">
-            <h3><i class="fa-solid fa-chalkboard-user"></i> Assign Classes</h3>
-            <span class="user-status active">Check classes to assign</span>
+            <h3><i class="fa-solid fa-chalkboard-user"></i> Class Assignments</h3>
         </div>
         <div class="user-panel-body">
-            <form method="POST" action="{{ route('admin.instructors.assign-classes', $instructor) }}">
-                @csrf
-                @if($availableClasses->count() > 0)
-                    <div class="user-table-wrap">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th style="width:40px"></th>
-                                    <th>Class</th>
-                                    <th>Course</th>
-                                    <th>Schedule</th>
-                                    <th>Period</th>
-                                    <th>Current Instructor</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($availableClasses as $class)
-                                    <tr>
-                                        <td><input type="checkbox" name="class_ids[]" value="{{ $class->id }}" @checked($class->instructor_id === $instructor->id)></td>
-                                        <td><strong>{{ $class->code }}</strong></td>
-                                        <td>{{ $class->course?->title ?? '—' }}</td>
-                                        <td>{{ $class->schedule ?? '—' }}@if($class->room) · {{ $class->room }}@endif</td>
-                                        <td>{{ $class->academicPeriod?->name ?? '—' }}</td>
-                                        <td>{{ $class->instructor?->full_name ?? 'Unassigned' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Save Assignments</button>
-                    </div>
-                @else
-                    <x-user-empty-state
-                        icon="fa-chalkboard-user"
-                        title="No classes available"
-                        description="Create classes first, then assign them here."
-                    />
-                @endif
-            </form>
+            <div style="padding:16px;display:flex;align-items:center;gap:10px;font-size:.85rem;color:#475569;flex-wrap:wrap;">
+                <i class="fa-solid fa-circle-info" style="color:#0ea5e9"></i>
+                <span>Class assignment comes from <strong>Sync from AA</strong> — faculty-to-course assignments are authoritative in AA.</span>
+                <a href="{{ route('admin.aa-sync.index') }}" style="color:#0ea5e9;font-weight:700;text-decoration:underline;">Go to Sync from AA</a>
+            </div>
         </div>
     </div>
 

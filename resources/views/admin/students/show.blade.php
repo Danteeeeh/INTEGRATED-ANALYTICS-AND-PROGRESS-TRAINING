@@ -18,18 +18,7 @@
         <div class="modal-row"><span>Department:</span><span>{{ $student->department->name ?? '—' }}</span></div>
         <div class="modal-row"><span>Program:</span><span>{{ $student->program->name ?? '—' }}</span></div>
         <div class="modal-row"><span>Section:</span><span>{{ $student->section->name ?? '—' }}@if($student->section?->code) ({{ $student->section->code }})@endif</span></div>
-        <div class="modal-row"><span>Assign Section:</span><span>
-            <form method="POST" action="{{ route('admin.students.assign-section', $student) }}" style="display:inline-flex;gap:8px;align-items:center">
-                @csrf
-                <select name="section_id" style="padding:6px 10px;border:1px solid var(--dash-line,#dce4f0);border-radius:8px;font-size:.78rem">
-                    <option value="">No Section</option>
-                    @foreach($sections as $section)
-                        <option value="{{ $section->id }}" @selected($student->section_id === $section->id)>{{ $section->name }} ({{ $section->code }}) — {{ $section->program?->code ?? '—' }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="btn-add" style="padding:6px 14px;font-size:.75rem"><i class="fa-solid fa-check"></i> Save</button>
-            </form>
-        </span></div>
+        <div class="modal-row"><span>Section Changes:</span><span style="color:#64748b;font-size:.8rem;">Handled by Sync from AA — see the notice below.</span></div>
         <div class="modal-row"><span>Status:</span><span>
             @if($student->status === 'active')
                 <span class="badge-active">Active</span>
@@ -87,8 +76,15 @@
 
     <div class="crud-card" style="margin: 16px 24px 0;">
         <div class="crud-header">
-            <h3><i class="fa-solid fa-user-graduate"></i> Assign Classes</h3>
+            <h3><i class="fa-solid fa-user-graduate"></i> Class Assignments</h3>
         </div>
+        <div style="padding:16px;display:flex;align-items:center;gap:10px;font-size:.85rem;color:#475569;flex-wrap:wrap;">
+            <i class="fa-solid fa-circle-info" style="color:#0ea5e9"></i>
+            <span>Galing na sa <strong>Sync from AA</strong> ang class assignment — hindi na manual.</span>
+            <a href="{{ route('admin.aa-sync.index') }}" style="color:#0ea5e9;font-weight:700;text-decoration:underline;">Pumunta sa Sync from AA</a>
+        </div>
+        {{-- Assign-classes form retired from the admin UI (enrollment now comes
+             from Sync from AA). The route and controller method were removed too.
         <form method="POST" action="{{ route('admin.students.assign-classes', $student) }}">
             @csrf
             <div style="padding:16px;">
@@ -116,6 +112,7 @@
                 </div>
             </div>
         </form>
+        </div> --}}
     </div>
 
     <div style="margin: 0 24px 24px;">

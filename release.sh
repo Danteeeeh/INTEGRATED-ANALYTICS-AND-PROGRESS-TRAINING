@@ -27,9 +27,10 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Clear expired sessions and cache
+# Clear the application cache.
+# (`php artisan session:clear` used to be here; no such command exists, so it
+# printed an error on every release.)
 php artisan cache:clear
-php artisan session:clear
 
 # Set proper permissions
 chmod -R 775 storage bootstrap/cache

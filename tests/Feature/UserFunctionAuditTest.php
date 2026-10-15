@@ -94,7 +94,6 @@ class UserFunctionAuditTest extends TestCase
             ['GET', '/instructor/courses', 'instructor'],
             ['GET', '/instructor/classes', 'instructor'],
             ['GET', '/instructor/enrollments', 'instructor'],
-            ['GET', '/instructor/enrollments/create', 'instructor'],
 
             // --- student ---
             ['GET', '/student/dashboard', 'student'],

@@ -100,7 +100,7 @@ class SubjectController extends Controller
         $this->authorizeSubjectAccess($user, $class, true);
 
         // Verifying a subject whose grades are still incomplete would hand the
-        // registrar a record that is wrong on arrival, so it is refused with a
+        // Academic Affairs a record that is wrong on arrival, so it is refused with a
         // reason instead of silently allowed.
         $report = $this->subjects->scoreAvailability($class);
 

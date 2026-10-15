@@ -21,6 +21,12 @@ class VirtualClass extends Model
 
     public const PROVIDER_OTHER = 'other';
 
+    /**
+     * LMS-hosted video classroom provider. The LiveKit room name is assigned
+     * only by the server when a virtual class is created or migrated.
+     */
+    public const PROVIDER_LIVEKIT = 'livekit';
+
     public const STATUS_SCHEDULED = 'scheduled';
 
     public const STATUS_ONGOING = 'ongoing';
@@ -42,9 +48,18 @@ class VirtualClass extends Model
         'meeting_url',
         'meeting_id',
         'meeting_password',
+        'livekit_room_name',
         'recurrence',
         'status',
         'created_by',
+    ];
+
+    /**
+     * The server-generated LiveKit room name must never leak into API/JSON
+     * serialization — it is the room-access secret (master prompt §12).
+     */
+    protected $hidden = [
+        'livekit_room_name',
     ];
 
     protected function casts(): array
@@ -166,9 +181,17 @@ class VirtualClass extends Model
         return $this->status === self::STATUS_SCHEDULED && ! $this->hasEnded();
     }
 
+    public function canCancel(): bool
+    {
+        return in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true) && ! $this->hasEnded();
+    }
+
     public function canEnd(): bool
     {
-        return in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true);
+        // Only a live class can be closed by the instructor. A mere scheduled
+        // class must be Started first — ending it directly would skip the
+        // session entirely.
+        return $this->status === self::STATUS_ONGOING && ! $this->hasEnded();
     }
 
     /**

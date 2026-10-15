@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Admin Dashboard')
+@section('title', 'Super Admin Dashboard')
 @php
     $activeNav = 'dashboard';
     $pageTitle = 'Dashboard';
@@ -11,7 +11,7 @@
 @endphp
 
 @section('content')
-<div class="user-page">
+<div class="user-page dash-polish">
     {{-- ═══ HERO ═══ --}}
     <x-user-page-header
         title="Good day, {{ auth()->user()->name ?? 'Admin User' }}"
@@ -30,6 +30,8 @@
             <span><i class="fa-solid fa-database"></i> {{ $stats['database_status'] ?? 'Connected' }}</span>
         </x-slot>
         <x-slot name="actions">
+            {{-- Primary Super Admin action (Section 6): prominent Sync from AA. --}}
+            <a href="{{ route('admin.aa-sync.index') }}" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Sync from AA</a>
             <a href="{{ route('admin.users.index') }}" class="btn btn-secondary"><i class="fa-solid fa-users"></i> Manage users</a>
             <a href="{{ route('admin.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-book-open"></i> View courses</a>
         </x-slot>
@@ -45,18 +47,18 @@
             footer="{{ $stats['pending_users'] ?? 0 }} pending accounts"
         />
         <x-user-stat-card
-            label="Instructors"
+            label="Faculty"
             value="{{ $stats['total_instructors'] ?? 0 }}"
             icon="fa-chalkboard-user"
             trend="{{ $stats['total_admins'] ?? 0 }} admins"
             footer="{{ $stats['active_users'] ?? 0 }} active users total"
         />
         <x-user-stat-card
-            label="Classes"
-            value="{{ $stats['total_classes'] ?? 0 }}"
-            icon="fa-school"
-            trend="{{ $stats['active_classes'] ?? 0 }} active"
-            footer="{{ $stats['total_courses'] ?? 0 }} courses"
+            label="Courses"
+            value="{{ $stats['total_courses'] ?? 0 }}"
+            icon="fa-book"
+            trend="{{ $stats['published_courses'] ?? 0 }} published"
+            footer="{{ $stats['total_classes'] ?? 0 }} classes"
         />
         <x-user-stat-card
             label="Active Enrollments"
@@ -65,6 +67,159 @@
             trend="{{ ($stats['pending_enrollments'] ?? 0) > 0 ? 'Pending review' : 'Healthy' }}"
             footer="{{ $stats['pending_enrollments'] ?? 0 }} pending"
         />
+    </div>
+
+    {{-- ═══ AA SYNC STATUS (main Super Admin action) ═══ --}}
+    <div class="dash-section">
+        <div>
+            <h3><i class="fa-solid fa-rotate"></i> AA Synchronization</h3>
+            <span class="dash-section-kicker">AA ang source of truth ng enrollment at official records</span>
+        </div>
+        <a href="{{ route('admin.aa-sync.index') }}" class="btn btn-secondary"><i class="fa-solid fa-clock-rotate-left"></i> Sync history & errors</a>
+    </div>
+    <section class="dash-panel">
+        <div class="dash-status-band">
+            <div class="dash-band-item">
+                <span class="dash-band-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                <div>
+                    <span class="dash-band-label">Last sync</span>
+                    <span class="dash-band-value">{{ $stats['aa_last_sync'] ? $stats['aa_last_sync']->diffForHumans() : 'Never' }}</span>
+                </div>
+            </div>
+            <div class="dash-band-item">
+                <span class="dash-band-icon"><i class="fa-solid fa-circle-check"></i></span>
+                <div>
+                    <span class="dash-band-label">Status</span>
+                    <span class="dash-band-value">{{ $stats['aa_last_sync_status'] ? ucfirst($stats['aa_last_sync_status']) : 'No sync' }} · {{ $aaConnected ? 'AA reachable' : 'AA unreachable' }}</span>
+                </div>
+            </div>
+            <div class="dash-band-item">
+                <span class="dash-band-icon"><i class="fa-solid fa-database"></i></span>
+                <div>
+                    <span class="dash-band-label">Last changes</span>
+                    <span class="dash-band-value">{{ $stats['aa_last_sync_created'] ?? 0 }} new · {{ $stats['aa_last_sync_updated'] ?? 0 }} updated · {{ $stats['aa_last_sync_skipped'] ?? 0 }} skipped</span>
+                </div>
+            </div>
+            <div class="dash-band-item">
+                <span class="dash-band-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <div>
+                    <span class="dash-band-label">Failures</span>
+                    <span class="dash-band-value">{{ $stats['aa_last_sync_failed'] ?? 0 }} failed records · {{ $stats['aa_sync_failed_count'] ?? 0 }} failed runs</span>
+                </div>
+            </div>
+            <div class="dash-band-action">
+                <a href="{{ route('admin.aa-sync.index') }}" class="btn btn-primary"><i class="fa-solid fa-rotate"></i> Sync from AA</a>
+            </div>
+        </div>
+        <div class="dash-outcome-row">
+            <span class="dash-outcome d-ok"><i class="fa-solid fa-circle-check"></i> {{ ($stats['aa_last_sync_created'] ?? 0) + ($stats['aa_last_sync_updated'] ?? 0) }} records applied</span>
+            <span class="dash-outcome d-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{ $stats['aa_last_sync_skipped'] ?? 0 }} skipped</span>
+            <span class="dash-outcome d-err"><i class="fa-solid fa-circle-exclamation"></i> {{ $stats['aa_last_sync_failed'] ?? 0 }} failed this run</span>
+            <span class="dash-outcome"><i class="fa-solid fa-user-gear"></i> by {{ $stats['aa_last_sync_by'] ?? '—' }}</span>
+        </div>
+    </section>
+
+    {{-- ═══ RECENT SYNC ACTIVITY + QUICK ACCESS / SYSTEM STATUS ═══ --}}
+    <div class="dash-split">
+        <div class="dash-split-main">
+    @if(($stats['aa_sync_recent'] ?? collect())->isNotEmpty())
+        <section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="fa-solid fa-clock-rotate-left"></i> Recent sync activity</h4>
+                <span class="panel-count">{{ count($stats['aa_sync_recent']) }}</span>
+            </div>
+            <table class="crud-table">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>By</th>
+                        <th style="text-align:center;">Status</th>
+                        <th style="text-align:center;">New</th>
+                        <th style="text-align:center;">Updated</th>
+                        <th style="text-align:center;">Skipped</th>
+                        <th style="text-align:center;">Failed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($stats['aa_sync_recent'] as $log)
+                        <tr>
+                            <td>{{ $log->started_at?->format('M j, g:i A') ?? '—' }}</td>
+                            <td>{{ $log->performedBy?->name ?? 'system' }}</td>
+                            <td style="text-align:center;">
+                                <span class="badge badge-{{ $log->status === 'success' ? 'active' : ($log->status === 'failed' ? 'dropped' : 'pending') }}">
+                                    {{ ucfirst($log->status) }}
+                                </span>
+                            </td>
+                            <td style="text-align:center;">{{ $log->records_created }}</td>
+                            <td style="text-align:center;">{{ $log->records_updated }}</td>
+                            <td style="text-align:center;">{{ $log->records_skipped }}</td>
+                            <td style="text-align:center;">{{ $log->records_failed }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </section>
+        @else
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-clock-rotate-left"></i> Recent sync activity</h4>
+                </div>
+                <ul class="dash-list">
+                    <li class="dash-list-empty"><i class="fa-solid fa-rotate"></i> No sync runs recorded yet — run your first Sync from AA.</li>
+                </ul>
+            </section>
+        @endif
+        </div>
+
+        <div class="dash-split-side">
+            {{-- ═══ QUICK ACCESS ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-bolt"></i> Quick access</h4>
+                </div>
+                <ul class="dash-link-list">
+                    <li><a href="{{ route('admin.courses.index') }}"><i class="fa-solid fa-book-open"></i> Course management <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                    <li><a href="{{ route('admin.aa-sync.index') }}"><i class="fa-solid fa-rotate"></i> Sync logs &amp; errors <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                    <li><a href="{{ route('admin.settings.index') }}"><i class="fa-solid fa-gear"></i> System settings <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                    <li><a href="{{ route('admin.audit_logs.index') }}"><i class="fa-solid fa-file-shield"></i> Audit logs <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                    <li><a href="{{ route('admin.backup.index') }}"><i class="fa-solid fa-floppy-disk"></i> Backup &amp; restore <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                    <li><a href="{{ route('admin.users.index') }}"><i class="fa-solid fa-users"></i> User accounts <span class="dash-link-go">Open <i class="fa-solid fa-arrow-right"></i></span></a></li>
+                </ul>
+            </section>
+
+            {{-- ═══ SYSTEM STATUS ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-server"></i> System status</h4>
+                    <span class="panel-count">{{ ($stats['database_status'] ?? 'connected') === 'connected' ? 'OK' : 'Error' }}</span>
+                </div>
+                <ul class="dash-list">
+                    <li class="dash-list-item">
+                        <span class="dash-list-icon i-green"><i class="fa-solid fa-database"></i></span>
+                        <div class="dash-list-body">
+                            <p class="dash-list-title">Database</p>
+                            <p class="dash-list-sub">AA integration {{ $aaConnected ? 'reachable' : 'unreachable' }}</p>
+                        </div>
+                        <div class="dash-list-meta">
+                            <span class="dash-meta-chip m-green">{{ ucfirst($stats['database_status'] ?? 'Connected') }}</span>
+                        </div>
+                    </li>
+                    @php $storage = $stats['storage_usage'] ?? null; @endphp
+                    @if($storage && ($storage['percentage'] ?? 0) > 0)
+                        <li class="dash-list-item">
+                            <span class="dash-list-icon i-amber"><i class="fa-solid fa-hard-drive"></i></span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">Storage · {{ $storage['used'] }} of {{ $storage['total'] }}</p>
+                                <div class="perf-bar" style="margin-top:7px"><span style="width: {{ min((float) ($storage['percentage'] ?? 0), 100) }}%"></span></div>
+                            </div>
+                            <div class="dash-list-meta">
+                                <span class="dash-meta-chip m-amber">{{ round((float) ($storage['percentage'] ?? 0)) }}%</span>
+                            </div>
+                        </li>
+                    @endif
+                </ul>
+            </section>
+        </div>
     </div>
 
     {{-- ═══ ACADEMIC HEALTH ═══ --}}
@@ -166,7 +321,7 @@
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-users"></i> Recent users</h4>
-                <a href="{{ route('admin.users.index') }}" class="view-all" style="margin:0;padding:4px 9px">View all</a>
+                <a href="{{ route('admin.users.index') }}" class="view-all">View all</a>
             </div>
             <table class="dash-table">
                 <thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead>
@@ -238,7 +393,7 @@
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-user-plus"></i> Recent enrollments</h4>
-                <a href="{{ route('admin.enrollments.index') }}" class="view-all" style="margin:0;padding:4px 9px">View all</a>
+                <a href="{{ route('admin.enrollments.index') }}" class="view-all">View all</a>
             </div>
             <ul class="dash-list">
                 @forelse(($stats['recent_enrollments'] ?? []) as $enrollment)
@@ -262,7 +417,7 @@
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-book-open"></i> Recent courses</h4>
-                <a href="{{ route('admin.courses.index') }}" class="view-all" style="margin:0;padding:4px 9px">View all</a>
+                <a href="{{ route('admin.courses.index') }}" class="view-all">View all</a>
             </div>
             <ul class="dash-list">
                 @forelse(($stats['recent_courses'] ?? []) as $course)
@@ -288,7 +443,7 @@
     <section class="dash-analytics">
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-chart-pie"></i> System Analytics</h4>
-            <a href="{{ route('admin.analytics') }}" class="view-all" style="margin:0;padding:4px 9px"><i class="fa-solid fa-chart-simple"></i> Full analytics</a>
+            <a href="{{ route('admin.analytics') }}" class="view-all"><i class="fa-solid fa-chart-simple"></i> Full analytics</a>
         </div>
         <div class="analytics-content">
             <div class="analytics-grid">
@@ -334,7 +489,7 @@
                     </div>
 
                     @if($enrollmentTotal > 0)
-                        <ul style="list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;font-size:.78rem;">
+                        <ul id="adminEnrollmentLegend" style="list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;font-size:.78rem;">
                             @foreach(['active' => 'Active', 'pending' => 'Pending', 'completed' => 'Completed', 'dropped' => 'Dropped'] as $enrollmentKey => $enrollmentLabel)
                                 @php $enrollmentCount = (int) ($enrollmentBreakdown[$enrollmentKey] ?? 0); @endphp
                                 <li style="display:flex;align-items:center;gap:8px;">
@@ -378,10 +533,8 @@
                 if (!response.ok) throw new Error('Bad status: ' + response.status);
                 const data = await response.json();
                 if (data.success) {
-                    const s = data.data;
-                    // Tiles are server-rendered; update the numeric spans where present
-                    const activeEl = document.querySelector('.dash-stat .trend-chip');
-                    console.log('Admin stats refreshed:', s);
+                    // Stat tiles are server-rendered; this poll keeps the
+                    // dashboard's cached stats warm so numbers stay current.
                 }
             } catch (error) {
                 console.error('Error fetching admin real-time stats:', error);
@@ -394,10 +547,20 @@
             if (adminCharts[id]) { adminCharts[id].destroy(); delete adminCharts[id]; }
         }
 
+        // Palette-safe chart text colours. These are the exact values the
+        // --dash-* tokens already hold for each theme (dark default / light
+        // mode), so charts stay readable after the theme flip without
+        // introducing any new colour.
+        const isLightTheme = document.body.classList.contains('light-mode');
+        const CHART_TICK = isLightTheme ? '#5f708c' : '#98a7c4';
+        const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
+        const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
+        const CHART_SLICE_BORDER = isLightTheme ? '#ffffff' : '#151c2c';
+
         function adminChartOptions() {
             return {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { color: '#c7d4ec', boxWidth: 12, padding: 12 } } }
+                plugins: { legend: { position: 'bottom', labels: { color: CHART_TEXT, boxWidth: 12, padding: 12 } } }
             };
         }
 
@@ -466,7 +629,7 @@
                                 datasets: [{
                                     data: statusCounts.map(function (s) { return s.count; }),
                                     backgroundColor: statusCounts.map(function (s) { return ENROLLMENT_COLOURS[s.key]; }),
-                                    borderColor: '#151c2c', borderWidth: 2
+                                    borderColor: CHART_SLICE_BORDER, borderWidth: 2
                                 }]
                             },
                             options: adminChartOptions()
@@ -490,8 +653,8 @@
                             responsive: true, maintainAspectRatio: false,
                             plugins: { legend: { display: false } },
                             scales: {
-                                y: { beginAtZero: true, ticks: { precision: 0, color: '#98a7c4' }, grid: { color: 'rgba(153,174,214,.12)' } },
-                                x: { grid: { display: false }, ticks: { color: '#c7d4ec' } }
+                                y: { beginAtZero: true, ticks: { precision: 0, color: CHART_TICK }, grid: { color: CHART_GRID } },
+                                x: { grid: { display: false }, ticks: { color: CHART_TEXT } }
                             }
                         }
                     });
@@ -505,7 +668,7 @@
                         data: {
                             labels: ['Admins', 'Instructors', 'Students'],
                             datasets: [{ data: [d.users_by_role.admins, d.users_by_role.instructors, d.users_by_role.students],
-                                backgroundColor: ['#62c9f5', '#8b5cf6', '#34d399'], borderColor: '#151c2c', borderWidth: 2 }]
+                                backgroundColor: ['#62c9f5', '#8b5cf6', '#34d399'], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
                         },
                         options: adminChartOptions()
                     });
@@ -519,7 +682,7 @@
                         data: {
                             labels: ['Present', 'Absent', 'Late'],
                             datasets: [{ data: [d.attendance.present, d.attendance.absent, d.attendance.late],
-                                backgroundColor: ['#34d399', '#fb7185', '#fbbf24'], borderColor: '#151c2c', borderWidth: 2 }]
+                                backgroundColor: ['#34d399', '#fb7185', '#fbbf24'], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
                         },
                         options: adminChartOptions()
                     });
@@ -529,7 +692,7 @@
     </script>
 
     <style>
-        .dash-analytics { margin: 30px 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
+        .dash-analytics { margin: 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
         .dash-analytics .dash-panel-head { padding: 0 0 16px; border-bottom: 1px solid var(--dash-line, rgba(153,174,214,.18)); margin-bottom: 20px; }
         .analytics-content { margin-top: 20px; }
         .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }

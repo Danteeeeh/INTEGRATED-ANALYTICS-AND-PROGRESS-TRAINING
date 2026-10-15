@@ -24,7 +24,7 @@
         icon="{{ $feature && isset($featureMeta[$feature]) ? $featureMeta[$feature]['icon'] : 'fa-book' }}"
     >
         <x-slot name="actions">
-            <a href="{{ route('student.classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-school"></i> My Classes</a>
+            <a href="{{ route('student.dashboard') }}" class="btn btn-secondary"><i class="fa-solid fa-gauge"></i> Dashboard</a>
         </x-slot>
     </x-user-page-header>
 

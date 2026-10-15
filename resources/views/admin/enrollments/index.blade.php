@@ -17,21 +17,21 @@
 @endsection
 
 @section('content')
+    {{-- Manual enrollment is retired: enrollment comes from "Sync from AA".
+         Ang page na ito ay nakatago na sa nav at view-only na ang dating create
+         entry points. Routes ay buhay pa para sa existing tests. --}}
+    <div style="margin-bottom:14px;padding:12px 16px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.35);border-radius:10px;font-size:.85rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <i class="fa-solid fa-circle-info" style="color:#0ea5e9"></i>
+        <span>Galing na sa <strong>Sync from AA</strong> ang enrollment.</span>
+        <a href="{{ route('admin.aa-sync.index') }}" style="color:#0ea5e9;font-weight:700;text-decoration:underline;">Pumunta sa Sync from AA</a>
+    </div>
+
     <div class="crud-card">
         <div class="crud-header">
-            <h3>All Enrollments</h3>
-            <div style="display:flex;gap:8px;">
-                <a href="{{ route('admin.enrollments.create') }}" class="btn-add">
-                    <i class="fa-solid fa-plus"></i>
-                    New Enrollment
-                </a>
-                <button type="button" onclick="toggleBulkEnroll()" class="btn-add" style="background:linear-gradient(135deg,#8b5cf6,#6366f1);">
-                    <i class="fa-solid fa-users"></i>
-                    Bulk Auto-Enroll
-                </button>
-            </div>
+            <h3>All Enrollments (view only)</h3>
         </div>
 
+        {{-- Bulk auto-enroll retired from the admin UI — enrollment comes from Sync from AA now. Routes and tests remain live; kept commented for reference.
         <div id="bulk-enroll-form" style="display:none;padding:20px;margin-bottom:20px;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(99,102,241,.08));border:1px solid rgba(139,92,246,.3);border-radius:12px;">
             <h4 style="margin:0 0 16px;color:#6366f1;font-size:.95rem;"><i class="fa-solid fa-users-gear"></i> Bulk Auto-Enroll Students</h4>
             <p style="margin:0 0 16px;color:#64748b;font-size:.8rem;">Automatically enroll all active students based on selected criteria. Select at least one filter.</p>
@@ -146,7 +146,7 @@
                     </div>
                 </div>
             @endif
-        </div>
+        </div> --}}
 
         <form class="table-toolbar" method="GET" action="{{ route('admin.enrollments.index') }}">
             <input name="search" value="{{ request('search') }}" placeholder="Search student..." aria-label="Search enrollments">
@@ -226,15 +226,18 @@
                         <td>{{ $enrollment->final_grade ?? '-' }}</td>
                         <td>{{ $enrollment->enrolled_at->format('M d, Y') }}</td>
                         <td class="actions-cell action-buttons">
-                            @if($enrollment->status === 'pending')
+                            {{-- Enrollment management (approve/reject/drop/edit/delete) is
+                                 retired from the admin UI — enrollment now comes from
+                                 "Sync from AA". Routes remain live for tests; kept commented. --}}
+                            <a href="{{ route('admin.enrollments.show', $enrollment) }}" class="btn-icon btn-view" title="View">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+                            {{-- @if($enrollment->status === 'pending')
                                 <form method="POST" action="{{ route('admin.enrollments.approve', $enrollment) }}" class="inline-form">@csrf<button type="submit" class="btn-icon btn-success" title="Approve"><i class="fa-solid fa-check"></i></button></form>
                                 <form method="POST" action="{{ route('admin.enrollments.reject', $enrollment) }}" class="inline-form">@csrf<button type="submit" class="btn-icon btn-danger" title="Reject" onclick="return confirm('Reject this enrollment request?')"><i class="fa-solid fa-xmark"></i></button></form>
                             @elseif(in_array($enrollment->status, ['active', 'completed']))
                                 <form method="POST" action="{{ route('admin.enrollments.drop', $enrollment) }}" class="inline-form">@csrf<button type="submit" class="btn-icon btn-warning" title="Drop" onclick="return confirm('Drop this enrollment?')"><i class="fa-solid fa-user-minus"></i></button></form>
                             @endif
-                            <a href="{{ route('admin.enrollments.show', $enrollment) }}" class="btn-icon btn-view" title="View">
-                                <i class="fa-solid fa-eye"></i>
-                            </a>
                             <a href="{{ route('admin.enrollments.edit', $enrollment) }}" class="btn-icon btn-edit" title="Edit">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
@@ -244,7 +247,7 @@
                                 <button type="submit" class="btn-icon btn-delete" title="Delete" onclick="return confirm('Are you sure you want to delete this enrollment?');">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
-                            </form>
+                            </form> --}}
                         </td>
                     </tr>
                 @empty
@@ -261,13 +264,4 @@
             <div class="pagination">{{ $enrollments->appends(request()->query())->links() }}</div>
         @endif
     </div>
-
-    <script>
-    function toggleBulkEnroll() {
-        const form = document.getElementById('bulk-enroll-form');
-        if (form) {
-            form.style.display = form.style.display === 'none' ? 'block' : 'none';
-        }
-    }
-    </script>
 @endsection

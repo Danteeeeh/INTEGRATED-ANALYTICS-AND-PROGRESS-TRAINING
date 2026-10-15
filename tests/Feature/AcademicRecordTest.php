@@ -228,7 +228,7 @@ class AcademicRecordTest extends TestCase
             ->assertSee('STU-0042', false)
             ->assertSee('Juan', false)
             ->assertSee('Databases', false)
-            ->assertSee('Registrar', false);
+            ->assertSee('Academic Affairs', false);
     }
 
     public function test_record_page_shows_the_gwa(): void

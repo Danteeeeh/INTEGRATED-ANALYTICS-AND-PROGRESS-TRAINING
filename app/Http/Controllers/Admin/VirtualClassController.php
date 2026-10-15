@@ -13,6 +13,7 @@ use App\Models\VirtualClass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Str;
 
 class VirtualClassController extends Controller
 {
@@ -87,13 +88,22 @@ class VirtualClassController extends Controller
             'meeting_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
-            'meeting_provider' => 'required|in:zoom,google_meet,microsoft_teams,other',
-            'meeting_url' => 'nullable|url|max:500',
-            'meeting_id' => 'nullable|string|max:100',
-            'meeting_password' => 'nullable|string|max:255',
             'recurrence' => 'nullable|array',
-            'status' => 'required|in:scheduled,ongoing,completed,cancelled',
+            'status' => 'sometimes|in:scheduled,ongoing,completed,cancelled',
         ]);
+
+        // Built-in Virtual Classroom (LiveKit) is the only workflow — no
+        // external provider links for new classes. Legacy Zoom/Meet/Teams
+        // records keep working untouched.
+        $validated['meeting_provider'] = VirtualClass::PROVIDER_LIVEKIT;
+        $validated['livekit_room_name'] = 'lms-class-'.($validated['class_id'] ?? 'course').'-'.Str::lower(Str::random(20));
+        $validated['meeting_url'] = null;
+        $validated['meeting_id'] = null;
+        $validated['meeting_password'] = null;
+
+        // Built-in form schedules by default; clamp any caller-supplied
+        // status so a class cannot be created already-live.
+        $validated['status'] = VirtualClass::STATUS_SCHEDULED;
 
         $validated['created_by'] = $request->user()->id;
 
@@ -139,13 +149,26 @@ class VirtualClassController extends Controller
             'meeting_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
-            'meeting_provider' => 'required|in:zoom,google_meet,microsoft_teams,other',
-            'meeting_url' => 'nullable|url|max:500',
-            'meeting_id' => 'nullable|string|max:100',
-            'meeting_password' => 'nullable|string|max:255',
             'recurrence' => 'nullable|array',
             'status' => 'required|in:scheduled,ongoing,completed,cancelled',
         ]);
+
+        // Built-in only for new/edited classes; keep the provider as-is when
+        // editing a legacy external record, and never wipe its room name.
+        if ($virtualClass->meeting_provider !== VirtualClass::PROVIDER_LIVEKIT) {
+            $virtualClass->update($validated);
+
+            session()->flash('success', 'Virtual class updated successfully.');
+
+            return redirect()->route('admin.virtual_classes.show', $virtualClass);
+        }
+
+        $validated['meeting_provider'] = VirtualClass::PROVIDER_LIVEKIT;
+        $validated['livekit_room_name'] = $virtualClass->livekit_room_name
+            ?: 'lms-class-'.($validated['class_id'] ?? $virtualClass->class_id ?? 'course').'-'.Str::lower(Str::random(20));
+        $validated['meeting_url'] = null;
+        $validated['meeting_id'] = null;
+        $validated['meeting_password'] = null;
 
         $virtualClass->update($validated);
 

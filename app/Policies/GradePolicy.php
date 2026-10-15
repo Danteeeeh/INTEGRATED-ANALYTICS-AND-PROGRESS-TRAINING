@@ -12,7 +12,7 @@ class GradePolicy
 
     public function viewAny(User $user): bool
     {
-        if ($user->isAdmin() || $user->isInstructor() || $user->isStudent() || $user->isRegistrar()) {
+        if ($user->isAdmin() || $user->isInstructor() || $user->isStudent()) {
             return true;
         }
 

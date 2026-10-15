@@ -7,12 +7,17 @@ use App\Models\AttendanceRecord;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
-use App\Models\Role;
-use App\Models\User;
 use App\Services\GradeService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Enrollment records — READ-ONLY for faculty.
+ *
+ * Enrollment arrives via the Super Admin's "Sync from AA" (AA = source of
+ * truth). Faculty may view their own class rosters and per-student records;
+ * create/edit/delete/status/grade-encoding endpoints were removed.
+ */
 class EnrollmentController extends Controller
 {
     public function index(Request $request): View
@@ -45,61 +50,6 @@ class EnrollmentController extends Controller
         return view('instructor.enrollments.index', compact('enrollments', 'classes', 'gradeSummaries'));
     }
 
-    public function create(): View
-    {
-        $instructorId = auth()->id();
-        $classes = ClassModel::where('instructor_id', $instructorId)
-            ->with('course')
-            ->active()
-            ->orderBy('code')
-            ->get();
-
-        $students = User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))
-            ->where('status', 'active')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get();
-
-        return view('instructor.enrollments.create', compact('classes', 'students'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:users,id',
-            'class_id' => 'required|exists:classes,id',
-            'status' => 'required|in:pending,active,completed,dropped',
-            'notes' => 'nullable|string',
-        ]);
-
-        // Verify the class belongs to the instructor
-        $class = ClassModel::find($validated['class_id']);
-        if ($class->instructor_id !== auth()->id()) {
-            return back()->with('error', 'You can only enroll students in your own classes.');
-        }
-
-        // Check if student is already enrolled in this class
-        $existing = Enrollment::where('student_id', $validated['student_id'])
-            ->where('class_id', $validated['class_id'])
-            ->where('status', '!=', 'dropped')
-            ->first();
-
-        if ($existing) {
-            return back()->with('error', 'Student is already enrolled in this class.');
-        }
-
-        // Check class capacity
-
-        if ($class->isFull()) {
-            return back()->with('error', 'Class is already at full capacity.');
-        }
-
-        Enrollment::create($validated);
-
-        return redirect()->route('instructor.enrollments.index')
-            ->with('status', 'Student enrolled successfully.');
-    }
-
     public function show(Enrollment $enrollment): View
     {
         // Verify the enrollment belongs to instructor's class
@@ -109,7 +59,8 @@ class EnrollmentController extends Controller
 
         $enrollment->load(['student', 'class.course', 'class.academicPeriod']);
 
-        // Grades of this student in this class
+        // LMS assessment grades of this student in this class (LMS scores only —
+        // official grades live in AA).
         $grades = Grade::where('student_id', $enrollment->student_id)
             ->whereHas('item', fn ($q) => $q->where('class_id', $enrollment->class_id))
             ->with('item')
@@ -145,102 +96,5 @@ class EnrollmentController extends Controller
             'attendanceSummary',
             'attendanceRate'
         ));
-    }
-
-    /**
-     * Mark an enrollment as completed (optionally with a final grade).
-     */
-    public function complete(Request $request, Enrollment $enrollment)
-    {
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $validated = $request->validate([
-            'final_grade' => 'nullable|numeric|min:0|max:100',
-        ]);
-
-        $enrollment->markAsCompleted($validated['final_grade'] ?? null);
-
-        return redirect()->route('instructor.enrollments.show', $enrollment)
-            ->with('status', 'Enrollment marked as completed.');
-    }
-
-    /**
-     * Drop an enrollment.
-     */
-    public function drop(Enrollment $enrollment)
-    {
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $enrollment->drop();
-
-        return redirect()->route('instructor.enrollments.show', $enrollment)
-            ->with('status', 'Enrollment dropped.');
-    }
-
-    /**
-     * Re-activate a dropped/pending enrollment.
-     */
-    public function activate(Enrollment $enrollment)
-    {
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $enrollment->update(['status' => 'active']);
-
-        return redirect()->route('instructor.enrollments.show', $enrollment)
-            ->with('status', 'Enrollment re-activated.');
-    }
-
-    public function edit(Enrollment $enrollment): View
-    {
-        // Verify the enrollment belongs to instructor's class
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $enrollment->load(['student', 'class']);
-
-        return view('instructor.enrollments.edit', compact('enrollment'));
-    }
-
-    public function update(Request $request, Enrollment $enrollment)
-    {
-        // Verify the enrollment belongs to instructor's class
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $validated = $request->validate([
-            'status' => 'required|in:pending,active,completed,dropped',
-            'final_grade' => 'nullable|numeric|min:0|max:100',
-            'notes' => 'nullable|string',
-        ]);
-
-        if ($validated['status'] === 'completed' && isset($validated['final_grade'])) {
-            $validated['completed_at'] = now();
-        }
-
-        $enrollment->update($validated);
-
-        return redirect()->route('instructor.enrollments.index')
-            ->with('status', 'Enrollment updated successfully.');
-    }
-
-    public function destroy(Enrollment $enrollment)
-    {
-        // Verify the enrollment belongs to instructor's class
-        if ($enrollment->class->instructor_id !== auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
-
-        $enrollment->delete();
-
-        return redirect()->route('instructor.enrollments.index')
-            ->with('status', 'Enrollment removed successfully.');
     }
 }

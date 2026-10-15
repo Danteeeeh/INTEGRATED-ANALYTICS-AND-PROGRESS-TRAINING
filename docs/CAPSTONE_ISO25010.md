@@ -9,7 +9,7 @@ This table maps the LMS features (existing + new AI features) to the ISO/IEC 250
 
 | Feature | Completeness | Correctness | Appropriateness |
 |---|---|---|---|
-| Role-based access (Admin / Instructor / Student / Registrar) | ✓ | ✓ | ✓ |
+| Role-based access (Super Admin / AA Staff / Faculty / Student) | ✓ | ✓ | ✓ |
 | Course, module, lesson management | ✓ | ✓ | ✓ |
 | Enrollment lifecycle (pending → active → completed/dropped) | ✓ | ✓ | ✓ |
 | Assignment & quiz grading with rubrics | ✓ | ✓ | ✓ |

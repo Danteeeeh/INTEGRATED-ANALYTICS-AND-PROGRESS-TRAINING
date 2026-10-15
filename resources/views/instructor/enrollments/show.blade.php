@@ -25,10 +25,8 @@
                 <i class="fa-solid fa-arrow-left"></i>
                 Back to Enrollments
             </a>
-            <a href="{{ route('instructor.enrollments.edit', $enrollment) }}" class="btn-add">
-                <i class="fa-solid fa-pen-to-square"></i>
-                Edit Enrollment
-            </a>
+            {{-- Edit Enrollment tinanggal: enrollment galing na sa AA sync
+                 (view-only na ang enrollment para sa faculty). --}}
         </div>
     </div>
 @endsection
@@ -427,42 +425,10 @@
             <h4><i class="fa-solid fa-bolt"></i> Quick Actions</h4>
         </div>
         <div class="qa-wrap">
-            @if($enrollment->status === 'active')
-                <form method="POST" action="{{ route('instructor.enrollments.complete', $enrollment) }}" class="qa-form" id="completeForm">
-                    @csrf
-                    <div class="qa-field">
-                        <label>Final Grade (%)</label>
-                        <input type="number" name="final_grade" min="0" max="100" step="0.01" placeholder="e.g. 88.5" value="{{ old('final_grade', $enrollment->final_grade) }}">
-                    </div>
-                    <button type="submit" class="qa-btn qa-complete" onclick="return confirm('Mark this enrollment as completed?')">
-                        <i class="fa-solid fa-graduation-cap"></i>
-                        Mark Completed
-                    </button>
-                </form>
-                <form method="POST" action="{{ route('instructor.enrollments.drop', $enrollment) }}" class="qa-form qa-inline">
-                    @csrf
-                    <button type="submit" class="qa-btn qa-drop" onclick="return confirm('Drop this student from the class?')">
-                        <i class="fa-solid fa-user-slash"></i>
-                        Drop Enrollment
-                    </button>
-                </form>
-            @elseif($enrollment->status === 'pending')
-                <form method="POST" action="{{ route('instructor.enrollments.activate', $enrollment) }}" class="qa-form qa-inline">
-                    @csrf
-                    <button type="submit" class="qa-btn qa-activate">
-                        <i class="fa-solid fa-circle-check"></i>
-                        Approve &amp; Activate
-                    </button>
-                </form>
-            @else
-                <form method="POST" action="{{ route('instructor.enrollments.activate', $enrollment) }}" class="qa-form qa-inline">
-                    @csrf
-                    <button type="submit" class="qa-btn qa-activate">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        Re-activate Enrollment
-                    </button>
-                </form>
-            @endif
+            <div style="padding:14px;display:flex;align-items:center;gap:10px;font-size:.85rem;color:#475569;flex-wrap:wrap;">
+                <i class="fa-solid fa-circle-info" style="color:#0ea5e9"></i>
+                <span>Enrollment status, completion and dropping are owned by <strong>Sync from AA</strong> — faculty review progress only.</span>
+            </div>
         </div>
     </div>
 

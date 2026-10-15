@@ -27,7 +27,7 @@ This is likely causing the "Unknown database" error.
 - ✅ `APP_ENV=production`
 - ✅ `APP_DEBUG=false`
 - ✅ `APP_URL=https://lms-lms-2.hostforgeplatforms.com`
-- ✅ `APP_KEY=base64:5zVdQlTGbey23ciopMvaZC/TFhPiHgOxAw4sIKqK3DE=`
+- ⚠️ `APP_KEY=<set as a HostForge secret>` — never commit the value. A real key was previously written into this file, so **rotate it** (`php artisan key:generate` on a copy) and treat the old value as exposed.
 - ✅ `APP_NAME=LMS`
 
 ### Session & Cache
@@ -65,7 +65,6 @@ This will run the release.sh script which includes:
 - php artisan route:cache
 - php artisan view:cache
 - php artisan cache:clear
-- php artisan session:clear
 - chmod -R 775 storage bootstrap/cache (permissions)
 
 ### 2. Build Command

@@ -130,6 +130,7 @@ class LoginController extends Controller
     {
         return match ($roleSlug) {
             Role::ADMIN => route('admin.dashboard'),
+            Role::AA_STAFF => route('aa.dashboard'),
             Role::INSTRUCTOR => route('instructor.dashboard'),
             Role::STUDENT => route('student.dashboard'),
             default => '/login',

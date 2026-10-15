@@ -7,12 +7,10 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\ClassModel;
 use App\Models\Department;
-use App\Models\Enrollment;
 use App\Models\Program;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +33,7 @@ class StudentController extends Controller
 
     public function create(): View
     {
-        $roles = Role::assignable()->orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -62,37 +60,11 @@ class StudentController extends Controller
 
         $student = User::create($validated);
 
-        // Auto-enroll student in classes for their section
-        if ($student->section_id) {
-            $classes = ClassModel::where('section_id', $student->section_id)
-                ->where('status', 'active')
-                ->get();
-
-            foreach ($classes as $class) {
-                // Check if class is full
-                if ($class->isFull()) {
-                    continue;
-                }
-
-                // Check if already enrolled
-                $existing = Enrollment::where('student_id', $student->id)
-                    ->where('class_id', $class->id)
-                    ->where('status', '!=', 'dropped')
-                    ->first();
-
-                if (!$existing) {
-                    Enrollment::create([
-                        'student_id' => $student->id,
-                        'class_id' => $class->id,
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                    ]);
-                }
-            }
-        }
+        // Enrollment is authoritative in AA: the LMS does not enroll students itself.
+        // Records arrive through the Super Admin's "Sync from AA" (AaSyncService).
 
         return redirect()->route('admin.students.index')
-            ->with('status', 'Student created and automatically enrolled in section classes.');
+            ->with('status', 'Student account created. Enrollments sync from AA.');
     }
 
     public function show(User $student): View
@@ -109,7 +81,7 @@ class StudentController extends Controller
 
     public function edit(User $student): View
     {
-        $roles = Role::assignable()->orderBy('name')->get();
+        $roles = Role::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         $programs = Program::with('department')->orderBy('name')->get();
         $sections = Section::with('program')->orderBy('name')->get();
@@ -139,39 +111,9 @@ class StudentController extends Controller
             $validated[$field] = $request->filled($field) ? $request->input($field) : null;
         }
 
-        $oldSectionId = $student->section_id;
-        $newSectionId = $validated['section_id'] ?? null;
-
         $student->update($validated);
 
-        // Auto-enroll in new section's classes if section changed
-        if ($newSectionId && $newSectionId !== $oldSectionId) {
-            $classes = ClassModel::where('section_id', $newSectionId)
-                ->where('status', 'active')
-                ->get();
-
-            foreach ($classes as $class) {
-                // Check if class is full
-                if ($class->isFull()) {
-                    continue;
-                }
-
-                // Check if already enrolled
-                $existing = Enrollment::where('student_id', $student->id)
-                    ->where('class_id', $class->id)
-                    ->where('status', '!=', 'dropped')
-                    ->first();
-
-                if (!$existing) {
-                    Enrollment::create([
-                        'student_id' => $student->id,
-                        'class_id' => $class->id,
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                    ]);
-                }
-            }
-        }
+        // A section change does not create or move enrollments: those come from AA.
 
         return redirect()->route('admin.students.index')
             ->with('status', 'Student updated successfully.');
@@ -189,130 +131,6 @@ class StudentController extends Controller
 
         return redirect()->route('admin.students.index')
             ->with('status', 'Student deleted successfully.');
-    }
-
-    public function assignClasses(Request $request, User $student): RedirectResponse
-    {
-        $this->authorize('update', $student);
-
-        $validated = $request->validate([
-            'class_ids' => ['nullable', 'array'],
-            'class_ids.*' => ['integer', 'exists:classes,id'],
-        ]);
-
-        $classIds = array_map('intval', $validated['class_ids'] ?? []);
-
-        DB::transaction(function () use ($student, $classIds) {
-            // Add newly selected classes as active enrollments.
-            $existing = Enrollment::where('student_id', $student->id)
-                ->whereIn('class_id', $classIds)
-                ->whereIn('status', ['active', 'pending'])
-                ->pluck('class_id')
-                ->all();
-
-            foreach (array_diff($classIds, $existing) as $classId) {
-                $class = ClassModel::find($classId);
-                if (! $class) {
-                    continue;
-                }
-
-                if ($class->capacity && $class->enrolled_count >= $class->capacity) {
-                    continue;
-                }
-
-                // Re-activate a previously dropped enrollment instead of duplicating.
-                $dropped = Enrollment::where('student_id', $student->id)
-                    ->where('class_id', $classId)
-                    ->where('status', 'dropped')
-                    ->first();
-
-                if ($dropped) {
-                    $dropped->update([
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                        'completed_at' => null,
-                    ]);
-                } else {
-                    Enrollment::create([
-                        'student_id' => $student->id,
-                        'class_id' => $classId,
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                    ]);
-                }
-            }
-
-            // Remove selected classes that were un-checked (only active/pending ones).
-            $removeIds = array_values(array_diff(
-                Enrollment::where('student_id', $student->id)
-                    ->whereIn('status', ['active', 'pending'])
-                    ->pluck('class_id')
-                    ->all(),
-                $classIds
-            ));
-
-            if ($removeIds) {
-                Enrollment::where('student_id', $student->id)
-                    ->whereIn('class_id', $removeIds)
-                    ->whereIn('status', ['active', 'pending'])
-                    ->update(['status' => 'dropped']);
-            }
-        });
-
-        return back()->with('status', 'Student class assignments updated successfully.');
-    }
-
-    public function assignSection(Request $request, User $student): RedirectResponse
-    {
-        $this->authorize('update', $student);
-
-        $validated = $request->validate([
-            'section_id' => ['nullable', 'exists:sections,id'],
-        ]);
-
-        $newSectionId = $validated['section_id'] ?? null;
-        $oldSectionId = $student->section_id;
-
-        $student->update([
-            'section_id' => $newSectionId,
-            'program_id' => $newSectionId
-                ? optional(Section::find($newSectionId)->program)->id
-                : null,
-            'department_id' => $newSectionId
-                ? optional(Section::find($newSectionId)->program?->department)->id
-                : null,
-        ]);
-
-        // Auto-enroll in new section's classes
-        if ($newSectionId && $newSectionId !== $oldSectionId) {
-            $classes = ClassModel::where('section_id', $newSectionId)
-                ->where('status', 'active')
-                ->get();
-
-            foreach ($classes as $class) {
-                // Check if class is full
-                if ($class->isFull()) {
-                    continue;
-                }
-
-                // Check if already enrolled
-                $existing = Enrollment::where('student_id', $student->id)
-                    ->where('class_id', $class->id)
-                    ->where('status', '!=', 'dropped')
-                    ->first();
-
-                if (!$existing) {
-                    Enrollment::create([
-                        'student_id' => $student->id,
-                        'class_id' => $class->id,
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                    ]);
-                }
-            }
-        }
-
-        return back()->with('status', 'Student section assignment updated and enrolled in section classes.');
     }
 
     public function import(Request $request): RedirectResponse

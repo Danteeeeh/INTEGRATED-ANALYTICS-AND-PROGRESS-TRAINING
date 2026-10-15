@@ -63,11 +63,20 @@ return new class extends Migration
      */
     private function setEnum(array $values, string $default): void
     {
-        if (DB::connection()->getDriverName() === 'mysql') {
+        // DB_CONNECTION=mariadb reports the driver name "mariadb", so the native
+        // path has to match both names or the rebuild branch below runs against
+        // the production database instead.
+        if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+            // The default is inlined rather than bound. Laravel prepares every
+            // statement with PDO::ATTR_EMULATE_PREPARES disabled, and MySQL and
+            // MariaDB refuse to prepare ALTER TABLE (error 1295), so a "?" in
+            // this DDL fails the migration. The value is one of this class's own
+            // constants, never user input.
             DB::statement(sprintf(
-                'ALTER TABLE `exams` MODIFY `exam_type` ENUM(%s) NOT NULL DEFAULT ?',
-                implode(',', array_map(fn ($v) => "'{$v}'", $values))
-            ), [$default]);
+                'ALTER TABLE `exams` MODIFY `exam_type` ENUM(%s) NOT NULL DEFAULT %s',
+                implode(',', array_map(fn ($v) => "'{$v}'", $values)),
+                "'{$default}'"
+            ));
 
             return;
         }

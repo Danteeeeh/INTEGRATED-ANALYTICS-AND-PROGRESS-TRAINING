@@ -90,3 +90,120 @@ body.light-mode .info-card .card-label, body.light-mode .info-card .card-status,
 /* Pagination / toast */
 .pagination, .crud-pagination { background:var(--dash-surface) !important; border-color:var(--dash-line) !important; }
 .toast { color:var(--dash-text) !important; background:var(--dash-surface-raised) !important; border-color:var(--dash-line) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Dashboard polish layer — Super Admin and AA dashboards only.
+
+   Everything below is scoped to `.dash-polish`, a class that only these two
+   dashboard views opt into, so no other role page can be affected.
+
+   Palette note: no colour is introduced or redefined here. Backgrounds, text,
+   borders and the focus ring all come from the existing --dash-* / --bcp-*
+   tokens, and the few literal rgba() values are the same ones already used on
+   these two dashboards (they are the #62c9f5 cyan at the same alpha).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Vertical rhythm between dashboard blocks ──
+   `.user-page` is already a grid with an 18px gap, so the section header's
+   old 26px margin-top stacked a second rhythm on top of it. The header now
+   rides the same 18px gap as every other block. */
+.dash-polish .dash-section { margin:0 2px; }
+.dash-polish .dash-section + .user-stat-grid,
+.dash-polish .dash-section + .dash-stat-grid { margin-top:0; }
+
+/* ── Stat grids: even gaps and equal-height tiles ── */
+.dash-polish .user-stat-grid { gap:14px; align-items:stretch; }
+.dash-polish .user-stat-grid > * { height:100%; }
+
+/* AA compact stat grid */
+.dash-polish .dash-stat-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:12px;
+    margin-bottom:18px;
+}
+
+/* AA compact stat tile — layout only; the card background, border and radius
+   still come from `.crud-card`, and the per-tile accent colour stays inline so
+   the exact values in the view are unchanged. */
+.dash-polish .dash-stat-card { display:flex; align-items:center; gap:12px; }
+.dash-polish .dash-stat-icon {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 42px;
+    width:42px;
+    height:42px;
+    border-radius:10px;
+    font-size:1.1rem;
+}
+.dash-polish .dash-stat-value { font-size:1.35rem; font-weight:800; }
+.dash-polish .dash-stat-label { font-size:.75rem; color:var(--dash-muted,#64748b); }
+
+/* ── Blocks: consistent spacing plus a calm hover affordance.
+   The hover uses the palette's existing shadow literal (--bcp-shadow) and the
+   existing light-mode shadow literal, so no new colour value is introduced. ── */
+.dash-polish .dash-panel,
+.dash-polish .crud-card { transition:box-shadow .16s ease, transform .16s ease; }
+.dash-polish .crud-card:hover,
+.dash-polish .dash-stat-card:hover { box-shadow:0 14px 30px rgba(3,8,20,.28); }
+body.light-mode .dash-polish .crud-card:hover,
+body.light-mode .dash-polish .dash-stat-card:hover { box-shadow:0 14px 30px rgba(31,52,88,.14); }
+.dash-polish .crud-card + .crud-card { margin-top:18px; }
+.dash-polish .dash-panel { margin-bottom:18px; }
+.dash-polish .dash-panel > .crud-table:last-child { margin-bottom:0; }
+
+/* ── "View all" links inside panel heads ──
+   The base stylesheet only styles `.dash-section .view-all`; the panel-head
+   variant previously leaned on repeated inline styles. Same palette values
+   (cyan #62c9f5 at the same alphas as the section links), now one rule. */
+.dash-polish .dash-panel-head .view-all {
+    display:inline-flex; align-items:center; gap:6px;
+    color:#62c9f5; font-size:.72rem; font-weight:700; text-decoration:none;
+    padding:4px 10px; border:1px solid rgba(98,201,245,.25); border-radius:8px;
+    background:rgba(98,201,245,.06); white-space:nowrap;
+    transition:background .16s,border-color .16s;
+}
+.dash-polish .dash-panel-head .view-all:hover { background:rgba(98,201,245,.14); border-color:rgba(98,201,245,.45); }
+
+/* ── Read-only notice on the AA dashboard ── */
+.dash-polish .dash-note {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+    padding:12px 16px;
+    background:rgba(98,201,245,.08);
+    border:1px solid rgba(98,201,245,.35);
+    border-radius:10px;
+    font-size:.85rem;
+}
+/* Literal, not var(--dash-cyan): that token flips to #0e7490 under
+   `body.light-mode`, which would change the colour this icon already renders. */
+.dash-polish .dash-note i { color:#62c9f5; }
+
+/* ── Keyboard focus uses the palette's existing focus colour ── */
+.dash-polish a:focus-visible,
+.dash-polish button:focus-visible {
+    outline:2px solid var(--bcp-focus, var(--dash-blue-light));
+    outline-offset:2px;
+    border-radius:6px;
+}
+
+/* ── Narrow screens: dashboard panels scroll instead of clipping their tables
+   (`.dash-panel` sets overflow:hidden, which silently cuts a wide table off). ── */
+/* The AA dashboard's tables live in `.crud-card`, which the earlier rule
+   missed — without this their wide columns were silently clipped instead of
+   scrolling on narrow screens. */
+@media (max-width:900px) {
+    .dash-polish .dash-panel,
+    .dash-polish .crud-card { overflow-x:auto; }
+    .dash-polish .dash-panel > .crud-table,
+    .dash-polish .crud-card > .crud-table { min-width:640px; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .dash-polish .dash-panel,
+    .dash-polish .crud-card,
+    .dash-polish .dash-stat-card { transition:none; }
+}

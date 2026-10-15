@@ -14,7 +14,7 @@ class UserService
     {
         // This is the query behind the admin Users page, so the retired registrar
         // account has to be excluded here — not just from the export.
-        $query = User::with(['role', 'preferences'])->withoutRegistrar();
+        $query = User::with(['role', 'preferences']);
 
         if (filled($filters['role_id'] ?? null)) {
             $query->where('role_id', $filters['role_id']);
@@ -349,7 +349,7 @@ class UserService
     public function searchUsers(string $query, int $limit = 20): array
     {
         return User::with('role')
-            ->withoutRegistrar()
+
             ->where('status', 'active')
             ->where(function ($q) use ($query) {
                 $q->where('first_name', 'like', "%{$query}%")
@@ -393,7 +393,7 @@ class UserService
             'total_admins' => User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->count(),
             'pending_registrations' => User::where('status', 'pending')->count(),
             'recent_users' => User::with('role')
-                ->withoutRegistrar()
+
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get(),

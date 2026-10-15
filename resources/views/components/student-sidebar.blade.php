@@ -14,12 +14,21 @@
                         <span>Dashboard</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'todo' ? 'active' : '' }}">
+                    <a href="{{ route('student.incomplete') }}" class="nav-link" @if($activeNav === 'todo') aria-current="page" @endif>
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>To-Do</span>
+                    </a>
+                </li>
             </ul>
         </div>
 
         <div class="nav-group">
             <button type="button" class="nav-group-label" data-sidebar-group="learning" aria-expanded="true">My Learning</button>
             <ul class="nav-list">
+                {{-- "My Classes" at "My Enrollments" nakatago: parehong view-only
+                     na (walang self-enroll), at redundant na sa "My Courses".
+                     Routes buhay pa para sa tests. --}}
                 <li class="nav-item {{ $activeNav === 'courses' ? 'active' : '' }}">
                     <a href="{{ route('student.courses.index') }}" class="nav-link" @if($activeNav === 'courses') aria-current="page" @endif>
                         <i class="fa-solid fa-book"></i>
@@ -30,18 +39,6 @@
                     <a href="{{ route('student.subjects.index') }}" class="nav-link" @if($activeNav === 'subjects') aria-current="page" @endif>
                         <i class="fa-solid fa-book-open"></i>
                         <span>My Subjects</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ $activeNav === 'classes' ? 'active' : '' }}">
-                    <a href="{{ route('student.classes.index') }}" class="nav-link" @if($activeNav === 'classes') aria-current="page" @endif>
-                        <i class="fa-solid fa-school"></i>
-                        <span>My Classes</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ $activeNav === 'enrollments' ? 'active' : '' }}">
-                    <a href="{{ route('student.enrollments.index') }}" class="nav-link" @if($activeNav === 'enrollments') aria-current="page" @endif>
-                        <i class="fa-solid fa-file-contract"></i>
-                        <span>My Enrollments</span>
                     </a>
                 </li>
             </ul>

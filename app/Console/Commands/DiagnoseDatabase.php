@@ -65,7 +65,10 @@ class DiagnoseDatabase extends Command
         foreach ($users as $user) {
             $this->info("   - Email: {$user->email}");
             $this->info("     Name: {$user->first_name} {$user->last_name}");
-            $this->info("     Role: {$user->role?->slug ?? 'N/A'}");
+            // PHP's complex string interpolation ("{$...}") only accepts
+            // variable access, not the ?? operator, so resolve it first.
+            $roleSlug = $user->role?->slug ?? 'N/A';
+            $this->info("     Role: {$roleSlug}");
             $this->info("     Status: {$user->status}");
             $this->info("     Password Hash: " . substr($user->password, 0, 20) . '...');
             $this->info('');
