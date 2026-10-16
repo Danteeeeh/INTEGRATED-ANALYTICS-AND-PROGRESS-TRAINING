@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\GradeSubmission;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -152,5 +153,103 @@ class CanvasDashboardTest extends TestCase
         $response->assertSee('Sync logs & errors');
         $response->assertSee('System settings');
         $response->assertSee('System status');
+    }
+
+    public function test_admin_dashboard_surfaces_grade_submission_monitoring_and_livekit_status(): void
+    {
+        $admin = User::factory()->admin()->create(['status' => 'active']);
+
+        $response = $this->actingAs($admin)->get('/admin/dashboard');
+
+        $response->assertOk();
+        $response->assertSee('Grade submission monitoring');
+        $response->assertSee('Virtual classes & LiveKit');
+        $response->assertSee('LiveKit integration');
+        $response->assertSee(route('admin.grade-submissions.index'), false);
+        $response->assertSee(route('admin.virtual_classes.index'), false);
+        // The credential itself is never rendered, only its presence.
+        $response->assertSee('credential values never reach the page');
+    }
+
+    public function test_admin_dashboard_monitors_recent_grade_submissions(): void
+    {
+        $admin = User::factory()->admin()->create(['status' => 'active']);
+        $instructor = User::factory()->instructor()->create(['status' => 'active']);
+        $course = Course::factory()->create(['code' => 'MON101', 'status' => 'published']);
+        $class = ClassModel::factory()->create([
+            'instructor_id' => $instructor->id,
+            'course_id' => $course->id,
+            'code' => 'MON101-A',
+            'status' => 'active',
+        ]);
+
+        GradeSubmission::create([
+            'class_id' => $class->id,
+            'instructor_id' => $instructor->id,
+            'submitted_by' => $instructor->id,
+            'status' => GradeSubmission::STATUS_SUBMITTED,
+            'student_count' => 3,
+            'graded_count' => 2,
+            'missing_count' => 1,
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/dashboard');
+
+        $response->assertOk();
+        $response->assertSee('MON101-A');
+        $response->assertSee('missing grades');
+    }
+
+    public function test_faculty_dashboard_surfaces_extract_and_submit_grades(): void
+    {
+        $instructor = User::factory()->instructor()->create(['status' => 'active']);
+        ClassModel::factory()->create([
+            'instructor_id' => $instructor->id,
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($instructor)->get('/instructor/dashboard');
+
+        $response->assertOk();
+        $response->assertSee('Extract & submit grades');
+        $response->assertSee('Extract grades');
+        $response->assertSee('Submission history');
+        $response->assertSee(route('instructor.grade-submissions.index'), false);
+    }
+
+    public function test_faculty_dashboard_only_lists_its_own_grade_submissions(): void
+    {
+        $owner = User::factory()->instructor()->create(['status' => 'active']);
+        $other = User::factory()->instructor()->create(['status' => 'active']);
+
+        $course = Course::factory()->create(['code' => 'OWN101', 'status' => 'published']);
+        $class = ClassModel::factory()->create([
+            'instructor_id' => $owner->id,
+            'course_id' => $course->id,
+            'code' => 'OWN101-A',
+            'status' => 'active',
+        ]);
+
+        GradeSubmission::create([
+            'class_id' => $class->id,
+            'instructor_id' => $owner->id,
+            'submitted_by' => $owner->id,
+            'status' => GradeSubmission::STATUS_SUBMITTED,
+            'student_count' => 2,
+            'graded_count' => 2,
+            'missing_count' => 0,
+            'submitted_at' => now(),
+        ]);
+
+        // The class owner sees the batch…
+        $this->actingAs($owner)->get('/instructor/dashboard')
+            ->assertOk()
+            ->assertSee('OWN101-A');
+
+        // …and another instructor's dashboard never reveals it.
+        $this->actingAs($other)->get('/instructor/dashboard')
+            ->assertOk()
+            ->assertDontSee('OWN101-A');
     }
 }

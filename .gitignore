@@ -31,6 +31,11 @@ yarn-error.log
 /npm-debug.log*
 /yarn-error.log*
 
+# Responsive dashboard check (Playwright)
+/tests/Browser/.auth/
+/playwright-report/
+/test-results/
+
 # OS files
 .DS_Store
 Thumbs.db

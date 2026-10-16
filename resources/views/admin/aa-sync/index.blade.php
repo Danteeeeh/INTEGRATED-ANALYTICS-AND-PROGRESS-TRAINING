@@ -41,14 +41,14 @@
                 {{ $connected ? 'Connected' : 'Not connected' }}
             </span>
             <span style="font-size:.82rem;color:#64748b;">
-                {{ env('AA_DB_HOST', '127.0.0.1') }}:{{ env('AA_DB_PORT', '3306') }} ·
-                {{ env('AA_DB_DATABASE', 'aa_system') }} ·
-                user: {{ env('AA_DB_USERNAME', 'root') }}
+                {{ config('database.connections.aa.host', '127.0.0.1') }}:{{ config('database.connections.aa.port', '3306') }} ·
+                {{ config('database.connections.aa.database', 'aa_system') }} ·
+                user: {{ config('database.connections.aa.username', 'root') }}
             </span>
         </div>
         @unless ($connected)
             <div style="padding:0 16px 16px;font-size:.8rem;color:#991b1b;">
-                {{ $connectionError ?: 'I-set ang AA_DB_HOST / AA_DB_PORT / AA_DB_DATABASE / AA_DB_USERNAME / AA_DB_PASSWORD sa .env, tapos i-restart ang app (config cache).' }}
+                {{ $connectionError ?: 'Set AA_DB_HOST, AA_DB_PORT, AA_DB_DATABASE, AA_DB_USERNAME and AA_DB_PASSWORD in the environment variables, then redeploy (or run php artisan config:cache) so the new values apply.' }}
             </div>
         @endunless
     </div>
@@ -60,9 +60,9 @@
         </div>
         <div style="padding:16px;">
             <p style="margin:0 0 14px;font-size:.85rem;color:#475569;">
-                Ang enrollment at official records ay <strong>galing na sa AA</strong> — hindi na naka-lock dito.
-                Piliin kung anong data ang ilalagay mula sa AA database. Ang <strong>final grades ay hindi nagsi-sync</strong> —
-                hawak pa rin ito ng AA; ang LMS ay may sariling quiz/assignment scores lang.
+                Enrollments and official records now come from <strong>AA</strong> — they are no longer maintained here.
+                Choose which data to pull from the AA database. <strong>Final grades are not synced</strong> —
+                AA still owns them; the LMS keeps only its own quiz and assignment scores.
             </p>
             <form method="POST" action="{{ route('admin.aa-sync.run') }}"
                   onsubmit="return confirm('Run the AA sync now? This will upsert records into the LMS (new + existing accounts ay ginagalaw).');">
@@ -79,7 +79,7 @@
                     <i class="fa-solid fa-rotate"></i> Sync from AA now
                 </button>
                 @unless ($connected)
-                    <span style="margin-left:10px;font-size:.8rem;color:#991b1b;">Kailangan nakakonekta bago mag-sync.</span>
+                    <span style="margin-left:10px;font-size:.8rem;color:#991b1b;">The connection must be working before you can sync.</span>
                 @endunless
             </form>
         </div>
@@ -192,7 +192,7 @@
                         <td style="text-align:center;">{{ $log->records_failed }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">Wala pang sync.</td></tr>
+                    <tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">No sync history yet.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -204,7 +204,7 @@
             <h3>Table mapping (config/aa_sync.php)</h3>
         </div>
         <div style="padding:14px 16px;font-size:.8rem;color:#64748b;">
-            Kung magkaiba ang schema ng AA, i-update ang mapping sa <code>config/aa_sync.php</code> bago mag-sync.
+            If the AA schema differs, update the mapping in <code>config/aa_sync.php</code> before running a sync.
         </div>
         <table class="crud-table">
             <thead>

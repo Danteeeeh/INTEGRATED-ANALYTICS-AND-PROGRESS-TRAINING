@@ -48,14 +48,14 @@
     {{-- Read-only notice: AA pa rin ang source of truth ng official records/grades. --}}
     <div class="dash-note">
         <i class="fa-solid fa-circle-info"></i>
-        <span>Read-only view para sa Academic Affairs. Ang official records at final grades ay hawak pa rin sa <strong>AA system</strong> — ang LMS copy ay nagsi-sync lang mula sa AA.</span>
+        <span>Read-only view for Academic Affairs. Official records and final grades remain in the <strong>AA system</strong> — the LMS copy only syncs from AA.</span>
     </div>
 
     {{-- ═══ SUMMARY CARDS ═══ --}}
     <div class="dash-section">
         <div>
             <h3><i class="fa-solid fa-chart-pie"></i> Academic summary</h3>
-            <span class="dash-section-kicker">Active people, courses and enrolment records synced from AA</span>
+            <span class="dash-section-kicker">Active people, courses and enrollment records synced from AA</span>
         </div>
         <a href="{{ route('aa.students.index') }}" class="btn btn-secondary"><i class="fa-solid fa-users"></i> Students</a>
     </div>
@@ -95,7 +95,7 @@
         <div class="dash-split-main">
             <section class="dash-panel">
                 <div class="dash-panel-head">
-                    <h4><i class="fa-solid fa-rotate"></i> Academic data synchronisation</h4>
+                    <h4><i class="fa-solid fa-rotate"></i> Academic data synchronization</h4>
                     <span class="dash-outcome {{ $aaLastSync && $aaLastSync->status === 'success' ? 'd-ok' : ($aaLastSync && $aaLastSync->status === 'failed' ? 'd-err' : 'd-warn') }}">
                         <i class="fa-solid {{ $aaLastSync && $aaLastSync->status === 'success' ? 'fa-circle-check' : ($aaLastSync && $aaLastSync->status === 'failed' ? 'fa-circle-exclamation' : 'fa-clock') }}"></i>
                         {{ $aaLastSync ? ucfirst($aaLastSync->status) : 'No sync yet' }}
@@ -161,7 +161,7 @@
                     </table>
                 @else
                     <ul class="dash-list">
-                        <li class="dash-list-empty"><i class="fa-solid fa-rotate"></i> No synchronisation runs recorded yet.</li>
+                        <li class="dash-list-empty"><i class="fa-solid fa-rotate"></i> No synchronization runs recorded yet.</li>
                     </ul>
                 @endif
             </section>
@@ -211,7 +211,7 @@
     {{-- ═══ COURSE OVERVIEW + RECENT ENROLLMENTS ═══ --}}
     <div class="dash-section">
         <div>
-            <h3><i class="fa-solid fa-book"></i> Course &amp; enrolment overview</h3>
+            <h3><i class="fa-solid fa-book"></i> Course &amp; enrollment overview</h3>
             <span class="dash-section-kicker">Compact, read-only tables of the synced academic records</span>
         </div>
         <a href="{{ route('aa.courses.index') }}" class="btn btn-secondary"><i class="fa-solid fa-list"></i> All courses</a>
@@ -241,7 +241,7 @@
                                 <td style="text-align:center;">{{ $course->enrollments_count }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--dash-muted);">Walang course pa.</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--dash-muted);">No courses yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -251,7 +251,7 @@
         <div class="dash-split-side">
             <section class="dash-panel">
                 <div class="dash-panel-head">
-                    <h4><i class="fa-solid fa-user-plus"></i> Recent enrolments</h4>
+                    <h4><i class="fa-solid fa-user-plus"></i> Recent enrollments</h4>
                     <a href="{{ route('aa.enrollments.index') }}" class="view-all">View all</a>
                 </div>
                 <ul class="dash-list">
@@ -268,7 +268,7 @@
                             </div>
                         </li>
                     @empty
-                        <li class="dash-list-empty"><i class="fa-solid fa-user-plus"></i> Walang enrollment pa.</li>
+                        <li class="dash-list-empty"><i class="fa-solid fa-user-plus"></i> No enrollments yet.</li>
                     @endforelse
                 </ul>
             </section>

@@ -52,6 +52,12 @@
                         <span>Student Progress</span>
                     </a>
                 </li>
+                <li class="nav-item {{ $activeNav === 'grade_submissions' ? 'active' : '' }}">
+                    <a href="{{ route('aa.grade-submissions.index') }}" class="nav-link" @if($activeNav === 'grade_submissions') aria-current="page" @endif>
+                        <i class="fa-solid fa-file-export"></i>
+                        <span>Grade Submissions</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'reports' ? 'active' : '' }}">
                     <a href="{{ route('aa.reports.index') }}" class="nav-link" @if($activeNav === 'reports') aria-current="page" @endif>
                         <i class="fa-solid fa-file-lines"></i>

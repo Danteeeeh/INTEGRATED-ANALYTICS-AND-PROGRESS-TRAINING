@@ -112,8 +112,48 @@ class AaSyncService
 
             return null;
         } catch (\Throwable $e) {
-            return $e->getMessage();
+            return $this->describeConnectionFailure($e);
         }
+    }
+
+    /**
+     * Turn a raw PDO exception into an actionable English message. A bare
+     * "SQLSTATE[HY000] [2002]" tells the Super Admin nothing about what to
+     * fix — these say exactly what failed and what to change.
+     */
+    protected function describeConnectionFailure(\Throwable $e): string
+    {
+        $host = (string) config('database.connections.aa.host', '127.0.0.1');
+        $port = (string) config('database.connections.aa.port', '3306');
+        $database = (string) config('database.connections.aa.database', '');
+        $target = trim($host.':'.$port);
+        $technical = $e->getMessage();
+
+        if (str_contains($technical, '[2002]') || stripos($technical, 'connection refused') !== false) {
+            return "Cannot connect to the AA database at {$target} — the connection was refused. "
+                .'Make sure the AA database server is running and reachable from this LMS host, and that '
+                .'AA_DB_HOST / AA_DB_PORT are correct. Update the AA_DB_* values in the HostForge environment '
+                .'variables, then redeploy (or run php artisan config:cache) so the new values take effect.';
+        }
+
+        if (str_contains($technical, '[2005]') || stripos($technical, 'getaddrinfo') !== false || stripos($technical, 'name or service not known') !== false) {
+            return "The AA database host \"{$host}\" could not be resolved. Check the AA_DB_HOST value in the environment variables.";
+        }
+
+        if (str_contains($technical, '[1049]') || stripos($technical, 'unknown database') !== false) {
+            return "The AA database \"{$database}\" does not exist on {$target}. Check the AA_DB_DATABASE value in the environment variables.";
+        }
+
+        if (str_contains($technical, '[1045]') || stripos($technical, 'access denied') !== false) {
+            return "The AA database rejected the LMS user at {$target} — access denied. Check the AA_DB_USERNAME and AA_DB_PASSWORD values in the environment variables.";
+        }
+
+        if (stripos($technical, 'timed out') !== false || stripos($technical, 'cannot connect') !== false) {
+            return "Cannot connect to the AA database at {$target} — the server did not respond in time. "
+                .'Check that the AA database allows remote connections from this LMS host (firewall / bind-address).';
+        }
+
+        return "Cannot connect to the AA database at {$target}. Check the AA_DB_* environment variables. (Technical detail: {$technical})";
     }
 
     /* --------------------------------------------------------------------

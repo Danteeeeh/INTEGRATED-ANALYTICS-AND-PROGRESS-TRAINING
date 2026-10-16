@@ -290,6 +290,50 @@
                 </ul>
             </section>
 
+            {{-- ═══ GRADE EXTRACTION & SUBMISSION (Section 4/6) ═══ --}}
+            <section class="dash-panel">
+                <div class="dash-panel-head">
+                    <h4><i class="fa-solid fa-file-export"></i> Extract &amp; submit grades</h4>
+                    <a href="{{ route('instructor.grade-submissions.index') }}" class="view-all">History</a>
+                </div>
+                <div class="dash-quick-actions">
+                    <a href="{{ route('instructor.grade-submissions.index') }}" class="btn btn-primary"><i class="fa-solid fa-file-export"></i> Extract grades</a>
+                    <a href="{{ route('instructor.grade-submissions.index') }}" class="btn btn-secondary"><i class="fa-solid fa-eye"></i> Preview export</a>
+                    <a href="{{ route('instructor.grade-submissions.index') }}" class="btn btn-secondary"><i class="fa-solid fa-clock-rotate-left"></i> Submission history</a>
+                </div>
+                <div class="dash-outcome-row">
+                    <span class="dash-outcome d-ok"><i class="fa-solid fa-layer-group"></i> {{ $stats['grade_submissions_total'] ?? 0 }} batches</span>
+                    <span class="dash-outcome"><i class="fa-solid fa-paper-plane"></i> {{ $stats['grade_submissions_submitted'] ?? 0 }} submitted</span>
+                    <span class="dash-outcome d-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{ $stats['grade_submissions_incomplete'] ?? 0 }} incomplete</span>
+                </div>
+                <ul class="dash-list">
+                    @forelse(($stats['grade_submissions_recent'] ?? []) as $submission)
+                        <li class="dash-list-item">
+                            <span class="dash-list-icon {{ $submission->status === 'submitted' ? 'i-green' : ($submission->status === 'failed' ? 'i-rose' : 'i-amber') }}">
+                                <i class="fa-solid {{ $submission->status === 'submitted' ? 'fa-circle-check' : ($submission->status === 'failed' ? 'fa-circle-exclamation' : 'fa-clock') }}"></i>
+                            </span>
+                            <div class="dash-list-body">
+                                <p class="dash-list-title">
+                                    <a href="{{ route('instructor.grade-submissions.show', $submission) }}">
+                                        {{ $submission->class?->code ?? 'Class' }} — {{ $submission->class?->course?->title ?? '' }}
+                                    </a>
+                                </p>
+                                <p class="dash-list-sub">{{ $submission->graded_count }}/{{ $submission->student_count }} graded · {{ $submission->missing_count }} missing</p>
+                            </div>
+                            <div class="dash-list-meta">
+                                <span class="dash-meta-chip {{ $submission->status === 'submitted' ? 'm-green' : ($submission->status === 'failed' ? 'm-rose' : 'm-amber') }}">{{ ucfirst($submission->status) }}</span>
+                                <span class="dash-list-date">{{ $submission->created_at?->diffForHumans() }}</span>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="dash-list-empty"><i class="fa-solid fa-file-export"></i> No grade batches extracted yet — start from Extract grades.</li>
+                    @endforelse
+                </ul>
+                <p style="margin:0;padding:0 14px 14px;font-size:.72rem;color:var(--dash-muted,#98a7c4);">
+                    <i class="fa-solid fa-circle-info"></i> Submitting records an LMS snapshot lang — hindi nito binabago ang official final grade sa AA.
+                </p>
+            </section>
+
             {{-- ═══ REPORTS ═══ --}}
             <section class="dash-panel">
                 <div class="dash-panel-head">
