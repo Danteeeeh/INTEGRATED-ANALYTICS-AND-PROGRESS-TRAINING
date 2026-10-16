@@ -78,6 +78,12 @@
         <div class="nav-group">
             <button type="button" class="nav-group-label" data-sidebar-group="system" aria-expanded="true">System</button>
             <ul class="nav-list">
+                <li class="nav-item {{ $activeNav === 'grade_submissions' ? 'active' : '' }}">
+                    <a href="{{ route('admin.grade-submissions.index') }}" class="nav-link" @if($activeNav === 'grade_submissions') aria-current="page" @endif>
+                        <i class="fa-solid fa-file-export"></i>
+                        <span>Grade Submissions</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'audit_logs' ? 'active' : '' }}">
                     <a href="{{ route('admin.audit_logs.index') }}" class="nav-link" @if($activeNav === 'audit_logs') aria-current="page" @endif>
                         <i class="fa-solid fa-clock-rotate-left"></i>

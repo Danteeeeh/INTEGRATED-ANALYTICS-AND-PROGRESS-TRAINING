@@ -96,6 +96,9 @@ use App\Http\Controllers\Aa\ProgressController as AaProgressController;
 use App\Http\Controllers\Aa\ReportController as AaReportController;
 use App\Http\Controllers\Admin\AaSyncController;
 use App\Http\Controllers\Instructor\ReportController as InstructorReportController;
+use App\Http\Controllers\Instructor\GradeSubmissionController as InstructorGradeSubmissionController;
+use App\Http\Controllers\Admin\GradeSubmissionController as AdminGradeSubmissionController;
+use App\Http\Controllers\Aa\GradeSubmissionController as AaGradeSubmissionController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
@@ -405,6 +408,15 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::get('/export', [AuditLogController::class, 'export'])->name('export');
             Route::get('/{auditLog}', [AuditLogController::class, 'show'])->name('show');
         });
+
+        // Grade submission monitoring (master prompt §2): oversight of the LMS
+        // grades faculty have extracted and submitted. Read-only — no official
+        // record is edited here, and AA stays the source of truth.
+        Route::prefix('grade-submissions')->name('grade-submissions.')->group(function () {
+            Route::get('/', [AdminGradeSubmissionController::class, 'index'])->name('index');
+            Route::get('/{gradeSubmission}', [AdminGradeSubmissionController::class, 'show'])
+                ->whereNumber('gradeSubmission')->name('show');
+        });
     });
 
     Route::middleware('role:'.Role::INSTRUCTOR)->prefix('instructor')->name('instructor.')->group(function () {
@@ -421,6 +433,21 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
         // LMS Reports — exportable assessment/grade-reference reports (Section 5).
         Route::get('/reports', [InstructorReportController::class, 'index'])->name('reports.index');
+
+        // Grade extraction & submission (master prompt §4): extract → preview →
+        // export → submit, with submission history. Submitting records an LMS
+        // snapshot only — AA keeps the official final grades.
+        Route::prefix('grade-submissions')->name('grade-submissions.')->group(function () {
+            Route::get('/', [InstructorGradeSubmissionController::class, 'index'])->name('index');
+            Route::get('/classes/{class}/preview', [InstructorGradeSubmissionController::class, 'preview'])->name('preview');
+            Route::get('/classes/{class}/export', [InstructorGradeSubmissionController::class, 'export'])->name('export');
+            Route::post('/classes/{class}', [InstructorGradeSubmissionController::class, 'store'])->name('store');
+
+            // Integer-constrained so literal segments are never mistaken for a
+            // submission id.
+            Route::get('/{gradeSubmission}', [InstructorGradeSubmissionController::class, 'show'])
+                ->whereNumber('gradeSubmission')->name('show');
+        });
 
         // Course-agnostic exam listing/creation. ExamController@index and @create
         // do not depend on a course, so these avoid a dummy course segment.
@@ -834,5 +861,8 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/reports/{course}', [AaReportController::class, 'show'])->name('reports.show');
 
         Route::get('/progress', [AaProgressController::class, 'index'])->name('progress.index');
+
+        // LMS grade-submission statuses — read-only (master prompt §3).
+        Route::get('/grade-submissions', [AaGradeSubmissionController::class, 'index'])->name('grade-submissions.index');
     });
 });

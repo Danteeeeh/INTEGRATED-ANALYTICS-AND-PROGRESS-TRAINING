@@ -55,6 +55,7 @@ return [
             'admin@lms.local',
             'instructor@lms.local',
             'student@lms.local',
+            'aa-staff@lms.local',
         ],
     ],
 ];

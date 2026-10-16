@@ -77,7 +77,10 @@ class LoginController extends Controller
             throw ValidationException::withMessages(['email' => __('Your account has been deactivated. Contact an administrator.')]);
         }
 
-        $otpExempt = in_array($email, config('lms.login_otp.exempt_emails', []), true);
+        // AA Staff accounts are view-only demo/dump accounts for the Academic
+        // Affairs office — they sign in without an email one-time code.
+        $otpExempt = in_array($email, config('lms.login_otp.exempt_emails', []), true)
+            || $user->isAaStaff();
         if (! config('lms.login_otp.enabled', true) || $otpExempt) {
             Auth::login($user, $request->boolean('remember'));
             $throttle->clear($email);

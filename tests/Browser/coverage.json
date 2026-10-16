@@ -1,0 +1,33 @@
+{
+    "tolerancePx": 1,
+    "roles": [
+        {
+            "role": "admin",
+            "label": "Super Admin",
+            "email": "admin@lms.local",
+            "path": "/admin/dashboard",
+            "marker": "System status"
+        },
+        {
+            "role": "aa_staff",
+            "label": "AA Staff",
+            "email": "aa-staff@lms.local",
+            "path": "/aa/dashboard",
+            "marker": "Academic Affairs Overview"
+        },
+        {
+            "role": "instructor",
+            "label": "Faculty",
+            "email": "instructor@lms.local",
+            "path": "/instructor/dashboard",
+            "marker": "To check"
+        },
+        {
+            "role": "student",
+            "label": "Student",
+            "email": "student@lms.local",
+            "path": "/student/dashboard",
+            "marker": "My courses"
+        }
+    ]
+}

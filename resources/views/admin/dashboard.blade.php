@@ -222,6 +222,141 @@
         </div>
     </div>
 
+    {{-- ═══ GRADE SUBMISSION MONITORING + VIRTUAL CLASSES / LIVEKIT (Section 2) ═══ --}}
+    <div class="dash-section">
+        <div>
+            <h3><i class="fa-solid fa-file-export"></i> Teaching workflow monitoring</h3>
+            <span class="dash-section-kicker">Grade batches extracted by faculty at ang virtual classroom health</span>
+        </div>
+    </div>
+    <div class="dash-grid">
+        <section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="fa-solid fa-file-export"></i> Grade submission monitoring</h4>
+                <a href="{{ route('admin.grade-submissions.index') }}" class="view-all">Review all</a>
+            </div>
+            <div class="dash-status-band">
+                <div class="dash-band-item">
+                    <span class="dash-band-icon"><i class="fa-solid fa-layer-group"></i></span>
+                    <div>
+                        <span class="dash-band-label">Batches extracted</span>
+                        <span class="dash-band-value">{{ $stats['grade_submissions_total'] ?? 0 }}</span>
+                    </div>
+                </div>
+                <div class="dash-band-item">
+                    <span class="dash-band-icon"><i class="fa-solid fa-paper-plane"></i></span>
+                    <div>
+                        <span class="dash-band-label">Submitted</span>
+                        <span class="dash-band-value">{{ $stats['grade_submissions_submitted'] ?? 0 }} submitted · {{ $stats['grade_submissions_previewed'] ?? 0 }} previewed</span>
+                    </div>
+                </div>
+                <div class="dash-band-item">
+                    <span class="dash-band-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                    <div>
+                        <span class="dash-band-label">Incomplete</span>
+                        <span class="dash-band-value">{{ $stats['grade_submissions_incomplete'] ?? 0 }} batches · {{ $stats['grade_submissions_missing_students'] ?? 0 }} missing grades</span>
+                    </div>
+                </div>
+            </div>
+            <div class="dash-outcome-row">
+                <span class="dash-outcome d-ok"><i class="fa-solid fa-circle-check"></i> LMS snapshots only</span>
+                <span class="dash-outcome"><i class="fa-solid fa-building-columns"></i> Official final grades stay in AA</span>
+            </div>
+            <table class="crud-table">
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>Instructor</th>
+                        <th style="text-align:center;">Status</th>
+                        <th style="text-align:center;">Graded</th>
+                        <th style="text-align:center;">Missing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse(($stats['grade_submissions_recent'] ?? []) as $submission)
+                        <tr>
+                            <td><a href="{{ route('admin.grade-submissions.show', $submission) }}">{{ $submission->class?->code ?? '—' }}</a></td>
+                            <td>{{ $submission->instructor?->name ?? '—' }}</td>
+                            <td style="text-align:center;">
+                                <span class="badge badge-{{ $submission->status === 'submitted' ? 'active' : ($submission->status === 'failed' ? 'dropped' : 'pending') }}">
+                                    {{ ucfirst($submission->status) }}
+                                </span>
+                            </td>
+                            <td style="text-align:center;">{{ $submission->graded_count }}/{{ $submission->student_count }}</td>
+                            <td style="text-align:center;">{{ $submission->missing_count }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" style="text-align:center;color:var(--bcp-muted);padding:20px">No grade batches submitted yet</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </section>
+
+        <section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="fa-solid fa-video"></i> Virtual classes &amp; LiveKit</h4>
+                <a href="{{ route('admin.virtual_classes.index') }}" class="view-all">Manage</a>
+            </div>
+            <div class="dash-status-band">
+                <div class="dash-band-item">
+                    <span class="dash-band-icon"><i class="fa-solid fa-video"></i></span>
+                    <div>
+                        <span class="dash-band-label">Virtual classes</span>
+                        <span class="dash-band-value">{{ $stats['total_virtual_classes'] ?? 0 }} total · {{ $stats['upcoming_virtual_classes'] ?? 0 }} upcoming</span>
+                    </div>
+                </div>
+                <div class="dash-band-action">
+                    <a href="{{ route('admin.virtual_classes.index') }}" class="btn btn-secondary"><i class="fa-solid fa-sliders"></i> Open administration</a>
+                </div>
+            </div>
+            <ul class="dash-list">
+                <li class="dash-list-item">
+                    <span class="dash-list-icon {{ ($stats['livekit_configured'] ?? false) ? 'i-green' : 'i-amber' }}"><i class="fa-solid fa-plug"></i></span>
+                    <div class="dash-list-body">
+                        <p class="dash-list-title">LiveKit integration</p>
+                        <p class="dash-list-sub">{{ ($stats['livekit_configured'] ?? false) ? 'Credentials present — classroom video ready' : 'Incomplete — LiveKit classroom may fail to connect' }}</p>
+                    </div>
+                    <div class="dash-list-meta">
+                        <span class="dash-meta-chip {{ ($stats['livekit_configured'] ?? false) ? 'm-green' : 'm-amber' }}">{{ ($stats['livekit_configured'] ?? false) ? 'Ready' : 'Incomplete' }}</span>
+                    </div>
+                </li>
+                <li class="dash-list-item">
+                    <span class="dash-list-icon"><i class="fa-solid fa-link"></i></span>
+                    <div class="dash-list-body">
+                        <p class="dash-list-title">Server URL</p>
+                        <p class="dash-list-sub">LIVEKIT_URL</p>
+                    </div>
+                    <div class="dash-list-meta">
+                        <span class="dash-meta-chip {{ ($stats['livekit_url_configured'] ?? false) ? 'm-green' : 'm-amber' }}">{{ ($stats['livekit_url_configured'] ?? false) ? 'Set' : 'Missing' }}</span>
+                    </div>
+                </li>
+                <li class="dash-list-item">
+                    <span class="dash-list-icon"><i class="fa-solid fa-key"></i></span>
+                    <div class="dash-list-body">
+                        <p class="dash-list-title">API key</p>
+                        <p class="dash-list-sub">LIVEKIT_API_KEY</p>
+                    </div>
+                    <div class="dash-list-meta">
+                        <span class="dash-meta-chip {{ ($stats['livekit_api_key_configured'] ?? false) ? 'm-green' : 'm-amber' }}">{{ ($stats['livekit_api_key_configured'] ?? false) ? 'Set' : 'Missing' }}</span>
+                    </div>
+                </li>
+                <li class="dash-list-item">
+                    <span class="dash-list-icon"><i class="fa-solid fa-lock"></i></span>
+                    <div class="dash-list-body">
+                        <p class="dash-list-title">API secret</p>
+                        <p class="dash-list-sub">LIVEKIT_API_SECRET</p>
+                    </div>
+                    <div class="dash-list-meta">
+                        <span class="dash-meta-chip {{ ($stats['livekit_api_secret_configured'] ?? false) ? 'm-green' : 'm-amber' }}">{{ ($stats['livekit_api_secret_configured'] ?? false) ? 'Set' : 'Missing' }}</span>
+                    </div>
+                </li>
+            </ul>
+            <p style="margin:0;padding:0 16px 16px;font-size:.72rem;color:var(--bcp-muted);">
+                <i class="fa-solid fa-circle-info"></i> Only presence is shown — credential values never reach the page.
+            </p>
+        </section>
+    </div>
+
     {{-- ═══ ACADEMIC HEALTH ═══ --}}
     <div class="dash-section">
         <div>

@@ -12,6 +12,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeItem;
+use App\Models\GradeSubmission;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Models\Quiz;
@@ -448,6 +449,15 @@ class DashboardController extends Controller
             'to_check' => $toCheck,
             'to_check_count' => $toCheck->count(),
             'completion_by_class' => $completionByClass,
+
+            // Grade extraction & submission (master prompt §4/§6). Scoped to this
+            // instructor only — one faculty member never sees another's batches.
+            'grade_submissions_total' => GradeSubmission::where('instructor_id', $instructorId)->count(),
+            'grade_submissions_submitted' => GradeSubmission::where('instructor_id', $instructorId)->submitted()->count(),
+            'grade_submissions_incomplete' => GradeSubmission::where('instructor_id', $instructorId)->incomplete()->count(),
+            'grade_submissions_recent' => GradeSubmission::with('class.course')
+                ->where('instructor_id', $instructorId)
+                ->latest('id')->limit(5)->get(),
         ];
     }
 

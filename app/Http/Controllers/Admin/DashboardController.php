@@ -14,6 +14,7 @@ use App\Models\Course;
 use App\Models\CourseCompletion;
 use App\Models\Enrollment;
 use App\Models\Grade;
+use App\Models\GradeSubmission;
 use App\Models\LessonProgress;
 use App\Models\Notification;
 use App\Models\Program;
@@ -140,6 +141,30 @@ class DashboardController extends Controller
             'aa_last_sync_by' => $lastSync?->performedBy?->name,
             'aa_sync_recent' => AaSyncLog::latest('id')->limit(5)->get(),
             'aa_sync_failed_count' => AaSyncLog::where('status', AaSyncLog::STATUS_FAILED)->count(),
+
+            // Grade submission monitoring (Section 2: Super Admin dashboard).
+            // Read-only: an extracted batch is an LMS snapshot, never an official
+            // AA grade, so the admin only observes the workflow here.
+            'grade_submissions_total' => GradeSubmission::count(),
+            'grade_submissions_submitted' => GradeSubmission::submitted()->count(),
+            'grade_submissions_previewed' => GradeSubmission::where('status', GradeSubmission::STATUS_PREVIEWED)->count(),
+            'grade_submissions_incomplete' => GradeSubmission::incomplete()->count(),
+            'grade_submissions_missing_students' => (int) GradeSubmission::sum('missing_count'),
+            'grade_submissions_recent' => GradeSubmission::with(['class.course', 'instructor'])
+                ->latest('id')->limit(5)->get(),
+
+            // Virtual classes + LiveKit configuration health (Section 2).
+            // Only booleans ever reach the view — the key and secret themselves
+            // stay server-side.
+            'total_virtual_classes' => VirtualClass::count(),
+            'upcoming_virtual_classes' => VirtualClass::whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+                ->where('meeting_date', '>=', now()->toDateString())->count(),
+            'livekit_url_configured' => filled(config('services.livekit.url')),
+            'livekit_api_key_configured' => filled(config('services.livekit.api_key')),
+            'livekit_api_secret_configured' => filled(config('services.livekit.api_secret')),
+            'livekit_configured' => filled(config('services.livekit.url'))
+                && filled(config('services.livekit.api_key'))
+                && filled(config('services.livekit.api_secret')),
         ];
 
         // Rendered server-side too, so the figures are in the HTML before any

@@ -118,10 +118,9 @@ class VirtualClassRoomController extends Controller
         $this->assertLiveKitRoomOpen($virtualClass);
 
         $serverUrl = (string) config('services.livekit.url');
-        if ($serverUrl === '') {
-            return response()->json([
-                'message' => 'LiveKit is not configured. Ask the system administrator to configure LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.',
-            ], 503);
+        $diagnostic = $tokens->diagnose();
+        if ($diagnostic !== null) {
+            return response()->json(['message' => $diagnostic], 503);
         }
 
         try {

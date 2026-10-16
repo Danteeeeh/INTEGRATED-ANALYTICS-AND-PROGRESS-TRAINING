@@ -39,7 +39,7 @@ class AaSyncController extends Controller
         ]);
 
         if (! $this->sync->available()) {
-            return back()->with('error', 'Hindi makakonekta sa AA database. I-check ang AA_DB_* values sa .env.');
+            return back()->with('error', 'Cannot connect to the AA database. Check the connection details on the Sync from AA page, then try again.');
         }
 
         $log = $this->sync->run($validated['entities']);
@@ -47,10 +47,10 @@ class AaSyncController extends Controller
         if ($log->status === AaSyncLog::STATUS_SUCCESS) {
             return back()->with(
                 'success',
-                "Sync tapos — bagong record: {$log->records_created}, na-update: {$log->records_updated}, naka-skip: {$log->records_skipped}, na-fail: {$log->records_failed}."
+                "Sync completed — {$log->records_created} new, {$log->records_updated} updated, {$log->records_skipped} skipped, {$log->records_failed} failed."
             );
         }
 
-        return back()->with('error', 'Sync nabigo: '.$log->error_message);
+        return back()->with('error', 'Sync failed: '.$log->error_message);
     }
 }

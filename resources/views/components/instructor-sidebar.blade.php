@@ -175,6 +175,12 @@
         <div class="nav-group">
             <button type="button" class="nav-group-label" data-sidebar-group="reports" aria-expanded="true">Reports</button>
             <ul class="nav-list">
+                <li class="nav-item {{ $activeNav === 'grade_submissions' ? 'active' : '' }}">
+                    <a href="{{ route('instructor.grade-submissions.index') }}" class="nav-link" @if($activeNav === 'grade_submissions') aria-current="page" @endif>
+                        <i class="fa-solid fa-file-export"></i>
+                        <span>Extract &amp; Submit Grades</span>
+                    </a>
+                </li>
                 <li class="nav-item {{ $activeNav === 'reports' ? 'active' : '' }}">
                     <a href="{{ route('instructor.reports.index') }}" class="nav-link" @if($activeNav === 'reports') aria-current="page" @endif>
                         <i class="fa-solid fa-file-lines"></i>

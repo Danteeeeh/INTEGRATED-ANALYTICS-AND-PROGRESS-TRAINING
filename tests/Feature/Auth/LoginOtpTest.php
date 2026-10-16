@@ -50,6 +50,18 @@ class LoginOtpTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_aa_staff_dump_account_skips_the_otp_step(): void
+    {
+        $aaStaff = $this->makeUser(Role::AA_STAFF, ['email' => 'aa-staff@lms.local', 'password' => 'Password123!']);
+
+        $this->post(route('login'), ['email' => 'aa-staff@lms.local', 'password' => 'Password123!'])
+            ->assertRedirect(route('aa.dashboard'));
+
+        $this->assertAuthenticatedAs($aaStaff);
+        $this->assertDatabaseCount('login_verifications', 0);
+        Mail::assertNotSent(LoginOtpMail::class);
+    }
+
     public function test_gmail_email_normalization_still_requires_otp(): void
     {
         $user = $this->makeUser('admin', ['email' => 'johncedrickdayandante6@gmail.com', 'password' => 'Password123!']);
