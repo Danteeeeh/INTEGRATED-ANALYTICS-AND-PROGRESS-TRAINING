@@ -407,22 +407,6 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 
-<script>
-(function () {
-    const toasts = document.querySelectorAll('.toast.show');
-    toasts.forEach(function (toast) {
-        setTimeout(function () {
-            toast.classList.remove('show');
-            setTimeout(function () { toast.remove(); }, 400);
-        }, 4500);
-        toast.addEventListener('click', function () {
-            toast.classList.remove('show');
-            setTimeout(function () { toast.remove(); }, 300);
-        });
-    });
-})();
-</script>
-
 {{-- Topbar live search for non-admin roles (instructor / student) --}}
 @auth
 @if(!auth()->user()->isAdmin())

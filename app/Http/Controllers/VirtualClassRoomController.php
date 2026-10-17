@@ -100,6 +100,8 @@ class VirtualClassRoomController extends Controller
             'layout' => $layout,
             'tokenUrl' => route($tokenRoute, [$class, $virtualClass]),
             'leaveUrl' => route($leaveRoute, [$class, $virtualClass]),
+            'endUrl'   => route('instructor.classes.virtual_classes.end', [$class, $virtualClass]),
+            'muteAllUrl' => route('instructor.classes.virtual_classes.mute-all', [$class, $virtualClass]),
             'backUrl' => route($backRoute, [$class, $virtualClass]),
             'displayName' => $user->full_name ?: $user->name,
             'isInstructor' => $user->isInstructor(),
