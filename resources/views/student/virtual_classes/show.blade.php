@@ -102,15 +102,7 @@
         <div class="modal-row">
             <span>Platform:</span>
             <span>
-                @if($virtualClass->meeting_provider === 'zoom')
-                    <i class="fa-solid fa-video" style="color: #3b82f6; margin-right: 4px;"></i> Zoom
-                @elseif($virtualClass->meeting_provider === 'google_meet')
-                    <i class="fa-solid fa-google" style="color: #ef4444; margin-right: 4px;"></i> Google Meet
-                @elseif($virtualClass->meeting_provider === 'microsoft_teams')
-                    <i class="fa-solid fa-microsoft" style="color: #0ea5e9; margin-right: 4px;"></i> Microsoft Teams
-                @else
-                    <i class="fa-solid fa-video" style="color: #64748b; margin-right: 4px;"></i> {{ ucfirst($virtualClass->meeting_provider) }}
-                @endif
+                <i class="fa-solid fa-video" style="margin-right: 4px;"></i> {{ $virtualClass->providerLabel() }}
             </span>
         </div>
 

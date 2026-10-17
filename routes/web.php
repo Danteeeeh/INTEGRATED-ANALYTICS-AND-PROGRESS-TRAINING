@@ -650,6 +650,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
 
                 Route::post('/{virtualClass}/start', [InstructorVirtualClassController::class, 'start'])->name('start');
                 Route::post('/{virtualClass}/end', [InstructorVirtualClassController::class, 'end'])->name('end');
+                Route::post('/{virtualClass}/mute-all', [InstructorVirtualClassController::class, 'muteAll'])->name('mute-all');
             });
 
             Route::prefix('{class}/learning-plans')->name('learning-plans.')->group(function () {

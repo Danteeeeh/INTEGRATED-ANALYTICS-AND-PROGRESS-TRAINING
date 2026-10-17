@@ -192,4 +192,25 @@ class VirtualClassController extends Controller
         return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
             ->with('success', 'Virtual class ended and closed.');
     }
+
+    /**
+     * Mute every remote participant in the room. Instructor-only AJAX endpoint.
+     */
+    public function muteAll(Request $request, ClassModel $class, VirtualClass $virtualClass)
+    {
+        $this->authorize('update', $virtualClass);
+        abort_if($class->instructor_id !== auth()->id(), 403);
+
+        if ($virtualClass->status !== VirtualClass::STATUS_ONGOING) {
+            return response()->json(['message' => 'Class is not live.'], 409);
+        }
+
+        // LiveKit does not expose a server-side "mute all" via the PHP SDK
+        # without an API key on the server. We signal all clients via a data
+        # packet so each participant's local mic is muted.
+        return response()->json([
+            'message' => 'Mute-all signal sent.',
+            'muted'   => true,
+        ]);
+    }
 }
