@@ -34,6 +34,10 @@ class VirtualClassController extends Controller
             ->orderBy('start_time', 'asc')
             ->paginate(10);
 
+        // Sessions whose end time has passed close themselves on view, so the
+        // student never sees a finished meeting still offering a Join button.
+        $virtualClasses->getCollection()->each->syncStatus();
+
         return view('student.virtual_classes.index', compact('class', 'enrollment', 'virtualClasses'));
     }
 
@@ -55,6 +59,7 @@ class VirtualClassController extends Controller
         }
 
         $virtualClass->load('instructor');
+        $virtualClass->syncStatus();
 
         $myAttendance = VirtualClassAttendee::where('virtual_class_id', $virtualClass->id)
             ->where('user_id', $studentId)
@@ -83,12 +88,21 @@ class VirtualClassController extends Controller
         // Built-in Virtual Classroom (LiveKit): the student joins inside the
         // LMS. The room controller re-validates enrollment + class status
         // before issuing a token, and records attendance on token issue.
-        if ($virtualClass->meeting_provider === VirtualClass::PROVIDER_LIVEKIT) {
-            if ($virtualClass->status !== VirtualClass::STATUS_ONGOING || $virtualClass->hasEnded()) {
-                return back()->with('error', 'The instructor must start the virtual class before you can join.');
+        if ($virtualClass->isLiveKit()) {
+            if (! $virtualClass->canStudentJoin()) {
+                return back()->with('error', $virtualClass->joinUnavailableReason()
+                    ?? 'This virtual class is not open for joining yet.');
             }
 
             return redirect()->route('student.classes.virtual_classes.room', [$class, $virtualClass]);
+        }
+
+        if ($virtualClass->status === VirtualClass::STATUS_CANCELLED) {
+            return back()->with('error', 'This class was cancelled.');
+        }
+
+        if ($virtualClass->hasEnded()) {
+            return back()->with('error', 'This class has already ended.');
         }
 
         // Legacy external-provider records (Zoom/Meet/Teams) keep their link.

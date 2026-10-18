@@ -231,12 +231,57 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Virtual classes with optimized queries
+        // Virtual classes with optimized queries. The old `start_time > now()`
+        // compared a TIME column against a full datetime (matching nothing on
+        // MySQL) and excluded the live session the instructor wants to start
+        // or re-enter, so the panel was effectively always empty.
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->where('start_time', '>', now())
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+            ->where(function ($query) {
+                $query->whereDate('meeting_date', '>', today())
+                    ->whereDate('meeting_date', '<=', today()->addDays(7));
+                $query->orWhere(function ($sameDay) {
+                    $sameDay->whereDate('meeting_date', today())
+                        ->whereTime('end_time', '>=', now()->format('H:i:s'));
+                });
+            })
+            ->with('class.course')
+            ->orderBy('meeting_date')
             ->orderBy('start_time')
             ->limit(5)
             ->get();
+
+        // Close sessions whose end time just passed before the panel renders.
+        $upcomingVirtualClasses->each->syncStatus();
+
+        // Exact headcount and roster from LiveKit's RoomService for live rooms.
+        // Only the rows that are actually live trigger a network call (at most a
+        // handful per dashboard); the attendance count is the fallback when
+        // LiveKit is unconfigured or unreachable.
+        $presence = app(\App\Services\VirtualClassPresence::class);
+        $timeline = app(\App\Services\VirtualClassRoomTimeline::class);
+        $upcomingVirtualClasses->each(function (VirtualClass $virtualClass) use ($presence, $timeline) {
+            $virtualClass->live_count_is_exact = false;
+            $virtualClass->live_participant_count = 0;
+            $virtualClass->live_participants = [];
+            $virtualClass->live_room = [];
+
+            if (! $virtualClass->isLiveNow()) {
+                return;
+            }
+
+            // Embeds the roster the instructor sees on hover, so the names are
+            // there on first paint instead of waiting for the first poll.
+            $snapshot = $presence->snapshot($virtualClass);
+
+            $virtualClass->live_participant_count = $snapshot['count'];
+            $virtualClass->live_count_is_exact = $snapshot['exact'];
+            $virtualClass->live_participants = $snapshot['participants'];
+
+            // The headcount trend and the join/leave feed for the live room
+            // status widget, from the session's attendance rows.
+            $virtualClass->live_room = $timeline->snapshot($virtualClass);
+        });
 
         // Combine upcoming activities
         $upcomingActivities = collect();

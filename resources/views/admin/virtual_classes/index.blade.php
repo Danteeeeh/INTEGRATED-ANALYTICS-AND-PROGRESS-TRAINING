@@ -48,6 +48,7 @@
                 <option value="zoom" {{ request('meeting_provider') == 'zoom' ? 'selected' : '' }}>Zoom</option>
                 <option value="google_meet" {{ request('meeting_provider') == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
                 <option value="microsoft_teams" {{ request('meeting_provider') == 'microsoft_teams' ? 'selected' : '' }}>Microsoft Teams</option>
+                <option value="livekit" {{ request('meeting_provider') == 'livekit' ? 'selected' : '' }}>Virtual Classroom</option>
                 <option value="other" {{ request('meeting_provider') == 'other' ? 'selected' : '' }}>Other</option>
             </select>
             <select name="status" class="form-control" aria-label="Filter status">
@@ -98,7 +99,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <x-user-status-badge :status="Str::slug($vc->meeting_provider ?? 'other')" :label="ucfirst($vc->meeting_provider ?? 'Other')" />
+                                    <x-user-status-badge :status="Str::slug($vc->meeting_provider ?? 'other')" :label="$vc->providerLabel()" />
                                 </td>
                                 <td>
                                     <x-user-status-badge :status="$vc->status" />

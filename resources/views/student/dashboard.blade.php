@@ -516,6 +516,7 @@
                 </div>
                 <ul class="dash-list">
                     @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
+                        @php $isLiveVirtual = $vc->canStudentJoin(); @endphp
                         <li class="dash-list-item">
                             <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
                                 <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
@@ -524,10 +525,22 @@
                                     <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
                                 </div>
                                 <div class="dash-list-meta">
-                                    <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
+                                    @if($isLiveVirtual)
+                                        <span class="dash-meta-chip m-green">Live now</span>
+                                    @else
+                                        <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
+                                    @endif
                                     <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
                                 </div>
                             </a>
+                            @if($isLiveVirtual)
+                                <form class="dash-list-action" method="POST" action="{{ route('student.classes.virtual_classes.join', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}">
+                                    @csrf
+                                    <button type="submit" class="dash-join-btn dash-live" title="Join the live classroom">
+                                        <i class="fa-solid fa-right-to-bracket"></i> <span>Join</span>
+                                    </button>
+                                </form>
+                            @endif
                         </li>
                     @empty
                         <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>

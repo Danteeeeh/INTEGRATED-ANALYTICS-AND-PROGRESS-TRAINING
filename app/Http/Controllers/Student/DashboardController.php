@@ -170,14 +170,18 @@ class DashboardController extends Controller
 
         // Upcoming virtual classes (within the next 7 days)
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
             ->where(function ($query) use ($weekFromNow) {
                 // Virtual classes in the next 7 days
                 $query->whereDate('meeting_date', '>', today())
                     ->whereDate('meeting_date', '<=', $weekFromNow);
-                // Virtual classes today that haven't started yet
+                // Today's sessions that have not ended yet. A class that
+                // started ten minutes ago is live and joinable right now, so
+                // filtering on start_time > now() hid the only row a student
+                // could actually join.
                 $query->orWhere(function ($sameDay) {
                     $sameDay->whereDate('meeting_date', today())
-                        ->whereTime('start_time', '>', now()->format('H:i:s'));
+                        ->whereTime('end_time', '>=', now()->format('H:i:s'));
                 });
             })
             ->with('class.course')
@@ -185,6 +189,10 @@ class DashboardController extends Controller
             ->orderBy('start_time')
             ->limit(5)
             ->get();
+
+        // An ongoing session whose end time just passed must not keep its
+        // live badge / Join button when the dashboard renders.
+        $upcomingVirtualClasses->each->syncStatus();
 
         // Recent grades — only for classes the student is enrolled in
         $recentGrades = Grade::where('student_id', $studentId)
@@ -335,8 +343,10 @@ class DashboardController extends Controller
 
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
+            // Virtual classes are never "published" — that filter made this
+            // counter permanently 0, so the panel always looked empty.
             'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)
-                ->where('status', 'published')
+                ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
                 ->whereDate('meeting_date', '>=', today())
                 ->count(),
 

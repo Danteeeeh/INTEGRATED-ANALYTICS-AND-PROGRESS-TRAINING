@@ -50,6 +50,9 @@
                                         @case('microsoft_teams')
                                             <i class="fa-solid fa-video" style="color:#6264A7;"></i> MS Teams
                                             @break
+                                        @case(\App\Models\VirtualClass::PROVIDER_LIVEKIT)
+                                            <i class="fa-solid fa-video" style="color:#7c3aed;"></i> Virtual Classroom
+                                            @break
                                         @default
                                             <i class="fa-solid fa-video"></i> Other
                                     @endswitch
@@ -64,16 +67,26 @@
                                     @endif
                                 </td>
                                 <td class="actions-cell">
-                                    @if($vc->status === 'scheduled')
+                                    @if($vc->canStart())
                                         <form method="POST" action="{{ route('instructor.classes.virtual_classes.start', [$class, $vc]) }}" style="display:inline;" onsubmit="return confirm('Start this virtual class?');">
                                             @csrf
                                             <button type="submit" class="btn-icon btn-edit" title="Start">
                                                 <i class="fa-solid fa-play"></i>
                                             </button>
                                         </form>
+                                    @endif
+                                    @if($vc->status === 'scheduled')
                                         <a href="{{ route('instructor.classes.virtual_classes.edit', [$class, $vc]) }}" class="btn-icon btn-edit" title="Edit / Reschedule">
                                             <i class="fa-solid fa-pen"></i>
                                         </a>
+                                    @endif
+                                    @if($vc->canEnd())
+                                        <form method="POST" action="{{ route('instructor.classes.virtual_classes.end', [$class, $vc]) }}" style="display:inline;" onsubmit="return confirm('End this virtual class now? Students will no longer be able to join.');">
+                                            @csrf
+                                            <button type="submit" class="btn-icon btn-delete" title="End Class">
+                                                <i class="fa-solid fa-stop"></i>
+                                            </button>
+                                        </form>
                                     @endif
                                     @if($vc->canCancel())
                                         <form method="POST" action="{{ route('instructor.classes.virtual_classes.cancel', [$class, $vc]) }}" style="display:inline;" onsubmit="return confirm('Cancel this virtual class? Students will no longer see it as upcoming.');">

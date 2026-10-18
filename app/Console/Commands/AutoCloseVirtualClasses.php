@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\VirtualClass;
+use App\Services\VirtualClassSessionCloser;
 use Illuminate\Console\Command;
 
 /**
@@ -20,9 +21,23 @@ class AutoCloseVirtualClasses extends Command
 
     protected $description = 'Auto-close virtual class meetings whose end time has passed.';
 
-    public function handle(): int
+    public function handle(VirtualClassSessionCloser $closer): int
     {
-        $closed = VirtualClass::autoCloseExpired();
+        $expired = VirtualClass::query()
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+            ->whereDate('meeting_date', '<=', now()->toDateString())
+            ->get()
+            ->filter(fn (VirtualClass $virtualClass) => $virtualClass->hasEnded());
+
+        foreach ($expired as $virtualClass) {
+            // Flip the status first so a failing LiveKit call can never leave
+            // an overrun class looking live, then drop the room and close the
+            // attendance rows of everyone who was forced out.
+            $virtualClass->syncStatus();
+            $closer->close($virtualClass);
+        }
+
+        $closed = $expired->count();
 
         $this->info($closed === 0
             ? 'No virtual classes needed closing.'

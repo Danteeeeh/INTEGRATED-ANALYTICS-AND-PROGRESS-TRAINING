@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Instructor;
 use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\VirtualClass;
+use App\Services\VirtualClassPresence;
+use App\Services\VirtualClassRoomTimeline;
+use App\Services\VirtualClassSessionCloser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class VirtualClassController extends Controller
 {
@@ -94,6 +98,63 @@ class VirtualClassController extends Controller
         $virtualClass->syncStatus();
 
         return view('instructor.virtual_classes.show', compact('class', 'virtualClass'));
+    }
+
+    /**
+     * Live headcount, roster and session activity for a running session,
+     * polled by the instructor dashboard every 20 seconds. Exact data comes
+     * from LiveKit's RoomService; attendance rows are only the fallback for the
+     * headcount, and the only source for the trend and the join/leave feed.
+     */
+    public function liveCount(
+        ClassModel $class,
+        VirtualClass $virtualClass,
+        VirtualClassPresence $presence,
+        VirtualClassRoomTimeline $timeline,
+    ): JsonResponse
+    {
+        $this->authorize('view', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+
+        if (! $virtualClass->isLiveNow()) {
+            return response()
+                ->json([
+                    'live' => false,
+                    'count' => 0,
+                    'exact' => false,
+                    'participants' => [],
+                    'history' => [],
+                    'peak' => 0,
+                    'now' => 0,
+                    'events' => [],
+                ])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        // One snapshot answers both "how many" and "who": the exact LiveKit
+        // participant list when it is reachable, otherwise the open attendance
+        // rows. Names and roles are resolved against the LMS, so the roster is
+        // not limited to the LiveKit connection count.
+        $snapshot = $presence->snapshot($virtualClass);
+        $room = $timeline->snapshot($virtualClass);
+
+        return response()
+            ->json([
+                'live' => true,
+                'count' => $snapshot['count'],
+                'exact' => $snapshot['exact'],
+                'participants' => $snapshot['participants'],
+                // The trend and the feed come from attendance records, so the
+                // widget labels them as such instead of passing them off as
+                // LiveKit data.
+                'history' => $room['points'],
+                'peak' => $room['peak'],
+                'now' => $room['now'],
+                'events' => $room['events'],
+            ])
+            ->header('Cache-Control', 'no-store');
     }
 
     public function edit(ClassModel $class, VirtualClass $virtualClass): View
@@ -188,6 +249,11 @@ class VirtualClassController extends Controller
         }
 
         $virtualClass->update(['status' => VirtualClass::STATUS_COMPLETED]);
+
+        // End it for everyone: LiveKit drops whoever is still inside the room
+        // (the instructor is often not there when ending from the dashboard),
+        // and their attendance rows are closed out so durations are recorded.
+        app(VirtualClassSessionCloser::class)->close($virtualClass);
 
         return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
             ->with('success', 'Virtual class ended and closed.');

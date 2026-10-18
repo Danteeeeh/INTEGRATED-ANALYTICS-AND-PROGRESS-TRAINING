@@ -25,6 +25,10 @@ export default defineConfig({
                 'resources/css/student-progress-ui.css',
                 'resources/css/lms-polish.css',
                 'resources/css/sidebar-layout-fix.css',
+                // Built-in Virtual Classroom (LiveKit) — bundled so the room
+                // needs neither a CDN script nor an inline <script>/<style>.
+                'resources/css/virtual-classroom.css',
+                'resources/js/virtual-classroom.js',
             ],
             refresh: true,
         }),

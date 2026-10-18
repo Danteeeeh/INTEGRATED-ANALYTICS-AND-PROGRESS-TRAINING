@@ -5,6 +5,11 @@
     $activeNav = 'virtual_classes';
     $pageTitle = 'Virtual Class';
     $pageIcon = '<i class="fa-solid fa-video"></i>';
+    // LiveKit sessions open only after the instructor starts the class;
+    // external-provider sessions keep their "open while scheduled" rule.
+    $canJoin = $virtualClass->canStudentJoin();
+    $joinReason = $virtualClass->joinUnavailableReason();
+    $isLiveKit = $virtualClass->isLiveKit();
 @endphp
 
 @section('page-title-bar')
@@ -29,6 +34,11 @@
             <div>
                 <h3 style="margin: 0 0 8px 0;"><i class="fa-solid fa-video"></i> {{ $virtualClass->title }}</h3>
                 <div style="opacity: 0.9; font-size: 0.9rem;">
+                    @if($joinReason)
+                        <div style="margin-top: 10px; font-size: 0.86rem; background: rgba(0,0,0,0.18); display: inline-block; padding: 6px 12px; border-radius: 8px;">
+                            <i class="fa-solid fa-circle-info"></i> {{ $joinReason }}
+                        </div>
+                    @endif
                     @if($virtualClass->status === 'scheduled')
                         <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">
                             <i class="fa-solid fa-calendar"></i> Scheduled
@@ -49,19 +59,24 @@
                 </div>
             </div>
 
-            @if($virtualClass->status === 'ongoing' || ($virtualClass->status === 'scheduled' && now()->between($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time), $virtualClass->meeting_date->setTimeFromTimeString($virtualClass->end_time))))
+            @if($canJoin)
                 <form action="{{ route('student.classes.virtual_classes.join', [$class, $virtualClass]) }}" method="POST" style="display: inline;">
                     @csrf
                     <button type="submit" class="btn-add" style="background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; border: none;">
-                        <i class="fa-solid fa-sign-in-alt"></i> Join Meeting
+                        <i class="fa-solid fa-sign-in-alt"></i> {{ $isLiveKit ? 'Join Classroom' : 'Join Meeting' }}
                     </button>
                 </form>
-            @elseif($virtualClass->status === 'scheduled' && now()->lt($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)))
-                <button disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+            @elseif($virtualClass->status === 'scheduled' && ! $virtualClass->hasEnded())
+                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
                     <i class="fa-solid fa-clock"></i> Not Started Yet
+                    <span id="countdown" style="font-variant-numeric: tabular-nums; margin-left: 8px;"></span>
+                </button>
+            @elseif($virtualClass->status === 'ongoing')
+                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+                    <i class="fa-solid fa-circle-stop"></i> No Longer Joinable
                 </button>
             @else
-                <button disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
                     <i class="fa-solid fa-check-circle"></i> Ended
                 </button>
             @endif
@@ -84,19 +99,12 @@
 
         <div class="modal-row">
             <span>Duration:</span>
-            <span>
-                @php
-                    $startTime = \Carbon\Carbon::parse($virtualClass->start_time);
-                    $endTime = \Carbon\Carbon::parse($virtualClass->end_time);
-                    $duration = $startTime->diff($endTime);
-                @endphp
-                {{ $duration->h }}h {{ $duration->i }}m
-            </span>
+            <span>{{ $virtualClass->durationLabel() }}</span>
         </div>
 
         <div class="modal-row">
             <span>Instructor:</span>
-            <span>{{ $virtualClass->instructor->full_name }}</span>
+            <span>{{ $virtualClass->instructor->full_name ?? '-' }}</span>
         </div>
 
         <div class="modal-row">
@@ -299,8 +307,8 @@ END:VCALENDAR`;
         }
 
         // Countdown timer for meeting start
-        @if($virtualClass->status === 'scheduled' && now()->lt($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)))
-            const meetingStart = new Date('{{ $virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)->toIso8601String() }}');
+        @if($virtualClass->status === 'scheduled' && ! $virtualClass->hasEnded() && $virtualClass->startsAt())
+            const meetingStart = new Date('{{ $virtualClass->startsAt()->toIso8601String() }}');
 
             function updateCountdown() {
                 const now = new Date();

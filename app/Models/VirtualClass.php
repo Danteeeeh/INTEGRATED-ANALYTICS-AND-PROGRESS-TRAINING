@@ -154,6 +154,7 @@ class VirtualClass extends Model
     public function providerLabel(): string
     {
         return match ($this->meeting_provider) {
+            self::PROVIDER_LIVEKIT => 'Virtual Classroom',
             'zoom' => 'Zoom',
             'google_meet' => 'Google Meet',
             'microsoft_teams' => 'Microsoft Teams',
@@ -161,6 +162,61 @@ class VirtualClass extends Model
             null, '' => 'Other',
             default => ucfirst((string) $this->meeting_provider),
         };
+    }
+
+    /**
+     * Is this session hosted inside the LMS (LiveKit) rather than on an
+     * external provider link?
+     */
+    public function isLiveKit(): bool
+    {
+        return $this->meeting_provider === self::PROVIDER_LIVEKIT;
+    }
+
+    /**
+     * Can an enrolled student enter the session right now?
+     *
+     * LiveKit rooms only open after the instructor presses Start (and before
+     * the scheduled end), so a scheduled-but-not-started class is never
+     * joinable. Legacy provider records keep their old "open while scheduled
+     * or ongoing and a link exists" rule.
+     */
+    public function canStudentJoin(): bool
+    {
+        if ($this->hasEnded()) {
+            return false;
+        }
+
+        if ($this->isLiveKit()) {
+            return $this->status === self::STATUS_ONGOING && filled($this->livekit_room_name);
+        }
+
+        return in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true)
+            && filled($this->meeting_url);
+    }
+
+    /**
+     * Student-facing explanation for a disabled Join button.
+     */
+    public function joinUnavailableReason(): ?string
+    {
+        if ($this->canStudentJoin()) {
+            return null;
+        }
+
+        if ($this->status === self::STATUS_CANCELLED) {
+            return 'This class was cancelled.';
+        }
+
+        if ($this->status === self::STATUS_COMPLETED || $this->hasEnded()) {
+            return 'This class has already ended.';
+        }
+
+        if ($this->isLiveKit() && blank($this->livekit_room_name)) {
+            return 'The virtual classroom has not been set up yet.';
+        }
+
+        return 'Waiting for the instructor to start this class.';
     }
 
     /**
@@ -176,9 +232,42 @@ class VirtualClass extends Model
         return $this->status === self::STATUS_ONGOING;
     }
 
+    /**
+     * Is the built-in classroom open to participants right now? A scheduled
+     * class has no room yet and an ended one is closed, so only an ongoing
+     * LiveKit session counts. Dashboards, the headcount endpoint and the
+     * presence service all ask this same question.
+     */
+    public function isLiveNow(): bool
+    {
+        return $this->isLiveKit()
+            && $this->status === self::STATUS_ONGOING
+            && ! $this->hasEnded();
+    }
+
     public function canStart(): bool
     {
         return $this->status === self::STATUS_SCHEDULED && ! $this->hasEnded();
+    }
+
+    /**
+     * Should a one-click Start shortcut appear on a dashboard?
+     *
+     * Starting is allowed any time before the end, but offering it days ahead
+     * invites accidental early starts. Dashboards only surface it for today's
+     * session, from $leadMinutes before the scheduled start.
+     */
+    public function canStartNow(int $leadMinutes = 30): bool
+    {
+        if (! $this->canStart()) {
+            return false;
+        }
+
+        $start = $this->startsAt();
+
+        return $start !== null
+            && $start->isToday()
+            && now()->greaterThanOrEqualTo($start->copy()->subMinutes($leadMinutes));
     }
 
     public function canCancel(): bool
