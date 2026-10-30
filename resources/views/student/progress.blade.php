@@ -19,7 +19,7 @@
         <x-slot name="meta">
             <span><i class="fa-solid fa-fire"></i> {{ $learningStreak }} day streak</span>
             <span>·</span>
-            <span>{{ $overallProgress }}&percnt; overall progress</span>
+            <span>{{ round($overallProgress) }}&percnt; overall progress</span>
         </x-slot>
     </x-user-page-header>
 
@@ -43,20 +43,20 @@
             value="{{ round($assignmentProgress) }}%"
             icon="fa-tasks"
             trend="{{ $submittedAssignments }}/{{ $totalAssignments }} submitted"
-            footer="{{ $totalAssignments - $submittedAssignments }} pending"
+            footer="{{ max(0, $totalAssignments - $submittedAssignments) }} pending"
         />
         <x-user-stat-card
             label="Quiz Progress"
             value="{{ round($quizProgress) }}%"
             icon="fa-question-circle"
-            trend="{{ $quizAttempts }} attempts"
-            footer="{{ $totalQuizzes - $quizAttempts }} remaining"
+            trend="{{ $quizzesCompleted }}/{{ $totalQuizzes }} quizzes answered"
+            footer="{{ $quizAttempts }} attempt{{ $quizAttempts === 1 ? '' : 's' }} · {{ max(0, $totalQuizzes - $quizzesCompleted) }} remaining"
         />
         <x-user-stat-card
             label="Average Grade"
             value="{{ number_format($averageGrade, 1) }}%"
             icon="fa-graduation-cap"
-            trend="{{ $recentGrades->count() }} graded items"
+            trend="{{ $gradedItemCount }} graded items"
             footer="{{ $completions->count() }} courses completed"
         />
     </div>
@@ -77,11 +77,15 @@
                 </div>
                 <div class="card-body">
                     <div class="progress-overview">
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: {{ $progress['progress'] }}%">
-                                <span>{{ round($progress['progress']) }}%</span>
+                        @if($progress['has_content'] ?? true)
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: {{ $progress['progress'] }}%">
+                                    <span>{{ round($progress['progress']) }}%</span>
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            <p class="progress-meta"><i class="fa-solid fa-clock"></i> No content published yet</p>
+                        @endif
                         <p class="progress-meta">
                             Last accessed: {{ $progress['last_accessed'] ? $progress['last_accessed']->diffForHumans() : 'Never' }}
                         </p>
@@ -164,7 +168,7 @@
                             <span class="student-timeline-date">{{ $completion['completed_at'] }}</span>
                             <h4>{{ $completion['course'] }}</h4>
                         </div>
-                        <span class="user-status completed">{{ $completion['completion_percent'] }}&percnt; complete</span>
+                        <span class="user-status completed">{{ round($completion['completion_percent']) }}&percnt; complete</span>
                     </article>
                 @endforeach
             </div>

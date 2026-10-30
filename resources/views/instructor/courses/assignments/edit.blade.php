@@ -75,6 +75,15 @@
                         </select>
                         @error('status')<span class="error-message">{{ $message }}</span>@enderror
                     </div>
+                    <div class="modal-row">
+                        <label>Submission Policy</label>
+                        <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="allow_resubmission" value="1" {{ old('allow_resubmission', $assignment->allow_resubmission) ? 'checked' : '' }}>
+                                <span>Allow Resubmission</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-row" style="margin-top:14px;">

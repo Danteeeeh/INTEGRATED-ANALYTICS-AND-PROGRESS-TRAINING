@@ -31,7 +31,6 @@
             @endif
         </span></div>
         <div class="modal-row"><span>Submission Type:</span><span>{{ ucfirst(str_replace('_', ' ', $assignment->submission_type)) }}</span></div>
-        <div class="modal-row"><span>Allow Late:</span><span>{{ $assignment->allow_late ? 'Yes' : 'No' }}</span></div>
         <div class="modal-row"><span>Resubmission Limit:</span><span>{{ $assignment->max_attempts ?? 0 }} {{ ($assignment->max_attempts ? 'attempts' : '(unlimited)') }}</span></div>
 
         <div class="modal-section-title" style="margin-top:14px;"><i class="fa-solid fa-graduation-cap"></i> Academic Context</div>

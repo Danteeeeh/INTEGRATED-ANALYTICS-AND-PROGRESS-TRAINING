@@ -17,6 +17,11 @@
 @endsection
 
 @section('content')
+    {{-- A broken video setup is visible before the Start / Join buttons below. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <div class="form-card">
         <h3>Virtual Class Details</h3>
 
@@ -86,7 +91,6 @@
         <div class="modal-row"><span>Class:</span><span>{{ $class->code }} &mdash; {{ $class->name }}</span></div>
         <div class="modal-row"><span>Course:</span><span>{{ $virtualClass->course->code ?? '-' }} &mdash; {{ ($virtualClass->course->name ?? '-') }}</span></div>
         <div class="modal-row"><span>Instructor:</span><span>{{ $virtualClass->instructor->full_name ?? '-' }}</span></div>
-        <div class="modal-row"><span>Duration:</span><span>{{ $virtualClass->durationLabel() }}</span></div>
         <div class="modal-row">
             <span>Status:</span>
             <span>
@@ -128,9 +132,6 @@
                         @break
                     @case('microsoft_teams')
                         <i class="fa-solid fa-video" style="color:#6264A7;"></i> Microsoft Teams
-                        @break
-                    @case(\App\Models\VirtualClass::PROVIDER_LIVEKIT)
-                        <i class="fa-solid fa-video" style="color:#7c3aed;"></i> Virtual Classroom (built-in LiveKit)
                         @break
                     @default
                         <i class="fa-solid fa-video"></i> Other

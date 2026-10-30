@@ -98,13 +98,6 @@
                 </div>
 
                 <div class="form-field full">
-                    <label style="display:flex;align-items:center;gap:8px;">
-                        <input type="checkbox" name="allow_late" value="1" {{ old('allow_late', $assignment->allow_late) ? 'checked' : '' }} style="width:auto;">
-                        Allow Late Submissions
-                    </label>
-                </div>
-
-                <div class="form-field full">
                     <label>Status</label>
                     <select name="status">
                         <option value="{{ \App\Models\Assignment::STATUS_DRAFT }}" {{ old('status', $assignment->status) == \App\Models\Assignment::STATUS_DRAFT ? 'selected' : '' }}>Draft</option>

@@ -645,8 +645,6 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 // Token generation is the expensive, abuse-prone action — rate
                 // limit it (master prompt §12).
                 Route::get('/{virtualClass}/room', [VirtualClassRoomController::class, 'instructorRoom'])->name('room');
-                // Polled by the dashboard every 20s while the class is live.
-                Route::get('/{virtualClass}/live-count', [InstructorVirtualClassController::class, 'liveCount'])->name('live-count')->middleware('throttle:60,1');
                 Route::post('/{virtualClass}/token', [VirtualClassRoomController::class, 'instructorToken'])->name('token')->middleware('throttle:20,1');
                 Route::post('/{virtualClass}/leave', [VirtualClassRoomController::class, 'instructorLeave'])->name('leave');
 
@@ -830,6 +828,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
             Route::prefix('{class}/virtual_classes')->name('virtual_classes.')->group(function () {
                 Route::get('/', [StudentVirtualClassController::class, 'index'])->name('index');
                 Route::get('/{virtualClass}', [StudentVirtualClassController::class, 'show'])->name('show');
+
+                // Kept cheap: the details page polls it while it waits for the
+                // instructor to open the room.
+                Route::get('/{virtualClass}/status', [StudentVirtualClassController::class, 'status'])->name('status');
 
                 // Built-in Virtual Classroom (LiveKit): room, token, leave.
                 // Token generation is the expensive, abuse-prone action — rate

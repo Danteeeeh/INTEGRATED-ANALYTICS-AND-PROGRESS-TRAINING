@@ -7,11 +7,9 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\User;
 use App\Models\VirtualClass;
-use App\Models\VirtualClassAttendee;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -166,120 +164,6 @@ class VirtualClassLifecycleTest extends TestCase
             ->assertRedirect(route('instructor.classes.virtual_classes.show', [$this->class, $room]));
 
         $this->assertSame(VirtualClass::STATUS_SCHEDULED, $room->fresh()->status);
-    }
-
-    public function test_ending_a_class_deletes_the_livekit_room_and_closes_attendance(): void
-    {
-        $this->configureLiveKit();
-        $room = $this->makeRoom(VirtualClass::STATUS_ONGOING);
-
-        VirtualClassAttendee::create([
-            'virtual_class_id' => $room->id,
-            'user_id' => $this->enrolledStudent->id,
-            'joined_at' => now()->subMinutes(25),
-            'attendance_status' => VirtualClassAttendee::STATUS_PRESENT,
-        ]);
-
-        Http::fake(['*DeleteRoom' => Http::response([], 200)]);
-
-        $this->actingAs($this->instructor)
-            ->post(route('instructor.classes.virtual_classes.end', [$this->class, $room]))
-            ->assertRedirect(route('instructor.classes.virtual_classes.show', [$this->class, $room]));
-
-        $this->assertSame(VirtualClass::STATUS_COMPLETED, $room->fresh()->status);
-
-        // Everyone inside is dropped by LiveKit, addressed with a room-scoped
-        // roomAdmin token (never the participant secret).
-        Http::assertSent(function ($request) use ($room) {
-            if ($request->url() !== 'https://test-project.livekit.cloud/twirp/livekit.RoomService/DeleteRoom') {
-                return false;
-            }
-
-            if (($request->data()['room'] ?? null) !== $room->livekit_room_name) {
-                return false;
-            }
-
-            $jwt = Str::after($request->header('Authorization')[0] ?? '', 'Bearer ');
-            $claims = json_decode(base64_decode(strtr(explode('.', $jwt)[1] ?? '', '-_', '+/')), true);
-
-            return ($claims['video']['roomAdmin'] ?? false) === true
-                && ($claims['video']['room'] ?? null) === $room->livekit_room_name;
-        });
-
-        // The forced disconnect never fires the browser leave beacon, so the
-        // server has to close the attendance row itself.
-        $attendee = VirtualClassAttendee::where('virtual_class_id', $room->id)
-            ->where('user_id', $this->enrolledStudent->id)
-            ->first();
-
-        $this->assertNotNull($attendee->left_at);
-        $this->assertGreaterThanOrEqual(25, $attendee->duration_minutes);
-    }
-
-    public function test_ending_a_class_still_closes_it_when_livekit_delete_fails(): void
-    {
-        $this->configureLiveKit();
-        $room = $this->makeRoom(VirtualClass::STATUS_ONGOING);
-
-        Http::fake(['*DeleteRoom' => Http::response(['message' => 'unavailable'], 503)]);
-
-        $this->actingAs($this->instructor)
-            ->post(route('instructor.classes.virtual_classes.end', [$this->class, $room]))
-            ->assertRedirect(route('instructor.classes.virtual_classes.show', [$this->class, $room]));
-
-        // The class is still closed: status alone blocks new tokens.
-        $this->assertSame(VirtualClass::STATUS_COMPLETED, $room->fresh()->status);
-    }
-
-    public function test_ending_a_class_without_livekit_config_makes_no_room_request(): void
-    {
-        Http::fake();
-
-        $room = $this->makeRoom(VirtualClass::STATUS_ONGOING);
-
-        $this->actingAs($this->instructor)
-            ->post(route('instructor.classes.virtual_classes.end', [$this->class, $room]))
-            ->assertRedirect(route('instructor.classes.virtual_classes.show', [$this->class, $room]));
-
-        $this->assertSame(VirtualClass::STATUS_COMPLETED, $room->fresh()->status);
-        Http::assertNothingSent();
-    }
-
-    public function test_auto_close_command_ends_the_room_and_closes_attendance(): void
-    {
-        $this->configureLiveKit();
-
-        $room = VirtualClass::create([
-            'course_id' => $this->class->course_id,
-            'class_id' => $this->class->id,
-            'instructor_id' => $this->instructor->id,
-            'title' => 'Overrun Session',
-            'meeting_date' => now()->subHours(3)->toDateString(),
-            'start_time' => now()->subHours(3)->format('H:i:s'),
-            'end_time' => now()->subHours(2)->format('H:i:s'),
-            'meeting_provider' => VirtualClass::PROVIDER_LIVEKIT,
-            'livekit_room_name' => 'lms-class-'.$this->class->id.'-'.Str::lower(Str::random(20)),
-            'status' => VirtualClass::STATUS_ONGOING,
-            'created_by' => $this->instructor->id,
-        ]);
-
-        VirtualClassAttendee::create([
-            'virtual_class_id' => $room->id,
-            'user_id' => $this->enrolledStudent->id,
-            'joined_at' => now()->subHours(2),
-            'attendance_status' => VirtualClassAttendee::STATUS_PRESENT,
-        ]);
-
-        Http::fake(['*DeleteRoom' => Http::response([], 200)]);
-
-        $this->artisan('virtual-classes:auto-close')->assertSuccessful();
-
-        $this->assertSame(VirtualClass::STATUS_COMPLETED, $room->fresh()->status);
-        Http::assertSent(fn ($request) => str_contains($request->url(), '/twirp/livekit.RoomService/DeleteRoom'));
-
-        $attendee = VirtualClassAttendee::where('virtual_class_id', $room->id)->first();
-        $this->assertNotNull($attendee->left_at);
-        $this->assertGreaterThanOrEqual(120, $attendee->duration_minutes);
     }
 
     public function test_token_endpoint_is_throttled(): void

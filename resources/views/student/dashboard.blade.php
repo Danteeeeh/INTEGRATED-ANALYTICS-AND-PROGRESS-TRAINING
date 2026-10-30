@@ -11,11 +11,20 @@
     $firstClassId = $stats['my_enrollments']?->first()?->class_id;
     $overdueCount = ($stats['overdue_assignments'] ?? collect())->count() + ($stats['overdue_quizzes'] ?? collect())->count() + ($stats['overdue_exams'] ?? collect())->count();
     // Plain array for the progress chart — Eloquent models are not JSON-serialised directly.
-    $progressChartData = collect($progressData)->map(fn ($item) => [
-        'title' => Str::limit($item['course']?->title ?? 'Course', 28),
-        'progress' => round($item['progress'] ?? 0, 1),
-    ])->values();
+    // Courses with nothing published yet are left out: a 0% bar would read as
+    // a failing student when there is simply no content to complete.
+    // The axis shows the course code, because two courses can share a long
+    // title (or both be truncated to the same 28 characters); the full title
+    // stays in the bar's tooltip.
+    $progressChartData = collect($progressData)
+        ->filter(fn ($item) => $item['has_content'] ?? true)
+        ->map(fn ($item) => [
+            'code' => $item['course']?->code,
+            'title' => $item['course']?->title ?? 'Course',
+            'progress' => round($item['progress'] ?? 0, 1),
+        ])->values();
     $progressLookup = collect($progressData)->pluck('progress', 'course.id');
+    $contentLookup = collect($progressData)->pluck('has_content', 'course.id');
 
     // Compact calendar items: assignments, quizzes, exams and virtual classes
     // merged and sorted by their real date. Display-only computation over the
@@ -170,7 +179,7 @@
         />
         <x-user-stat-card
             label="Completed Activities"
-            value="{{ $stats['completed_enrollments'] ?? 0 }}"
+            value="{{ $stats['completed_activities'] ?? 0 }}"
             icon="fa-circle-check"
             trend="LMS activity"
             footer="{{ $stats['total_grades'] ?? 0 }} grades released"
@@ -187,8 +196,10 @@
             label="Average Grade"
             value="{{ number_format($stats['average_grade'] ?? 0, 1) }}%"
             icon="fa-star"
-            trend="GPA {{ number_format($stats['gpa'] ?? 0, 2) }}"
-            footer="{{ (($stats['highest_grade'] ?? 0) > 0 ? 'Best '.number_format($stats['highest_grade'], 1).'%' : 'No grades yet') }}"
+            trend="{{ ($stats['average_grade_is_final'] ?? false) ? 'GPA '.number_format($stats['gpa'] ?? 0, 2) : 'LMS score' }}"
+            footer="{{ ($stats['highest_grade'] ?? 0) > 0
+                ? 'Best '.number_format($stats['highest_grade'], 1).'%'
+                : (($stats['average_grade'] ?? 0) > 0 ? 'LMS average — official grade from AA' : 'No grades yet') }}"
         />
         <x-user-stat-card
             label="Upcoming Tasks"
@@ -214,6 +225,7 @@
                 @php
                     $course = $enrollment->class?->course;
                     $courseProgress = $progressLookup[$course->id ?? 0] ?? 0;
+                    $hasCourseContent = $contentLookup[$course->id ?? 0] ?? true;
                     // Canvas-style per-course color: deterministic from the course id.
                     $palette = ['#4d8ff0', '#62c9f5', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#22d3ee', '#f472b6'];
                     $courseColor = $palette[($course->id ?? 0) % count($palette)];
@@ -233,8 +245,13 @@
                         @endif
                     </p>
                     <div class="course-card-progress">
-                        <div class="dash-progress"><span style="width: {{ $courseProgress }}%"></span></div>
-                        <span class="dash-progress-label">{{ round($courseProgress) }}%</span>
+                        @if($hasCourseContent)
+                            <div class="dash-progress"><span style="width: {{ $courseProgress }}%"></span></div>
+                            <span class="dash-progress-label">{{ round($courseProgress) }}%</span>
+                        @else
+                            <div class="dash-progress"><span style="width: 0%"></span></div>
+                            <span class="dash-progress-label">No content yet</span>
+                        @endif
                     </div>
                     <div class="course-card-foot">
                         <span class="course-card-count"><i class="fa-solid fa-chalkboard-user"></i> {{ $enrollment->class?->instructor?->name ?? 'Instructor TBA' }}</span>
@@ -516,7 +533,6 @@
                 </div>
                 <ul class="dash-list">
                     @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
-                        @php $isLiveVirtual = $vc->canStudentJoin(); @endphp
                         <li class="dash-list-item">
                             <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
                                 <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
@@ -525,22 +541,10 @@
                                     <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
                                 </div>
                                 <div class="dash-list-meta">
-                                    @if($isLiveVirtual)
-                                        <span class="dash-meta-chip m-green">Live now</span>
-                                    @else
-                                        <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
-                                    @endif
+                                    <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
                                     <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
                                 </div>
                             </a>
-                            @if($isLiveVirtual)
-                                <form class="dash-list-action" method="POST" action="{{ route('student.classes.virtual_classes.join', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}">
-                                    @csrf
-                                    <button type="submit" class="dash-join-btn dash-live" title="Join the live classroom">
-                                        <i class="fa-solid fa-right-to-bracket"></i> <span>Join</span>
-                                    </button>
-                                </form>
-                            @endif
                         </li>
                     @empty
                         <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
@@ -644,7 +648,10 @@
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-graduation-cap"></i> Recent grades</h4>
-                <span class="panel-count">{{ $stats['total_grades'] ?? 0 }}</span>
+                {{-- The list holds the five newest grades; the badge counts the
+                     list, like the quiz/exam panels, instead of printing the
+                     all-time total beside five rows. --}}
+                <span class="panel-count">{{ ($stats['recent_grades'] ?? collect())->count() }}</span>
             </div>
             <ul class="dash-list">
                 @forelse(($stats['recent_grades'] ?? []) as $grade)
@@ -771,7 +778,10 @@
             <div class="analytics-controls">
                 <select id="analyticsClass" class="analytics-select" title="Limit results to one class">
                     <option value="">All my classes</option>
-                    @foreach ($stats['my_enrollments'] ?? [] as $enrollment)
+                    {{-- Section-scoped on purpose: a class outside the student's
+                         section is not offered, because selecting it could only
+                         produce the "not part of your section" notice. --}}
+                    @foreach ($stats['analytics_enrollments'] ?? [] as $enrollment)
                         @continue(! $enrollment->class)
                         <option value="{{ $enrollment->class_id }}">
                             {{ $enrollment->class->course?->code ?? $enrollment->class->code ?? 'Class' }} — {{ $enrollment->class->course?->title ?? 'Class' }}
@@ -787,6 +797,23 @@
                 <button onclick="loadAnalytics()" class="analytics-btn"><i class="fa-solid fa-sync-alt"></i> Load</button>
             </div>
         </div>
+        @php
+            // Classes kept out of the page by the section scope. They are gone
+            // from the course cards and the counts too, so this note is the
+            // only place that names them — otherwise the enrolment would
+            // simply vanish without a word.
+            $hiddenAnalyticsClasses = $stats['analytics_hidden_classes'] ?? collect();
+        @endphp
+        @if($hiddenAnalyticsClasses->isNotEmpty())
+            <p class="analytics-scope-note" id="analyticsScopeNote">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    {{ $hiddenAnalyticsClasses->count() === 1 ? 'One of your classes is' : 'Some of your classes are' }}
+                    outside your section, so {{ $hiddenAnalyticsClasses->count() === 1 ? 'it is' : 'they are' }}
+                    not shown on this dashboard: <strong>{{ $hiddenAnalyticsClasses->implode(', ') }}</strong>.
+                </span>
+            </p>
+        @endif
         <div class="analytics-content">
             <div id="analytics-toast" class="analytics-toast"></div>
             <div class="analytics-grid">
@@ -834,7 +861,7 @@
             new Chart(document.getElementById('progressChartCanvas'), {
                 type: 'bar',
                 data: {
-                    labels: progressData.map(d => d.title),
+                    labels: progressData.map(d => d.code || d.title),
                     datasets: [{
                         label: 'Completion',
                         data: progressData.map(d => d.progress),
@@ -863,7 +890,14 @@
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { callbacks: { label: ctx => ctx.parsed.x + '% complete' } },
+                        tooltip: {
+                            callbacks: {
+                                // The axis carries the code only; the tooltip
+                                // names the course in full.
+                                title: ctx => progressData[ctx[0].dataIndex].title,
+                                label: ctx => ctx.parsed.x + '% complete',
+                            },
+                        },
                     },
                 },
             });
@@ -1019,6 +1053,42 @@
             if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
         }
 
+        // A series with nothing in it used to be drawn as a 0% bar labelled
+        // "No data", which reads as a failed score rather than missing work.
+        // Say what is missing instead, and repeat the reason the endpoint sent
+        // when the class itself is outside the student's section.
+        function analyticsHasData(type, data) {
+            if (type === 'progress') return (data.progress || []).length > 0;
+
+            return (data.scores || []).length > 0;
+        }
+
+        function analyticsEmptyMessage(type, notice) {
+            if (notice) return notice;
+
+            const messages = {
+                grades: 'No released grades for you in this selection yet.',
+                quizzes: 'No finished quiz attempts in this selection yet.',
+                exams: 'No finished exam attempts in this selection yet.',
+                progress: 'No published content to chart in this selection yet.',
+            };
+
+            return messages[type] || 'Nothing to chart yet.';
+        }
+
+        // Built through the DOM so the message stays text, whatever it says.
+        function analyticsEmptyHtml(message) {
+            const box = document.createElement('div');
+            box.className = 'chart-placeholder analytics-empty';
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-circle-info';
+            const text = document.createElement('p');
+            text.textContent = message;
+            box.append(icon, text);
+
+            return box.outerHTML;
+        }
+
         async function loadAnalytics() {
             const type = document.getElementById('analyticsType').value;
             const classId = document.getElementById('analyticsClass').value;
@@ -1034,7 +1104,7 @@
                 const response = await fetch(`{{ route('student.dashboard.analytics') }}?${params.toString()}`);
                 const data = await response.json();
                 if (data.success) {
-                    displayAnalytics(data.data, type);
+                    displayAnalytics(data.data, type, data.notice);
                     const toast = document.getElementById('analytics-toast');
                     if (toast) {
                         toast.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} analytics loaded`;
@@ -1057,22 +1127,27 @@
             }
         }
 
-        function displayAnalytics(data, type) {
+        function displayAnalytics(data, type, notice) {
             const title = document.getElementById('analyticsTitle');
             const container = document.getElementById('analyticsChart');
             const summary = document.getElementById('analyticsSummary');
             destroyChart('analyticsChart');
 
+            const hasData = analyticsHasData(type, data);
+            const emptyMessage = hasData ? null : analyticsEmptyMessage(type, notice);
+
             if (type === 'grades') {
                 title.textContent = 'Grade Trend';
-                container.innerHTML = '<canvas id="analyticsCanvas"></canvas>';
-                chartInstances['analyticsChart'] = new Chart(document.getElementById('analyticsCanvas'), {
+                container.innerHTML = hasData
+                    ? '<canvas id="analyticsCanvas"></canvas>'
+                    : analyticsEmptyHtml(emptyMessage);
+                chartInstances['analyticsChart'] = hasData ? new Chart(document.getElementById('analyticsCanvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.labels.length ? data.labels : ['No data'],
+                        labels: data.labels,
                         datasets: [{
                             label: 'Score %',
-                            data: data.scores.length ? data.scores : [0],
+                            data: data.scores,
                             backgroundColor: 'rgba(52, 211, 153, 0.6)',
                             borderColor: '#34d399',
                             borderWidth: 1.5,
@@ -1091,21 +1166,23 @@
                             x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
-                });
+                }) : null;
                 summary.innerHTML = `
                     <div class="summary-item"><span class="summary-label">Average</span><span class="summary-value">${data.average}%</span></div>
                     <div class="summary-item"><span class="summary-label">Total Grades</span><span class="summary-value">${data.total_grades}</span></div>
                 `;
             } else if (type === 'quizzes') {
                 title.textContent = 'Quiz Performance';
-                container.innerHTML = '<canvas id="analyticsCanvas"></canvas>';
-                chartInstances['analyticsChart'] = new Chart(document.getElementById('analyticsCanvas'), {
+                container.innerHTML = hasData
+                    ? '<canvas id="analyticsCanvas"></canvas>'
+                    : analyticsEmptyHtml(emptyMessage);
+                chartInstances['analyticsChart'] = hasData ? new Chart(document.getElementById('analyticsCanvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.labels.length ? data.labels : ['No data'],
+                        labels: data.labels,
                         datasets: [{
                             label: 'Score %',
-                            data: data.scores.length ? data.scores : [0],
+                            data: data.scores,
                             backgroundColor: 'rgba(139, 92, 246, 0.55)',
                             borderColor: '#8b5cf6',
                             borderWidth: 1.5,
@@ -1124,21 +1201,23 @@
                             x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
-                });
+                }) : null;
                 summary.innerHTML = `
                     <div class="summary-item"><span class="summary-label">Attempts</span><span class="summary-value">${data.total_attempts}</span></div>
                     <div class="summary-item"><span class="summary-label">Best Score</span><span class="summary-value">${data.best_score}%</span></div>
                 `;
             } else if (type === 'exams') {
                 title.textContent = 'Exam Performance';
-                container.innerHTML = '<canvas id="analyticsCanvas"></canvas>';
-                chartInstances['analyticsChart'] = new Chart(document.getElementById('analyticsCanvas'), {
+                container.innerHTML = hasData
+                    ? '<canvas id="analyticsCanvas"></canvas>'
+                    : analyticsEmptyHtml(emptyMessage);
+                chartInstances['analyticsChart'] = hasData ? new Chart(document.getElementById('analyticsCanvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.labels.length ? data.labels : ['No data'],
+                        labels: data.labels,
                         datasets: [{
                             label: 'Score %',
-                            data: data.scores.length ? data.scores : [0],
+                            data: data.scores,
                             backgroundColor: 'rgba(219, 39, 119, 0.55)',
                             borderColor: '#db2777',
                             borderWidth: 1.5,
@@ -1157,21 +1236,23 @@
                             x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
                         }
                     }
-                });
+                }) : null;
                 summary.innerHTML = `
                     <div class="summary-item"><span class="summary-label">Attempts</span><span class="summary-value">${data.total_attempts}</span></div>
                     <div class="summary-item"><span class="summary-label">Best Score</span><span class="summary-value">${data.best_score}%</span></div>
                 `;
             } else if (type === 'progress') {
                 title.textContent = 'Course Progress';
-                container.innerHTML = '<canvas id="analyticsCanvas"></canvas>';
-                chartInstances['analyticsChart'] = new Chart(document.getElementById('analyticsCanvas'), {
+                container.innerHTML = hasData
+                    ? '<canvas id="analyticsCanvas"></canvas>'
+                    : analyticsEmptyHtml(emptyMessage);
+                chartInstances['analyticsChart'] = hasData ? new Chart(document.getElementById('analyticsCanvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.labels.length ? data.labels : ['No data'],
+                        labels: data.labels,
                         datasets: [{
                             label: 'Progress %',
-                            data: data.progress.length ? data.progress : [0],
+                            data: data.progress,
                             backgroundColor: 'rgba(98, 201, 245, 0.55)',
                             borderColor: '#62c9f5',
                             borderWidth: 1.5,
@@ -1190,7 +1271,7 @@
                             y: { grid: { display: false }, ticks: { color: CHART_TEXT } }
                         }
                     }
-                });
+                }) : null;
                 summary.innerHTML = `
                     <div class="summary-item"><span class="summary-label">Overall</span><span class="summary-value">${data.overall}%</span></div>
                     <div class="summary-item"><span class="summary-label">Courses</span><span class="summary-value">${data.total_courses}</span></div>
@@ -1204,7 +1285,7 @@
             if (button) { button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...'; button.disabled = true; }
             fetch(`{{ route('student.dashboard.analytics') }}?type=grades`)
                 .then(r => r.json())
-                .then(data => { if (data.success) displayAnalytics(data.data, 'grades'); })
+                .then(data => { if (data.success) displayAnalytics(data.data, 'grades', data.notice); })
                 .catch(err => console.error('Initial analytics error:', err))
                 .finally(() => {
                     if (button) { button.innerHTML = '<i class="fa-solid fa-sync-alt"></i> Load'; button.disabled = false; }
@@ -1409,6 +1490,14 @@
         .analytics-toast.show { display: block; animation: fadeInOut 3s ease; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-4px); } 10%, 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
         .analytics-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .analytics-scope-note {
+            display: flex; align-items: flex-start; gap: 9px; margin: 0 0 4px;
+            padding: 10px 14px; border-radius: 10px; font-size: .8rem; line-height: 1.55;
+            background: rgba(77,143,240,.08); border: 1px solid rgba(77,143,240,.28);
+            color: var(--dash-muted, #98a7c4);
+        }
+        .analytics-scope-note i { color: var(--bcp-cyan-400, #62c9f5); margin-top: 3px; }
+        .analytics-scope-note strong { color: var(--dash-text, #eef4ff); }
         .analytics-select {
             padding: 8px 12px; border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 8px;
             background: var(--dash-bg, #101625); color: var(--dash-text, #eef4ff); cursor: pointer; font-size: 14px;

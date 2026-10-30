@@ -5,11 +5,21 @@
     $activeNav = 'virtual_classes';
     $pageTitle = 'Virtual Class';
     $pageIcon = '<i class="fa-solid fa-video"></i>';
-    // LiveKit sessions open only after the instructor starts the class;
-    // external-provider sessions keep their "open while scheduled" rule.
-    $canJoin = $virtualClass->canStudentJoin();
-    $joinReason = $virtualClass->joinUnavailableReason();
-    $isLiveKit = $virtualClass->isLiveKit();
+
+    // Same rule as the listing row (VirtualClass::studentCanJoin), so this page
+    // cannot offer a Join button that only bounces back. A built-in LiveKit
+    // classroom stays shut until the instructor starts it, so a session whose
+    // start time has arrived while it is still only "scheduled" gets a waiting
+    // state instead of a button that cannot work.
+    $canJoin = $virtualClass->studentCanJoin();
+    $startsAt = $virtualClass->startsAt();
+    $startsLater = $startsAt !== null && now()->lt($startsAt);
+    $awaitingInstructor = ! $startsLater
+        && ! $virtualClass->hasEnded()
+        && in_array($virtualClass->status, [
+            \App\Models\VirtualClass::STATUS_SCHEDULED,
+            \App\Models\VirtualClass::STATUS_ONGOING,
+        ], true);
 @endphp
 
 @section('page-title-bar')
@@ -28,17 +38,19 @@
 @endsection
 
 @section('content')
+    {{-- A broken video setup is visible before the Join button below. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <!-- Meeting Status Card -->
     <div class="form-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
                 <h3 style="margin: 0 0 8px 0;"><i class="fa-solid fa-video"></i> {{ $virtualClass->title }}</h3>
-                <div style="opacity: 0.9; font-size: 0.9rem;">
-                    @if($joinReason)
-                        <div style="margin-top: 10px; font-size: 0.86rem; background: rgba(0,0,0,0.18); display: inline-block; padding: 6px 12px; border-radius: 8px;">
-                            <i class="fa-solid fa-circle-info"></i> {{ $joinReason }}
-                        </div>
-                    @endif
+                {{-- The poll below rewrites this badge in place, so it has to say
+                     which state it is showing rather than re-deriving it. --}}
+                <div id="classStatusBadge" data-status="{{ $virtualClass->status }}" style="opacity: 0.9; font-size: 0.9rem;">
                     @if($virtualClass->status === 'scheduled')
                         <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">
                             <i class="fa-solid fa-calendar"></i> Scheduled
@@ -57,26 +69,49 @@
                         </span>
                     @endif
                 </div>
+
+                {{-- The schedule sits on the same card as the badge: "Scheduled"
+                     or "Live Now" alone says nothing about when the session was
+                     meant to run. Static — the poll only changes the badge. --}}
+                <p id="classScheduleLine" style="margin: 8px 0 0 0; opacity: 0.9; font-size: 0.85rem;">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    {{ $virtualClass->meeting_date->format('l, M d, Y') }}
+                    &middot;
+                    {{ \Carbon\Carbon::parse($virtualClass->start_time)->format('g:i A') }}
+                    &ndash;
+                    {{ \Carbon\Carbon::parse($virtualClass->end_time)->format('g:i A') }}
+                </p>
             </div>
 
             @if($canJoin)
                 <form action="{{ route('student.classes.virtual_classes.join', [$class, $virtualClass]) }}" method="POST" style="display: inline;">
                     @csrf
                     <button type="submit" class="btn-add" style="background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; border: none;">
-                        <i class="fa-solid fa-sign-in-alt"></i> {{ $isLiveKit ? 'Join Classroom' : 'Join Meeting' }}
+                        <i class="fa-solid fa-sign-in-alt"></i> Join Meeting
                     </button>
                 </form>
-            @elseif($virtualClass->status === 'scheduled' && ! $virtualClass->hasEnded())
-                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
-                    <i class="fa-solid fa-clock"></i> Not Started Yet
-                    <span id="countdown" style="font-variant-numeric: tabular-nums; margin-left: 8px;"></span>
-                </button>
-            @elseif($virtualClass->status === 'ongoing')
-                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
-                    <i class="fa-solid fa-circle-stop"></i> No Longer Joinable
-                </button>
+            @elseif($startsLater || $awaitingInstructor)
+                {{-- The page can be open while the class is still closed: before
+                     its start time, or after it while the instructor has not
+                     opened the room. The button polls the class state and
+                     turns into a working Join form once the room opens, so the
+                     student does not have to reload to notice the start. --}}
+                <div id="joinWatch"
+                     data-status-url="{{ route('student.classes.virtual_classes.status', [$class, $virtualClass]) }}"
+                     data-token="{{ csrf_token() }}"
+                     data-interval="{{ $startsLater ? 60000 : 20000 }}">
+                    @if($startsLater)
+                        <button disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+                            <i class="fa-solid fa-clock"></i> Not Started Yet
+                        </button>
+                    @else
+                        <button disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+                            <i class="fa-solid fa-hourglass-half"></i> Waiting for Instructor
+                        </button>
+                    @endif
+                </div>
             @else
-                <button type="button" disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
+                <button disabled class="btn-modal-cancel" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 24px; border-radius: 8px; cursor: not-allowed; font-size: 1rem; border: none;">
                     <i class="fa-solid fa-check-circle"></i> Ended
                 </button>
             @endif
@@ -89,12 +124,23 @@
 
         <div class="modal-row">
             <span>Date:</span>
-            <span>{{ $virtualClass->meeting_date->format('l, F d, Y') }}</span>
+            <span>
+                {{ $virtualClass->meeting_date->format('l, F d, Y') }}
+                {{-- Shown for a live class, and switched on by the poll when the
+                     instructor opens the room while the page is open. --}}
+                <span id="dateLiveChip" style="display: {{ $virtualClass->status === 'ongoing' ? 'inline-flex' : 'none' }}; align-items: center; gap: 5px; margin-left: 8px; background: #dcfce7; color: #16a34a; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                    <i class="fa-solid fa-circle fa-spin" style="font-size: 0.5rem;"></i> Live now
+                </span>
+            </span>
         </div>
 
         <div class="modal-row">
             <span>Time:</span>
-            <span>{{ $virtualClass->start_time }} - {{ $virtualClass->end_time }}</span>
+            <span>
+                {{ \Carbon\Carbon::parse($virtualClass->start_time)->format('g:i A') }}
+                &ndash;
+                {{ \Carbon\Carbon::parse($virtualClass->end_time)->format('g:i A') }}
+            </span>
         </div>
 
         <div class="modal-row">
@@ -104,7 +150,7 @@
 
         <div class="modal-row">
             <span>Instructor:</span>
-            <span>{{ $virtualClass->instructor->full_name ?? '-' }}</span>
+            <span>{{ $virtualClass->instructor->full_name }}</span>
         </div>
 
         <div class="modal-row">
@@ -307,8 +353,8 @@ END:VCALENDAR`;
         }
 
         // Countdown timer for meeting start
-        @if($virtualClass->status === 'scheduled' && ! $virtualClass->hasEnded() && $virtualClass->startsAt())
-            const meetingStart = new Date('{{ $virtualClass->startsAt()->toIso8601String() }}');
+        @if($virtualClass->status === 'scheduled' && now()->lt($virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)))
+            const meetingStart = new Date('{{ $virtualClass->meeting_date->setTimeFromTimeString($virtualClass->start_time)->toIso8601String() }}');
 
             function updateCountdown() {
                 const now = new Date();
@@ -334,5 +380,101 @@ END:VCALENDAR`;
             setInterval(updateCountdown, 1000);
             updateCountdown();
         @endif
+
+        // Watch a closed class until the instructor opens it. The buttons above
+        // are disabled on purpose — the join route would bounce them — so once
+        // the room is live the wait button is swapped for the real Join form in
+        // place, without a reload and without losing the page state.
+        (function () {
+            const watch = document.getElementById('joinWatch');
+            if (!watch) return;
+
+            let timer = null;
+            const stop = () => {
+                if (timer) clearInterval(timer);
+                timer = null;
+            };
+
+            // The button is not the only thing that says "scheduled": the badge
+            // and the date row do too. Flip them with the button, otherwise the
+            // card would offer Join while still announcing a class that has not
+            // started.
+            const markLive = () => {
+                const badge = document.getElementById('classStatusBadge');
+                if (badge && badge.dataset.status !== 'ongoing') {
+                    badge.dataset.status = 'ongoing';
+                    badge.innerHTML = '<span style="background:rgba(34,197,94,0.3);padding:4px 12px;border-radius:20px;font-size:0.85rem;">'
+                        + '<i class="fa-solid fa-circle fa-spin" style="font-size:0.6rem;"></i> Live Now</span>';
+                }
+
+                const chip = document.getElementById('dateLiveChip');
+                if (chip) {
+                    chip.style.display = 'inline-flex';
+                }
+            };
+
+            const joinForm = (url) => {
+                const form = document.createElement('form');
+                form.action = url;
+                form.method = 'POST';
+                form.style.display = 'inline';
+
+                const token = document.createElement('input');
+                token.type = 'hidden';
+                token.name = '_token';
+                token.value = watch.dataset.token;
+                form.appendChild(token);
+
+                const button = document.createElement('button');
+                button.type = 'submit';
+                button.className = 'btn-add';
+                button.style.cssText = 'background:#22c55e;color:white;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600;border:none;';
+                button.innerHTML = '<i class="fa-solid fa-sign-in-alt"></i> Join Meeting';
+                form.appendChild(button);
+
+                return form;
+            };
+
+            const check = async () => {
+                try {
+                    const response = await fetch(watch.dataset.statusUrl, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+
+                    // A signed-out session redirects to the login page, which
+                    // is not JSON: leave the button alone and stop pestering.
+                    if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json')) {
+                        stop();
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    // The class is live, whatever the button below ends up
+                    // doing: the badge and date row say so from now on.
+                    if (data.status === 'ongoing') {
+                        markLive();
+                    }
+
+                    if (data.can_join) {
+                        stop();
+                        watch.replaceWith(joinForm(data.join_url));
+                        return;
+                    }
+
+                    // Past its end time, or closed by the instructor: there is
+                    // nothing left to wait for.
+                    if (data.ended || data.status === 'completed' || data.status === 'cancelled') {
+                        stop();
+                    }
+                } catch (error) {
+                    // Offline or a dropped request — keep the last state and
+                    // try again on the next tick.
+                }
+            };
+
+            timer = setInterval(check, parseInt(watch.dataset.interval, 10) || 20000);
+        })();
     </script>
 @endsection

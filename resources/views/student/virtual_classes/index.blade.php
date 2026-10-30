@@ -17,6 +17,12 @@
 @endsection
 
 @section('content')
+    {{-- A broken video setup shows up while scanning the list, not only after
+         opening a class. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <div class="form-card">
         <h3>Class Information</h3>
         <div class="modal-section-title"><i class="fa-solid fa-info-circle"></i> Overview</div>
@@ -52,9 +58,9 @@
                 @forelse($virtualClasses as $vc)
                     @php
                         $myAtt = $vc->attendees->first();
-                        // LiveKit classes have no meeting_url — the room only opens
-                        // once the instructor starts the session.
-                        $canJoin = $vc->canStudentJoin();
+                        // LiveKit sessions have no meeting_url, so the row
+                        // asks the model instead of testing for a link.
+                        $canJoin = $vc->studentCanJoin();
                     @endphp
                     <tr>
                         <td>
@@ -95,12 +101,6 @@
                                     <span style="display:inline-flex;align-items:center;gap:5px;">
                                         <i class="fa-brands fa-microsoft" style="color:#6264a7;"></i>
                                         Teams
-                                    </span>
-                                    @break
-                                @case(\App\Models\VirtualClass::PROVIDER_LIVEKIT)
-                                    <span style="display:inline-flex;align-items:center;gap:5px;">
-                                        <i class="fa-solid fa-video" style="color:#7c3aed;"></i>
-                                        Virtual Classroom
                                     </span>
                                     @break
                                 @case(\App\Models\VirtualClass::PROVIDER_OTHER)
@@ -184,14 +184,10 @@
                             @if($canJoin)
                                 <form action="{{ route('student.classes.virtual_classes.join', [$class, $vc]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Join this virtual class? Your attendance will be recorded.');">
                                     @csrf
-                                    <button type="submit" class="btn-icon" title="Join now" style="background:#16a34a;color:white;border:none;padding:6px 9px;border-radius:6px;cursor:pointer;">
+                                    <button type="submit" class="btn-icon" title="Join Meeting" style="background:#16a34a;color:white;border:none;padding:6px 9px;border-radius:6px;cursor:pointer;">
                                         <i class="fa-solid fa-right-to-bracket"></i>
                                     </button>
                                 </form>
-                            @elseif(in_array($vc->status, [\App\Models\VirtualClass::STATUS_SCHEDULED, \App\Models\VirtualClass::STATUS_ONGOING], true) && ! $vc->hasEnded())
-                                <span class="btn-icon" title="{{ $vc->joinUnavailableReason() }}" style="background:#e2e8f0;color:#94a3b8;padding:6px 9px;border-radius:6px;cursor:not-allowed;display:inline-flex;align-items:center;">
-                                    <i class="fa-solid fa-lock"></i>
-                                </span>
                             @endif
                         </td>
                     </tr>

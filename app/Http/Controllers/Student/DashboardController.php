@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Assignment;
 use App\Models\AssignmentExtension;
+use App\Models\AssignmentSubmission;
 use App\Models\ClassModel;
 use App\Models\CourseCompletion;
 use App\Models\CourseProgress;
@@ -53,15 +54,31 @@ class DashboardController extends Controller
         $activeEnrollments = $enrollments->where('status', 'active');
         $completedEnrollments = $enrollments->where('status', 'completed');
 
-        // Get class IDs and course IDs for queries
-        $classIds = $activeEnrollments->pluck('class_id');
-        $courseIds = $activeEnrollments->pluck('class.course_id')->filter();
+        // One scoped class list for the whole page — the same one search
+        // narrows to. An active enrolment pointing at another block's class
+        // (transfers, AA drift, shared demo data) must not be counted in a
+        // tile, drawn as a course card, or listed in a panel. The class ids,
+        // course ids, course cards and every count below are derived from this
+        // set, so a hidden class cannot leak back in one surface at a time.
+        $enrolledClassIds = $activeEnrollments->pluck('class_id');
+        $classIds = $this->contentProgress->sectionScopedClassIds($studentId, $enrolledClassIds);
+        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
+
+        // Kept for the analytics note: the enrolment exists, it is simply
+        // outside this student's section, so nothing on this page shows it.
+        $hiddenEnrollments = $activeEnrollments->whereNotIn('class_id', $classIds);
+        $activeEnrollments = $activeEnrollments->whereIn('class_id', $classIds)->values();
+
+        // Grades follow the same section scope as My Progress: a grade belongs
+        // to this student only when its class is one of their own section's
+        // classes. Both pages read the shared helper so they cannot drift apart.
+        $gradeClassIds = $this->contentProgress->sectionScopedGradeClassIds($studentId, $classIds);
 
         // Calculate week from now for upcoming items
         $weekFromNow = now()->addDays(7);
 
         // Upcoming assignments (due within the next 7 days, not yet submitted)
-        $upcomingAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        $upcomingAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -72,7 +89,7 @@ class DashboardController extends Controller
             ->get();
 
         // Overdue assignments (considering extensions)
-        $allAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        $allAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -85,7 +102,7 @@ class DashboardController extends Controller
         })->take(5);
 
         // Overdue quizzes (considering extensions)
-        $allQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+        $allQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -97,8 +114,11 @@ class DashboardController extends Controller
             return $effectiveDeadline && $effectiveDeadline->isPast();
         })->take(5);
 
-        // Overdue exams (considering extensions)
-        $allExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+        // Overdue exams (considering extensions). Section-scoped like the
+        // Incomplete Work page: the course-wide query also matches on
+        // exams.course_id, which lets a same-course class from another section
+        // back onto the dashboard.
+        $allExams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -111,7 +131,7 @@ class DashboardController extends Controller
         })->take(5);
 
         // Upcoming quizzes (available now, opening soon, or due within the next 7 days)
-        $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+        $upcomingQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -132,15 +152,17 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Recent quiz attempts
+        // Recent quiz attempts — the same scoped quiz set the tiles count, so
+        // an attempt logged against another block's class does not list here.
         $recentQuizAttempts = QuizAttempt::where('student_id', $studentId)
+            ->whereIn('quiz_id', $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)->pluck('quizzes.id'))
             ->with(['quiz.class', 'quiz.module.course', 'quiz.lesson.module.course'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
         // Upcoming exams (available now, starting soon, or ending within the next 7 days)
-        $upcomingExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+        $upcomingExams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             })
@@ -161,8 +183,10 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Recent exam attempts
+        // Recent exam attempts — scoped like the exam tile, so a hidden
+        // class's exam cannot appear in the panel either.
         $recentExamAttempts = ExamAttempt::where('student_id', $studentId)
+            ->whereIn('exam_id', $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)->pluck('exams.id'))
             ->with(['exam.class'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
@@ -170,18 +194,19 @@ class DashboardController extends Controller
 
         // Upcoming virtual classes (within the next 7 days)
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
-            ->where(function ($query) use ($weekFromNow) {
-                // Virtual classes in the next 7 days
-                $query->whereDate('meeting_date', '>', today())
-                    ->whereDate('meeting_date', '<=', $weekFromNow);
-                // Today's sessions that have not ended yet. A class that
-                // started ten minutes ago is live and joinable right now, so
-                // filtering on start_time > now() hid the only row a student
-                // could actually join.
+            // Keep the calendar window explicit before the same-day time
+            // branch below. That makes the dashboard follow the same bounded
+            // date query as the student virtual-class surfaces and prevents a
+            // future OR branch from admitting an old meeting accidentally.
+            ->whereDate('meeting_date', '>=', today())
+            ->whereDate('meeting_date', '<=', $weekFromNow)
+            ->where(function ($query) {
+                // Future dates in the seven-day window are all upcoming.
+                $query->whereDate('meeting_date', '>', today());
+                // Today's meeting must still be ahead of its start time.
                 $query->orWhere(function ($sameDay) {
                     $sameDay->whereDate('meeting_date', today())
-                        ->whereTime('end_time', '>=', now()->format('H:i:s'));
+                        ->whereTime('start_time', '>', now()->format('H:i:s'));
                 });
             })
             ->with('class.course')
@@ -190,15 +215,11 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // An ongoing session whose end time just passed must not keep its
-        // live badge / Join button when the dashboard renders.
-        $upcomingVirtualClasses->each->syncStatus();
-
-        // Recent grades — only for classes the student is enrolled in
+        // Recent grades — only for classes in the student's own section
         $recentGrades = Grade::where('student_id', $studentId)
             ->with('item.class.course')
             ->whereHas('item', fn ($q) => $q->where('is_released', true)
-                ->whereIn('class_id', $classIds))
+                ->whereIn('class_id', $gradeClassIds))
             ->orderBy('graded_at', 'desc')
             ->limit(5)
             ->get();
@@ -213,6 +234,7 @@ class DashboardController extends Controller
         // Course progress calculations
         $courseProgressData = [];
         $overallProgress = 0;
+        $coursesWithContent = 0;
 
         foreach ($activeEnrollments as $enrollment) {
             $course = $enrollment->class->course;
@@ -225,18 +247,26 @@ class DashboardController extends Controller
                 $courseProgressData[] = [
                     'course' => $course,
                     'progress' => $liveProgress['overall'],
+                    'has_content' => $liveProgress['has_content'] ?? true,
                     'breakdown' => $liveProgress,
                     'last_accessed' => $persisted?->updated_at,
                 ];
 
-                $overallProgress += $liveProgress['overall'];
+                // A course with nothing published yet is not "0% done"; it is
+                // not part of the average at all.
+                if ($liveProgress['has_content'] ?? true) {
+                    $overallProgress += $liveProgress['overall'];
+                    $coursesWithContent++;
+                }
             }
         }
 
-        $overallProgress = $activeEnrollments->isNotEmpty() ? $overallProgress / $activeEnrollments->count() : 0;
+        $overallProgress = $coursesWithContent > 0 ? $overallProgress / $coursesWithContent : 0;
 
         // Continue learning (most recent course with progress by last accessed)
+        // — only courses that have something to continue.
         $continueLearning = collect($courseProgressData)
+            ->filter(fn ($item) => $item['has_content'] ?? true)
             ->sortByDesc('last_accessed')
             ->first();
 
@@ -306,6 +336,48 @@ class DashboardController extends Controller
             $learningStreak,
         );
 
+        // Completed activities — lessons finished, assignments handed in and
+        // quizzes answered. The card used to print the completed-course count,
+        // so it read "0" for a student sitting on 25 released grades.
+        //
+        // Lessons follow the same section scope as the course cards: a lesson
+        // in another section's module (or in an unpublished module) is not
+        // this student's activity, so it must not be counted here either.
+        $assignedModuleIds = $this->contentProgress->assignedModuleIdsForClasses($classIds);
+
+        $completedActivities = LessonProgress::where('student_id', $studentId)
+            ->where('status', LessonProgress::STATUS_COMPLETED)
+            ->whereHas('lesson', fn ($q) => $q->published()->whereIn('module_id', $assignedModuleIds))
+            ->count()
+            + AssignmentSubmission::where('student_id', $studentId)
+                ->whereIn('assignment_id', $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)->pluck('assignments.id'))
+                ->whereIn('status', [
+                    AssignmentSubmission::STATUS_SUBMITTED,
+                    AssignmentSubmission::STATUS_GRADED,
+                    AssignmentSubmission::STATUS_RETURNED,
+                    AssignmentSubmission::STATUS_RESUBMITTED,
+                ])
+                ->distinct('assignment_id')
+                ->count('assignment_id')
+            + QuizAttempt::where('student_id', $studentId)
+                ->whereIn('quiz_id', $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)->pluck('quizzes.id'))
+                ->whereIn('status', [
+                    QuizAttempt::STATUS_SUBMITTED,
+                    QuizAttempt::STATUS_AUTO_SUBMITTED,
+                    QuizAttempt::STATUS_GRADED,
+                ])
+                ->count();
+
+        // Official final grades live in AA. Until one is recorded the card would
+        // read 0.0% even though graded work is already visible in My Grades, so
+        // it falls back to the released LMS scores and says so in the footer.
+        $finalGrades = $completedEnrollments->whereNotNull('final_grade');
+        $releasedScores = Grade::where('student_id', $studentId)
+            ->whereHas('item', fn ($q) => $q->where('is_released', true)->whereIn('class_id', $gradeClassIds))
+            ->whereNotNull('score_percent')
+            ->pluck('score_percent');
+        $lmsAverageGrade = $releasedScores->isNotEmpty() ? (float) $releasedScores->avg() : 0.0;
+
         $stats = [
             // Course Overview
             'my_courses' => $activeEnrollments->count(),
@@ -314,9 +386,11 @@ class DashboardController extends Controller
             'completed_enrollments' => $completedEnrollments->count(),
 
             // Academic Progress
-            'average_grade' => $completedEnrollments->whereNotNull('final_grade')->avg('final_grade') ?? 0,
-            'highest_grade' => $completedEnrollments->whereNotNull('final_grade')->max('final_grade') ?? 0,
-            'lowest_grade' => $completedEnrollments->whereNotNull('final_grade')->min('final_grade') ?? 0,
+            'average_grade' => $finalGrades->isNotEmpty() ? (float) $finalGrades->avg('final_grade') : $lmsAverageGrade,
+            'average_grade_is_final' => $finalGrades->isNotEmpty(),
+            'highest_grade' => $finalGrades->max('final_grade') ?? 0,
+            'lowest_grade' => $finalGrades->min('final_grade') ?? 0,
+            'completed_activities' => $completedActivities,
             'gpa' => $gpa,
 
             // Course Progress
@@ -327,34 +401,33 @@ class DashboardController extends Controller
             // Assignments
             'upcoming_assignments' => $upcomingAssignments,
             'overdue_assignments' => $overdueAssignments,
-            'total_assignments' => $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)->count(),
+            'total_assignments' => $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)->count(),
 
             // Quizzes
             'upcoming_quizzes' => $upcomingQuizzes,
             'overdue_quizzes' => $overdueQuizzes,
             'recent_quiz_attempts' => $recentQuizAttempts,
-            'total_quizzes' => $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)->count(),
+            'total_quizzes' => $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)->count(),
 
             // Exams
             'upcoming_exams' => $upcomingExams,
             'overdue_exams' => $overdueExams,
             'recent_exam_attempts' => $recentExamAttempts,
-            'total_exams' => $this->contentProgress->studentExamsQuery($classIds, $courseIds)->count(),
+            'total_exams' => $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)->count(),
 
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
-            // Virtual classes are never "published" — that filter made this
-            // counter permanently 0, so the panel always looked empty.
             'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)
-                ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+                ->where('status', 'published')
                 ->whereDate('meeting_date', '>=', today())
                 ->count(),
 
             // Grades and Feedback
             'recent_grades' => $recentGrades,
             'recent_feedback' => $recentFeedback,
+            // The card calls this "grades released", so released is what it counts.
             'total_grades' => Grade::where('student_id', $studentId)
-                ->whereHas('item', fn ($q) => $q->whereIn('class_id', $classIds))
+                ->whereHas('item', fn ($q) => $q->whereIn('class_id', $gradeClassIds)->where('is_released', true))
                 ->count(),
 
             // Communication
@@ -375,6 +448,20 @@ class DashboardController extends Controller
             // Recent Activity
             'recent_enrollments' => $enrollments->take(5),
             'my_enrollments' => $activeEnrollments,
+            // The analytics class filter only offers classes inside the
+            // student's section. A class outside that scope can only ever
+            // return the "not part of your section" notice, so the notice is
+            // left as a fallback for a stale or hand-made request instead of
+            // being something the dropdown itself can produce.
+            'analytics_enrollments' => $activeEnrollments->whereIn('class_id', $gradeClassIds),
+            // The classes the section scope kept out, by course code. Nothing
+            // on this page shows them any more — not the cards, not the counts
+            // — so this note is the only place that names them.
+            'analytics_hidden_classes' => $hiddenEnrollments
+                ->filter(fn ($enrollment) => $enrollment->class !== null)
+                ->map(fn ($enrollment) => $enrollment->class->course?->code ?? $enrollment->class->code)
+                ->filter()
+                ->values(),
 
             // Academic Period Info
             'current_period' => $activeEnrollments->first()?->class?->academicPeriod,
@@ -385,24 +472,10 @@ class DashboardController extends Controller
 
     protected function calculateLearningStreak(int $studentId): int
     {
-        $today = Carbon::today();
-        $streak = 0;
-
-        // Check for lesson progress activity
-        for ($i = 0; $i < 30; $i++) { // Check last 30 days
-            $date = $today->copy()->subDays($i);
-            $hasActivity = LessonProgress::where('student_id', $studentId)
-                ->whereDate('updated_at', $date)
-                ->exists();
-
-            if ($hasActivity) {
-                $streak++;
-            } elseif ($i > 0) { // Allow today to have no activity without breaking streak
-                break;
-            }
-        }
-
-        return $streak;
+        // One definition for every student surface. Counting lesson updates
+        // here but completed lessons on My Progress produced two different
+        // "day streak" values for the same student.
+        return $this->contentProgress->learningStreak($studentId);
     }
 
     protected function calculateGPA($completedEnrollments): float
@@ -491,14 +564,14 @@ class DashboardController extends Controller
         try {
             $validated = $request->validate([
                 'query' => 'required|string|min:2',
-                'type' => 'required|in:all,courses,modules,lessons,assignments,quizzes,grades',
+                'type' => 'required|in:all,courses,modules,lessons,assignments,quizzes,exams,grades',
             ]);
 
             $studentId = auth()->id();
             $query = $validated['query'];
             $type = $validated['type'];
             $results = [];
-            $types = $type === 'all' ? ['courses', 'modules', 'lessons', 'assignments', 'quizzes', 'grades'] : [$type];
+            $types = $type === 'all' ? ['courses', 'modules', 'lessons', 'assignments', 'quizzes', 'exams', 'grades'] : [$type];
 
             foreach ($types as $t) {
                 $results = array_merge($results, $this->searchType($t, $query, $studentId));
@@ -522,14 +595,30 @@ class DashboardController extends Controller
 
     private function searchType(string $type, string $query, int $studentId): array
     {
-        $classIds = Enrollment::where('student_id', $studentId)
+        $enrolledClassIds = Enrollment::where('student_id', $studentId)
             ->where('status', 'active')
             ->pluck('class_id');
-        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
+
+        // Results honour the same section scope as the tiles and charts: an
+        // active enrolment in another block's class (transfers, AA drift) must
+        // not put that block's courses, grades, quizzes, exams or lessons into
+        // this student's search results. Narrowing the classes up front is what
+        // keeps the class-level rows honest too — the courses those classes
+        // point at, and the modules their sections were assigned.
+        $classIds = $this->contentProgress->sectionScopedClassIds($studentId, $enrolledClassIds);
+        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
+
+        // Lessons and modules follow the section's assigned modules, the same
+        // scope the Completed Activities card and the plan pages count.
+        $moduleIds = $this->contentProgress->assignedModuleIdsForClasses($classIds);
 
         switch ($type) {
             case 'courses':
+                // Only the courses behind the student's own section's classes;
+                // a stale enrolment in another block must not be findable by
+                // the course code it happens to share.
                 return Enrollment::where('student_id', $studentId)
+                    ->whereIn('class_id', $classIds)
                     ->whereHas('class.course', function ($q) use ($query) {
                         $q->where('title', 'like', "%{$query}%")
                             ->orWhere('code', 'like', "%{$query}%");
@@ -546,7 +635,10 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'assignments':
-                return $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+                // The section-scoped query, not the wider browse one: work that
+                // hangs off another section's module is not this student's
+                // assignment even when it sits in their course.
+                return $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
                     ->where('title', 'like', "%{$query}%")
                     ->with(['class.course', 'module.course', 'lesson.module.course'])
                     ->limit(10)
@@ -562,7 +654,7 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'quizzes':
-                return $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+                return $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
                     ->where('title', 'like', "%{$query}%")
                     ->with(['class.course', 'module.course', 'lesson.module.course'])
                     ->limit(10)
@@ -577,10 +669,32 @@ class DashboardController extends Controller
                     ])
                     ->toArray();
 
-            case 'modules':
-                $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
+            case 'exams':
+                // The dropdown has always offered "Exams" and the panel already
+                // knows how to render an exam result (it prints "Starts <date>"),
+                // but 'exams' was missing from the type allow-list, so the
+                // request was rejected before it could reach a case.
+                return $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
+                    ->where('exams.title', 'like', "%{$query}%")
+                    ->with(['class.course', 'module.course'])
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($e) => [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'entity' => 'exam',
+                        'class_code' => $e->class?->code ?? '',
+                        'course_title' => ($e->class?->course ?? $e->module?->course)?->title ?? '',
+                        'starts_at' => $e->starts_at?->format('Y-m-d'),
+                        'status' => $e->status,
+                    ])
+                    ->toArray();
 
-                return Module::whereIn('course_id', $courseIds)
+            case 'modules':
+                // Module search follows the section's assigned modules, not
+                // every module of the course: a course shared by two blocks
+                // gives each one a different set.
+                return Module::whereIn('id', $moduleIds)
                     ->where(function ($q) use ($query) {
                         $q->where('title', 'like', "%{$query}%")
                             ->orWhere('description', 'like', "%{$query}%");
@@ -598,9 +712,9 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'lessons':
-                $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id');
-
-                return Lesson::whereHas('module', fn ($q) => $q->whereIn('course_id', $courseIds))
+                // Lessons follow the section's assigned modules, the same scope
+                // the Completed Activities card and the plan pages count.
+                return Lesson::whereIn('module_id', $moduleIds)
                     ->where(function ($q) use ($query) {
                         $q->where('title', 'like', "%{$query}%")
                             ->orWhere('description', 'like', "%{$query}%");
@@ -618,10 +732,8 @@ class DashboardController extends Controller
                     ->toArray();
 
             case 'grades':
-                $classIds = Enrollment::where('student_id', $studentId)
-                    ->where('status', 'active')
-                    ->pluck('class_id');
-
+                // $classIds comes from sectionScopedClassIds(), the helper the
+                // Average Grade tile reads through sectionScopedGradeClassIds().
                 return Grade::where('student_id', $studentId)
                     ->with(['item'])
                     ->whereHas('item', fn ($q) => $q->whereIn('class_id', $classIds))
@@ -682,12 +794,31 @@ class DashboardController extends Controller
                 $classIds = $enrolledClassIds;
             }
 
+            // The Grade Trend shares the section scope of the Average Grade
+            // tile. A stale AA enrolment in another block's class is not a
+            // reason for the chart under that tile to draw a point the tile
+            // has already decided does not count.
+            $gradeClassIds = $this->contentProgress->sectionScopedGradeClassIds($studentId, $classIds);
+
+            // Courses behind the classes in view, for the section-scoped quiz
+            // query below. Derived from $classIds rather than every enrolment,
+            // otherwise picking one class would still pull its whole course in.
+            $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
+
+            // The dropdown offers every active enrolment, stale rows included.
+            // When one of those is picked the section-scoped queries above
+            // return nothing, and an empty chart with no reason reads as a
+            // broken panel — so the answer carries the reason with it.
+            $classOutOfScope = $requestedClassId !== null
+                && $requestedClassId !== ''
+                && ! $gradeClassIds->contains((int) $requestedClassId);
+
             switch ($type) {
                 case 'grades':
                     $grades = Grade::where('student_id', $studentId)
                         ->with('item.class.course')
                         ->whereHas('item', fn ($q) => $q->where('is_released', true)
-                            ->whereIn('class_id', $classIds))
+                            ->whereIn('class_id', $gradeClassIds))
                         ->orderBy('graded_at')
                         ->get();
 
@@ -723,13 +854,22 @@ class DashboardController extends Controller
                     break;
 
                 case 'quizzes':
+                    // Quiz Performance reads the same section-scoped quiz set as
+                    // the Quiz Progress tile: class-level quizzes for the
+                    // student's classes plus module work inside the modules
+                    // their section was assigned. Filtering on class_id alone
+                    // let another section's module quiz onto this chart.
+                    $scopedQuizIds = $this->contentProgress
+                        ->sectionScopedQuizzesQuery($classIds, $courseIds)
+                        ->pluck('quizzes.id');
+
                     $attempts = QuizAttempt::where('student_id', $studentId)
                         ->whereIn('status', [
                             QuizAttempt::STATUS_SUBMITTED,
                             QuizAttempt::STATUS_AUTO_SUBMITTED,
                             QuizAttempt::STATUS_GRADED,
                         ])
-                        ->whereHas('quiz', fn ($q) => $q->whereIn('class_id', $classIds))
+                        ->whereIn('quiz_id', $scopedQuizIds)
                         ->with('quiz.class.course')
                         ->orderBy('created_at')
                         ->get()
@@ -741,7 +881,11 @@ class DashboardController extends Controller
                                 'quiz' => ($classIds->count() === 1 || ! $course)
                                     ? $title
                                     : $title.' · '.$course,
-                                'score' => round($a->score_percent ?? $a->score ?? 0, 1),
+                                // `score` is raw points (e.g. 3 of 10), not a
+                                // percentage. Falling back to it drew a 3% bar
+                                // for a 30% result whenever score_percent was
+                                // missing.
+                                'score' => round($a->score_percent ?? 0, 1),
                             ];
                         });
 
@@ -810,14 +954,27 @@ class DashboardController extends Controller
                             continue;
                         }
                         $live = $this->contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
+
+                        // Skip courses that have nothing published yet — a 0%
+                        // bar there reads as a failing student, not empty course.
+                        if (! ($live['has_content'] ?? true)) {
+                            continue;
+                        }
+
                         $progressData[] = [
+                            'code' => $course->code,
                             'course' => $course->title ?? 'Course',
                             'progress' => round($live['overall'] ?? 0, 1),
                         ];
                     }
 
                     $analytics = [
-                        'labels' => collect($progressData)->pluck('course')->map(fn ($t) => Str::limit($t, 16))->toArray(),
+                        // Course codes first: with only the title, courses with
+                        // long or similar names collapsed into the same bar
+                        // label. The code is short enough to survive the cap.
+                        'labels' => collect($progressData)->map(fn ($row) => trim(
+                            ($row['code'] ? $row['code'].' · ' : '').Str::limit($row['course'], 28)
+                        ))->toArray(),
                         'progress' => collect($progressData)->pluck('progress')->toArray(),
                         'overall' => round(collect($progressData)->avg('progress') ?? 0, 1),
                         'total_courses' => count($progressData),
@@ -828,6 +985,9 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $analytics,
+                'notice' => $classOutOfScope
+                    ? 'This class is not part of your section, so its grades and results are not counted here.'
+                    : null,
             ]);
         } catch (ValidationException $e) {
             // Surface a 422 with the error bag instead of a misleading 500.
@@ -850,19 +1010,28 @@ class DashboardController extends Controller
             ->with('class.course')
             ->get();
 
+        // Same section scope as the rendered dashboard: the auto-refresh must
+        // not quietly put a hidden class back into the counts it patches in.
         $activeEnrollments = $enrollments->where('status', 'active');
-        $classIds = $activeEnrollments->pluck('class_id');
-        $courseIds = $activeEnrollments->pluck('class.course_id')->filter();
+        $classIds = $this->contentProgress->sectionScopedClassIds(
+            $studentId,
+            $activeEnrollments->pluck('class_id')
+        );
+        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
+        $activeEnrollments = $activeEnrollments->whereIn('class_id', $classIds)->values();
 
-        $upcomingAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        $upcomingAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '>', now())
             ->orderBy('due_date')->limit(5)->get();
 
-        $upcomingQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+        $upcomingQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->where('availability_from', '>', now())
             ->orderBy('availability_from')->limit(5)->get();
 
-        $overdueAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        // The section-scoped query, matching the rendered dashboard: work in
+        // another section's module of the same course is not overdue *for this
+        // student*, so the auto-refresh must not report it either.
+        $overdueAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '<', now())
             ->whereDoesntHave('submissions', fn ($q) => $q->where('student_id', $studentId))
             ->orderBy('due_date', 'desc')->limit(5)->get();
@@ -879,8 +1048,11 @@ class DashboardController extends Controller
             $course = $enrollment->class->course;
             if ($course) {
                 $liveProgress = $this->contentProgress->calculateCourseLiveProgress($course, $studentId, $enrollment->class_id);
-                $overallProgress += $liveProgress['overall'];
-                $courseProgressCount++;
+                // Same rule as the dashboard: empty courses do not count.
+                if ($liveProgress['has_content'] ?? true) {
+                    $overallProgress += $liveProgress['overall'];
+                    $courseProgressCount++;
+                }
             }
         }
         $overallProgress = $courseProgressCount > 0 ? $overallProgress / $courseProgressCount : 0;
@@ -916,11 +1088,18 @@ class DashboardController extends Controller
             ->with(['class.course', 'class.instructor'])
             ->get();
 
-        $classIds = $enrollments->pluck('class_id');
-        $courseIds = $enrollments->pluck('class.course_id')->filter();
+        // Same section scope as the dashboard and search: a stale enrolment in
+        // another block's class must not put that block's pending work on this
+        // page. Narrowing the class list also narrows every query below.
+        $classIds = $this->contentProgress->sectionScopedClassIds(
+            $studentId,
+            $enrollments->pluck('class_id')
+        );
+        $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
+        $enrollments = $enrollments->whereIn('class_id', $classIds)->values();
 
         // Incomplete assignments (not submitted yet)
-        $incompleteAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        $incompleteAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
@@ -929,7 +1108,7 @@ class DashboardController extends Controller
             ->get();
 
         // Overdue assignments (considering extensions)
-        $allAssignments = $this->contentProgress->studentAssignmentsQuery($classIds, $courseIds)
+        $allAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->whereDoesntHave('submissions', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
@@ -942,7 +1121,7 @@ class DashboardController extends Controller
         });
 
         // Overdue quizzes (considering extensions)
-        $allQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+        $allQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
@@ -954,8 +1133,10 @@ class DashboardController extends Controller
             return $effectiveDeadline && $effectiveDeadline->isPast();
         });
 
-        // Overdue exams (considering extensions)
-        $allExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+        // Overdue exams (considering extensions). The section-scoped query, not
+        // the course-wide one: an exam in another section's class of the same
+        // course is not this student's exam.
+        $allExams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
@@ -968,7 +1149,7 @@ class DashboardController extends Controller
         });
 
         // Incomplete quizzes (not attempted yet)
-        $incompleteQuizzes = $this->contentProgress->studentQuizzesQuery($classIds, $courseIds)
+        $incompleteQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })
@@ -982,7 +1163,7 @@ class DashboardController extends Controller
             ->get();
 
         // Incomplete exams (not attempted yet)
-        $incompleteExams = $this->contentProgress->studentExamsQuery($classIds, $courseIds)
+        $incompleteExams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
             ->whereDoesntHave('attempts', function ($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             })

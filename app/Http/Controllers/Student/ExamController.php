@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Services\ContentProgressService;
 use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Illuminate\View\View;
 class ExamController extends Controller
 {
     public function __construct(
-        protected ExamService $examService
+        protected ExamService $examService,
+        protected ContentProgressService $contentProgress,
     ) {}
 
     public function index(Course $course): View
@@ -33,18 +35,13 @@ class ExamController extends Controller
             abort(403);
         }
 
-        $exams = Exam::published()
-            ->where(function ($q) use ($course) {
-                $q->whereHas('class', function ($q2) use ($course) {
-                    $q2->where('course_id', $course->id);
-                })
-                ->orWhere('exams.course_id', $course->id)
-                ->orWhere(function ($q2) use ($course) {
-                    $q2->whereHas('module', function ($q3) use ($course) {
-                        $q3->where('course_id', $course->id)->published();
-                    });
-                });
-            })
+        // Exams through the shared section scope. The old query matched on
+        // `exams.course_id`, which let a class-level exam from another block's
+        // class of the same course into this list.
+        $classIds = $this->contentProgress->sectionScopedClassIdsForCourse($studentId, $course->id);
+
+        $exams = $this->contentProgress
+            ->sectionScopedExamsQuery($classIds, collect([$course->id]))
             ->with([
                 'attempts' => function ($q) use ($studentId) {
                     $q->ofStudent($studentId)->latest();

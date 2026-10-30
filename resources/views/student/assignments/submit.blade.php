@@ -2,15 +2,6 @@
 @section('title', 'Submit Assignment')
 @php $activeNav = 'assignments'; @endphp
 
-@push('styles')
-<style>
-    /* Temporarily disable form validation for file uploads */
-    form[data-no-validation] .field-error {
-        display: none !important;
-    }
-</style>
-@endpush
-
 @section('content')
 <div class="learning-shell">
     <x-user-page-header
@@ -40,8 +31,20 @@
                         <div class="form-field full">
                             <label>Attach Files <span class="required">*</span></label>
                             <input type="file" name="files[]" {{ $assignment->submission_type === 'file' ? '' : 'multiple' }} required>
-                            <span class="field-error">{{ $errors->first('files') }}</span>
-                            <small class="user-email">{{ $assignment->submission_type === 'file' ? 'Attach one file.' : 'You may attach one or more files.' }}</small>
+                            @if($errors->has('files'))
+                                <span class="field-error">{{ $errors->first('files') }}</span>
+                            @endif
+                            {{-- Per-file errors (too large, failed upload, wrong type) are keyed
+                                 files.0, files.1, … — without this the form silently reappears. --}}
+                            @foreach($errors->get('files.*') as $messages)
+                                @foreach((array) $messages as $message)
+                                    <span class="field-error">{{ $message }}</span>
+                                @endforeach
+                            @endforeach
+                            <small class="user-email">
+                                {{ $assignment->submission_type === 'file' ? 'Attach one file.' : 'You may attach one or more files.' }}
+                                Max {{ intdiv((int) config('lms.uploads.assignment_submission'), 1024) }} MB per file.
+                            </small>
                         </div>
                     @endif
                 </div>
@@ -61,11 +64,11 @@
         </div>
     </div>
 
-    @if($assignment->due_date)
+    @if($effectiveDeadline)
         <div class="learning-next-action">
             <div>
-                <strong>Due {{ $assignment->due_date->format('l, F j, Y g:i A') }}</strong>
-                <span>{{ $assignment->due_date->isPast() ? 'This assignment is overdue — late submission may be penalized.' : 'Submit before the deadline to avoid penalties.' }}</span>
+                <strong>Due {{ $effectiveDeadline->format('l, F j, Y g:i A') }}</strong>
+                <span>Submit before the deadline. Overdue assignments are closed to new submissions.</span>
             </div>
         </div>
     @endif

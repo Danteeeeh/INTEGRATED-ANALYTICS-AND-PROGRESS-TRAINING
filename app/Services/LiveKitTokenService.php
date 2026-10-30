@@ -4,13 +4,8 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\VirtualClass;
-use Illuminate\Http\Client\Response;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Throwable;
 
 /**
  * Creates short-lived LiveKit participant JWTs without requiring a separate
@@ -57,6 +52,54 @@ class LiveKitTokenService
     }
 
     /**
+     * The setup warning worth showing for one class, or null when there is
+     * nothing to warn about. The classroom and both class-details pages read
+     * this, so the warning appears — and stays quiet — in the same situations
+     * on every page that leads to the room.
+     *
+     * Returning null does not mean the configuration is fine: legacy
+     * external-provider classes do not use LiveKit at all, and a class that was
+     * cancelled, is already over, or has not been created yet cannot be joined,
+     * where the warning would be noise rather than help.
+     */
+    public function diagnoseForClass(VirtualClass $virtualClass): ?string
+    {
+        if ($virtualClass->meeting_provider !== VirtualClass::PROVIDER_LIVEKIT) {
+            return null;
+        }
+
+        if (! in_array($virtualClass->status, [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING], true)) {
+            return null;
+        }
+
+        if ($virtualClass->hasEnded()) {
+            return null;
+        }
+
+        return $this->diagnose();
+    }
+
+    /**
+     * The setup warning for a page that lists several classes, or null when
+     * there is nothing to say. A list shows one warning for the whole page, and
+     * only when at least one class in the set could still be joined — a page of
+     * finished classes stays quiet, exactly like their detail pages.
+     *
+     * @param  iterable<int, VirtualClass>  $virtualClasses
+     */
+    public function diagnoseForClasses(iterable $virtualClasses): ?string
+    {
+        foreach ($virtualClasses as $virtualClass) {
+            $problem = $this->diagnoseForClass($virtualClass);
+            if ($problem !== null) {
+                return $problem;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Create the join token. Hardened against the two environmental causes of
      * "invalid token" that are not wrong credentials:
      *   1. clock skew — `nbf` allows 60s of slack instead of 5s;
@@ -92,222 +135,6 @@ class LiveKitTokenService
             ],
         ];
 
-        $token = $this->signJwt($payload, $apiKey, $apiSecret);
-
-        $this->assertTokenIsWellFormed($token, $apiKey, $apiSecret);
-
-        return $token;
-    }
-
-    /**
-     * HTTPS origin for the RoomService Twirp API. The configured LIVEKIT_URL
-     * is a WebSocket URL (wss://...) for the browser signal connection; the
-     * server API speaks plain HTTPS on the same host.
-     */
-    public function httpBaseUrl(): ?string
-    {
-        $url = rtrim((string) config('services.livekit.url'), '/');
-
-        if ($url === '') {
-            return null;
-        }
-
-        if (Str::startsWith($url, 'wss://')) {
-            return 'https://'.Str::after($url, 'wss://');
-        }
-
-        if (Str::startsWith($url, 'ws://')) {
-            return 'http://'.Str::after($url, 'ws://');
-        }
-
-        if (Str::startsWith($url, ['https://', 'http://'])) {
-            return $url;
-        }
-
-        return null;
-    }
-
-    /**
-     * Short-lived token for server-side RoomService calls. ListParticipants
-     * requires the roomAdmin grant scoped to the exact room — roomList is for
-     * ListRooms and is rejected by the participant listing endpoint.
-     */
-    public function createRoomAdminToken(string $roomName, int $ttlSeconds = 60): ?string
-    {
-        $apiKey = (string) config('services.livekit.api_key');
-        $apiSecret = (string) config('services.livekit.api_secret');
-
-        if ($apiKey === '' || $apiSecret === '' || $roomName === '') {
-            return null;
-        }
-
-        $now = time();
-
-        return $this->signJwt([
-            'iss' => $apiKey,
-            'sub' => 'lms-server',
-            'nbf' => $now - 60,
-            'iat' => $now,
-            'exp' => $now + max(30, $ttlSeconds),
-            'jti' => bin2hex(random_bytes(8)),
-            'video' => [
-                'roomAdmin' => true,
-                'room' => $roomName,
-            ],
-        ], $apiKey, $apiSecret);
-    }
-
-    /**
-     * Exact number of participants connected to a LiveKit room, straight from
-     * RoomService.ListParticipants (not from attendance rows, which go stale
-     * when a browser closes without posting its leave beacon).
-     *
-     * Returns null when LiveKit is unconfigured, unreachable, or answers with
-     * an error so the caller can fall back to the attendance estimate instead
-     * of failing the page.
-     */
-    public function liveParticipantCount(string $roomName): ?int
-    {
-        $participants = $this->liveParticipants($roomName);
-
-        return $participants === null ? null : count($participants);
-    }
-
-    /**
-     * List the participants currently connected to a LiveKit room.
-     *
-     * Each entry is ['identity' => string, 'name' => string, 'joined_at' => ?string].
-     * Identity is the 'user-<id>' we mint in the JWT, so the numeric suffix
-     * maps to a User id; name is the display name from the token; joined_at is
-     * the RFC 3339 connect time LiveKit reports (null when it omits one).
-     *
-     * Returns null when LiveKit is unconfigured, unreachable, or answers with
-     * an error.
-     */
-    public function liveParticipants(string $roomName): ?array
-    {
-        $response = $this->roomServicePost('ListParticipants', $roomName);
-
-        if ($response === null) {
-            return null;
-        }
-
-        $participants = $response->json('participants');
-
-        if (! is_array($participants)) {
-            return null;
-        }
-
-        // ParticipantInfo.State: 0 JOINING, 1 JOINED, 2 ACTIVE, 3 DISCONNECTED.
-        // A closing tab can linger as DISCONNECTED for a moment; it is not
-        // someone still in the room.
-        $active = array_filter($participants, function ($participant) {
-            if (! is_array($participant)) {
-                return false;
-            }
-
-            $state = $participant['state'] ?? null;
-
-            return $state !== 3 && $state !== 'DISCONNECTED';
-        });
-
-        return array_values(array_map(function ($participant) {
-            return [
-                'identity' => (string) ($participant['identity'] ?? ''),
-                'name' => (string) ($participant['name'] ?? ''),
-                'joined_at' => $this->participantJoinedAt($participant),
-            ];
-        }, $active));
-    }
-
-    /**
-     * Connect time from a ParticipantInfo payload. LiveKit serialises the
-     * protobuf Timestamp as RFC 3339, so accept that (and the odd alternate
-     * spelling) and return null rather than guessing when it is absent.
-     */
-    protected function participantJoinedAt(array $participant): ?string
-    {
-        $raw = $participant['joinedAt'] ?? $participant['joined_at'] ?? null;
-
-        if (! is_string($raw) || $raw === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($raw)->toIso8601String();
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
-    /**
-     * End the room for everyone.
-     *
-     * RoomService.DeleteRoom disconnects every participant and destroys the
-     * room, which is what makes a dashboard "End" reach students who never
-     * receive an in-room data message (nobody is inside to publish it).
-     *
-     * Returns true when LiveKit confirmed the deletion. A false result is not
-     * fatal: the class status is already closed, so no fresh token can be
-     * issued and rejoin attempts fail.
-     */
-    public function deleteRoom(string $roomName): bool
-    {
-        return $this->roomServicePost('DeleteRoom', $roomName) !== null;
-    }
-
-    /**
-     * POST a RoomService Twirp method with a short-lived roomAdmin token.
-     *
-     * Returns null when LiveKit is unconfigured, unreachable, or answers with
-     * an error, so callers can degrade instead of failing the request.
-     */
-    protected function roomServicePost(string $method, string $roomName): ?Response
-    {
-        if ($roomName === '' || $this->diagnose() !== null) {
-            return null;
-        }
-
-        $baseUrl = $this->httpBaseUrl();
-        $token = $this->createRoomAdminToken($roomName);
-
-        if ($baseUrl === null || $token === null) {
-            return null;
-        }
-
-        try {
-            $response = Http::withToken($token)
-                ->acceptJson()
-                ->asJson()
-                ->connectTimeout(1)
-                ->timeout(2)
-                ->post($baseUrl.'/twirp/livekit.RoomService/'.$method, ['room' => $roomName]);
-        } catch (Throwable $exception) {
-            Log::debug('LiveKit '.$method.' request failed', [
-                'room' => $roomName,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return null;
-        }
-
-        if (! $response->successful()) {
-            Log::debug('LiveKit '.$method.' returned an error', [
-                'room' => $roomName,
-                'status' => $response->status(),
-            ]);
-
-            return null;
-        }
-
-        return $response;
-    }
-
-    /**
-     * Encode and sign a LiveKit JWT (HS256).
-     */
-    protected function signJwt(array $payload, string $apiKey, string $apiSecret): string
-    {
         $header = ['typ' => 'JWT', 'alg' => 'HS256'];
         $segments = [
             $this->base64UrlEncode(json_encode($header, JSON_THROW_ON_ERROR)),
@@ -315,8 +142,11 @@ class LiveKitTokenService
         ];
         $signingInput = implode('.', $segments);
         $signature = hash_hmac('sha256', $signingInput, $apiSecret, true);
+        $token = $signingInput.'.'.$this->base64UrlEncode($signature);
 
-        return $signingInput.'.'.$this->base64UrlEncode($signature);
+        $this->assertTokenIsWellFormed($token, $apiKey, $apiSecret);
+
+        return $token;
     }
 
     /**

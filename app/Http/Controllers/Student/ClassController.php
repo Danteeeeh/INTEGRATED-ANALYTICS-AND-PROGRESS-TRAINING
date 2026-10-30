@@ -3,21 +3,22 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\LessonProgress;
 use App\Models\ModuleProgress;
-use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\VirtualClass;
+use App\Services\ContentProgressService;
 use Carbon\Carbon;
 use Illuminate\View\View;
 
 class ClassController extends Controller
 {
+    public function __construct(private ContentProgressService $contentProgress) {}
+
     public function index(): View
     {
         $studentId = auth()->id();
@@ -89,20 +90,11 @@ class ClassController extends Controller
                 ->where('status', LessonProgress::STATUS_COMPLETED)
                 ->count();
 
-            $assignmentsBase = Assignment::published()
-                ->where(function ($q) use ($class) {
-                    $q->where('assignments.class_id', $class->id)
-                        ->orWhere(function ($q2) use ($class) {
-                            $q2->whereHas('module', function ($q3) use ($class) {
-                                $q3->where('course_id', $class->course_id);
-                            });
-                        })
-                        ->orWhere(function ($q2) use ($class) {
-                            $q2->whereHas('lesson.module', function ($q3) use ($class) {
-                                $q3->where('course_id', $class->course_id);
-                            });
-                        });
-                });
+            // This class's own work, through the shared section scope: the
+            // class-level assignments belong to it, and module/lesson ones
+            // only count inside the modules its section was assigned.
+            $assignmentsBase = $this->contentProgress
+                ->sectionScopedAssignmentsQuery(collect([$class->id]), collect([$class->course_id]));
             $totalAssignments = (clone $assignmentsBase)->count();
             $completedAssignments = $totalAssignments > 0
                 ? AssignmentSubmission::where('student_id', $studentId)
@@ -111,20 +103,8 @@ class ClassController extends Controller
                     ->count()
                 : 0;
 
-            $quizzesBase = Quiz::published()
-                ->where(function ($q) use ($class) {
-                    $q->where('quizzes.class_id', $class->id)
-                        ->orWhere(function ($q2) use ($class) {
-                            $q2->whereHas('module', function ($q3) use ($class) {
-                                $q3->where('course_id', $class->course_id);
-                            });
-                        })
-                        ->orWhere(function ($q2) use ($class) {
-                            $q2->whereHas('lesson.module', function ($q3) use ($class) {
-                                $q3->where('course_id', $class->course_id);
-                            });
-                        });
-                });
+            $quizzesBase = $this->contentProgress
+                ->sectionScopedQuizzesQuery(collect([$class->id]), collect([$class->course_id]));
             $totalQuizzes = (clone $quizzesBase)->count();
             $completedQuizzes = $totalQuizzes > 0
                 ? QuizAttempt::where('student_id', $studentId)
@@ -237,44 +217,21 @@ class ClassController extends Controller
             ->with(['class.course', 'class.instructor', 'class.academicPeriod'])
             ->get();
 
-        $classIds = $enrollments->pluck('class_id');
+        // The calendar is a student surface too: a class from another block
+        // must not drop its assignments and quizzes into this month.
+        $classIds = $this->contentProgress->sectionScopedClassIds($studentId, $enrollments->pluck('class_id'));
+        $enrollments = $enrollments->whereIn('class_id', $classIds)->values();
         $courseIds = $enrollments->pluck('class.course_id')->filter();
 
         // Get upcoming assignments
-        $assignments = Assignment::published()
-            ->where(function ($q) use ($classIds, $courseIds) {
-                $q->whereIn('assignments.class_id', $classIds)
-                    ->orWhere(function ($q2) use ($courseIds) {
-                        $q2->whereHas('module', function ($q3) use ($courseIds) {
-                            $q3->whereIn('course_id', $courseIds);
-                        });
-                    })
-                    ->orWhere(function ($q2) use ($courseIds) {
-                        $q2->whereHas('lesson.module', function ($q3) use ($courseIds) {
-                            $q3->whereIn('course_id', $courseIds);
-                        });
-                    });
-            })
+        $assignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '>=', now()->startOfMonth())
             ->with(['class.course', 'module.course', 'lesson.module.course'])
             ->orderBy('due_date')
             ->get();
 
         // Get upcoming quizzes
-        $quizzes = Quiz::published()
-            ->where(function ($q) use ($classIds, $courseIds) {
-                $q->whereIn('quizzes.class_id', $classIds)
-                    ->orWhere(function ($q2) use ($courseIds) {
-                        $q2->whereHas('module', function ($q3) use ($courseIds) {
-                            $q3->whereIn('course_id', $courseIds);
-                        });
-                    })
-                    ->orWhere(function ($q2) use ($courseIds) {
-                        $q2->whereHas('lesson.module', function ($q3) use ($courseIds) {
-                            $q3->whereIn('course_id', $courseIds);
-                        });
-                    });
-            })
+        $quizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
             ->where('availability_from', '>=', now()->startOfMonth())
             ->with(['class.course', 'module.course', 'lesson.module.course'])
             ->orderBy('availability_from')
