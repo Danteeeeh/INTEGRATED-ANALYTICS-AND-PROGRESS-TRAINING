@@ -108,13 +108,6 @@
                 </div>
 
                 <div class="form-field full">
-                    <label style="display:flex;align-items:center;gap:8px;">
-                        <input type="checkbox" name="allow_late" value="1" {{ old('allow_late') ? 'checked' : '' }} style="width:auto;">
-                        Allow Late Submissions
-                    </label>
-                </div>
-
-                <div class="form-field full">
                     <label>Attachments</label>
                     <input type="file" name="attachments[]" multiple style="padding:10px;border:1.5px dashed #d0d7e2;border-radius:8px;background:#fafbfc;">
                     <span style="font-size:0.75rem;color:#888;">Upload one or more files to attach to this assignment</span>

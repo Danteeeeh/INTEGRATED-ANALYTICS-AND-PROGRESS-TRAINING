@@ -24,7 +24,7 @@ Para hindi magulo ang panel at complementary sa AA (Academic Affairs), 4 roles l
 Canvas 3-zone layout (walang controller change — existing `$stats` ginamit):
 
 1. **My courses** — card grid (`course-card-grid`) ng enrolled subjects: code, title, instructor + section, status chip, progress bar per course, deterministic per-course color (hash ng course ID sa 8-color palette). Progress lookup: `$progressLookup` (course.id → progress).
-2. **My progress** — Chart.js horizontal bar (`#progressChart`) ng per-course completion %, color-coded (green ≥75, amber ≥40, blue <40), overall % sa panel count, at "Paano kino-compute" explainer. Data: `$progressChartData`.
+2. **My progress** — Chart.js horizontal bar (`#progressChart`) ng per-course completion %, color-coded (green ≥75, amber ≥40, blue <40), overall % sa panel count, at "Paano kino-compute" explainer. Data: `$progressChartData`. Ang axis label ay **course code** (hal. `IT-103`) para hindi magkamukha ang bars ng magkatulad ang title; nasa tooltip ang buong course title.
 3. **To-do list** — dating "Upcoming this week" panel: upcoming assignments/quizzes/exams na may due chips at links.
 
 (Ang AI assessment, overdue strip, continue learning, upcoming activities, announcements, analytics ay nananatili.)

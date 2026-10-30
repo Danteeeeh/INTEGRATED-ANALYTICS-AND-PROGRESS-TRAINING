@@ -3,6 +3,12 @@
 @php $activeNav = 'assignments'; @endphp
 
 @section('content')
+@php
+    // The deadline is final (a granted extension clears $isOverdue), and an
+    // existing submission can be replaced only when resubmission is on.
+    $canSubmit = ! $isOverdue
+        && (! $mySubmission || $assignment->allow_resubmission || in_array($mySubmission->status, ['draft', 'returned'], true));
+@endphp
 <div class="learning-shell">
     <x-user-page-header
         title="{{ $assignment->title }}"
@@ -10,13 +16,13 @@
         icon="fa-tasks"
     >
         <x-slot name="meta">
-            @if($assignment->due_date)
-                <span class="user-status">{{ $assignment->due_date->isPast() ? 'Overdue' : 'Open' }}</span>
-                <span>Due {{ $assignment->due_date->format('l, F j, Y g:i A') }}</span>
+            @if($effectiveDeadline)
+                <span class="user-status">{{ $isOverdue ? 'Overdue' : 'Open' }}</span>
+                <span>Due {{ $effectiveDeadline->format('l, F j, Y g:i A') }}</span>
             @endif
         </x-slot>
         <x-slot name="actions">
-            @if(!$mySubmission || in_array($mySubmission->status, ['draft', 'returned'], true))
+            @if($canSubmit)
                 <a href="{{ route('student.courses.assignments.submit', [$course, $assignment]) }}" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> {{ $mySubmission ? 'Resubmit' : 'Submit' }}</a>
             @endif
             <a href="{{ route('student.courses.assignments.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back</a>
@@ -113,14 +119,16 @@
                     description="Submit your work before the due date."
                 >
                     <x-slot name="action">
-                        <a href="{{ route('student.courses.assignments.submit', [$course, $assignment]) }}" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Submit Now</a>
+                        @if($canSubmit)
+                            <a href="{{ route('student.courses.assignments.submit', [$course, $assignment]) }}" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Submit Now</a>
+                        @endif
                     </x-slot>
                 </x-user-empty-state>
             @endif
         </div>
     </div>
 
-    @if(!$mySubmission || in_array($mySubmission->status, ['draft', 'returned'], true))
+    @if($canSubmit)
         <div class="learning-next-action">
             <div>
                 <strong>Ready to submit?</strong>

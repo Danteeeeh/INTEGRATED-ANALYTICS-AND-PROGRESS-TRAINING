@@ -52,6 +52,54 @@ class LiveKitTokenService
     }
 
     /**
+     * The setup warning worth showing for one class, or null when there is
+     * nothing to warn about. The classroom and both class-details pages read
+     * this, so the warning appears — and stays quiet — in the same situations
+     * on every page that leads to the room.
+     *
+     * Returning null does not mean the configuration is fine: legacy
+     * external-provider classes do not use LiveKit at all, and a class that was
+     * cancelled, is already over, or has not been created yet cannot be joined,
+     * where the warning would be noise rather than help.
+     */
+    public function diagnoseForClass(VirtualClass $virtualClass): ?string
+    {
+        if ($virtualClass->meeting_provider !== VirtualClass::PROVIDER_LIVEKIT) {
+            return null;
+        }
+
+        if (! in_array($virtualClass->status, [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING], true)) {
+            return null;
+        }
+
+        if ($virtualClass->hasEnded()) {
+            return null;
+        }
+
+        return $this->diagnose();
+    }
+
+    /**
+     * The setup warning for a page that lists several classes, or null when
+     * there is nothing to say. A list shows one warning for the whole page, and
+     * only when at least one class in the set could still be joined — a page of
+     * finished classes stays quiet, exactly like their detail pages.
+     *
+     * @param  iterable<int, VirtualClass>  $virtualClasses
+     */
+    public function diagnoseForClasses(iterable $virtualClasses): ?string
+    {
+        foreach ($virtualClasses as $virtualClass) {
+            $problem = $this->diagnoseForClass($virtualClass);
+            if ($problem !== null) {
+                return $problem;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Create the join token. Hardened against the two environmental causes of
      * "invalid token" that are not wrong credentials:
      *   1. clock skew — `nbf` allows 60s of slack instead of 5s;

@@ -11,6 +11,7 @@ use App\Models\VirtualClass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -209,51 +210,75 @@ class AttendanceController extends Controller
         return view('admin.attendance.report', compact('class', 'records', 'summary'));
     }
 
-    public function export(Request $request): RedirectResponse|View
+    /**
+     * Download the attendance log as CSV.
+     *
+     * This used to only flash a "queued" message and bounce back to the list,
+     * so the Export button produced no file at all. It now streams the rows that
+     * the same filters would have shown on the index page, which is what the
+     * Export link hands over via request()->query().
+     */
+    public function export(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', AttendanceRecord::class);
 
         $validated = $request->validate([
+            'course_id' => 'nullable|exists:courses,id',
             'class_id' => 'nullable|exists:classes,id',
             'virtual_class_id' => 'nullable|exists:virtual_classes,id',
             'student_id' => 'nullable|exists:users,id',
+            'status' => 'nullable|in:present,late,absent,excused',
+            'attendance_date' => 'nullable|date',
             'week_number' => 'nullable|integer|min:1',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
-            'format' => 'required|in:csv,xlsx,pdf',
         ]);
 
-        $query = AttendanceRecord::with(['class.course', 'virtualClass', 'student', 'recordedBy']);
+        $filename = 'attendance-'.now()->format('Ymd-His').'.csv';
 
-        if ($request->filled('class_id')) {
-            $query->where('class_id', $request->class_id);
-        }
+        return response()->streamDownload(function () use ($validated) {
+            $handle = fopen('php://output', 'w');
 
-        if ($request->filled('virtual_class_id')) {
-            $query->where('virtual_class_id', $request->virtual_class_id);
-        }
+            fputcsv($handle, [
+                'ID', 'Date', 'Week', 'Session', 'Class Code', 'Course', 'Student',
+                'Student Identifier', 'Status', 'Joined At', 'Left At',
+                'Duration (min)', 'Notes', 'Recorded By',
+            ]);
 
-        if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
+            AttendanceRecord::with(['class.course', 'virtualClass', 'student', 'recordedBy'])
+                ->when($validated['course_id'] ?? null, fn ($q, $courseId) => $q->whereHas('class', fn ($class) => $class->where('course_id', $courseId)))
+                ->when($validated['class_id'] ?? null, fn ($q, $classId) => $q->where('class_id', $classId))
+                ->when($validated['virtual_class_id'] ?? null, fn ($q, $virtualClassId) => $q->where('virtual_class_id', $virtualClassId))
+                ->when($validated['student_id'] ?? null, fn ($q, $studentId) => $q->where('student_id', $studentId))
+                ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+                ->when($validated['attendance_date'] ?? null, fn ($q, $date) => $q->whereDate('attendance_date', $date))
+                ->when($validated['week_number'] ?? null, fn ($q, $week) => $q->where('week_number', $week))
+                ->when($validated['date_from'] ?? null, fn ($q, $from) => $q->whereDate('attendance_date', '>=', $from))
+                ->when($validated['date_to'] ?? null, fn ($q, $to) => $q->whereDate('attendance_date', '<=', $to))
+                ->orderByDesc('attendance_date')
+                ->orderBy('class_id')
+                ->chunk(config('lms.export_chunk_size'), function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        fputcsv($handle, [
+                            $record->id,
+                            $record->attendance_date?->toDateString(),
+                            $record->week_number,
+                            $record->session_title ?? $record->virtualClass?->title,
+                            $record->class?->code,
+                            $record->class?->course?->title,
+                            $record->student?->full_name,
+                            $record->student?->identifier,
+                            $record->status,
+                            $record->joined_at?->toDateTimeString(),
+                            $record->left_at?->toDateTimeString(),
+                            $record->duration_minutes,
+                            $record->notes,
+                            $record->recordedBy?->full_name,
+                        ]);
+                    }
+                });
 
-        if ($request->filled('week_number')) {
-            $query->where('week_number', $request->week_number);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('attendance_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('attendance_date', '<=', $request->date_to);
-        }
-
-        $records = $query->orderByDesc('attendance_date')->get();
-        $format = $validated['format'];
-
-        session()->flash('success', "Attendance export ({$format}) queued. {$records->count()} records will be included.");
-
-        return back();
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 }

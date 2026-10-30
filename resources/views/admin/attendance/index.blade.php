@@ -12,7 +12,7 @@
     >
         <x-slot name="actions">
             <a href="{{ route('admin.attendance.create') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Record Attendance</a>
-            <a href="{{ route('admin.attendance.export') }}" class="btn btn-secondary"><i class="fa-solid fa-download"></i> Export</a>
+            <a href="{{ route('admin.attendance.export', request()->query()) }}" class="btn btn-secondary"><i class="fa-solid fa-download"></i> Export</a>
         </x-slot>
     </x-user-page-header>
 

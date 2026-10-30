@@ -16,7 +16,7 @@ use RuntimeException;
 
 class VirtualClassRoomController extends Controller
 {
-    public function instructorRoom(ClassModel $class, VirtualClass $virtualClass): View
+    public function instructorRoom(ClassModel $class, VirtualClass $virtualClass, LiveKitTokenService $tokens): View
     {
         $user = request()->user();
         $this->assertInstructorAccess($user, $class, $virtualClass);
@@ -25,6 +25,7 @@ class VirtualClassRoomController extends Controller
         return $this->roomView(
             $class,
             $virtualClass,
+            $tokens->diagnoseForClass($virtualClass),
             'layouts.instructor',
             'instructor.classes.virtual_classes.token',
             'instructor.classes.virtual_classes.leave',
@@ -32,7 +33,7 @@ class VirtualClassRoomController extends Controller
         );
     }
 
-    public function studentRoom(ClassModel $class, VirtualClass $virtualClass): View
+    public function studentRoom(ClassModel $class, VirtualClass $virtualClass, LiveKitTokenService $tokens): View
     {
         $user = request()->user();
         $this->assertStudentAccess($user, $class, $virtualClass);
@@ -41,6 +42,7 @@ class VirtualClassRoomController extends Controller
         return $this->roomView(
             $class,
             $virtualClass,
+            $tokens->diagnoseForClass($virtualClass),
             'layouts.student',
             'student.classes.virtual_classes.token',
             'student.classes.virtual_classes.leave',
@@ -84,9 +86,17 @@ class VirtualClassRoomController extends Controller
         return redirect()->route('student.classes.virtual_classes.show', [$class, $virtualClass]);
     }
 
+    /**
+     * @param  ?string  $livekitProblem  LiveKit setup problem, if any. The token
+     *                                   endpoint already answers 503 with this
+     *                                   text, but that only shows after someone
+     *                                   clicks Join — the room page says it up
+     *                                   front, before the button is pressed.
+     */
     private function roomView(
         ClassModel $class,
         VirtualClass $virtualClass,
+        ?string $livekitProblem,
         string $layout,
         string $tokenRoute,
         string $leaveRoute,
@@ -98,6 +108,7 @@ class VirtualClassRoomController extends Controller
             'class' => $class,
             'virtualClass' => $virtualClass,
             'layout' => $layout,
+            'livekitProblem' => $livekitProblem,
             'tokenUrl' => route($tokenRoute, [$class, $virtualClass]),
             'leaveUrl' => route($leaveRoute, [$class, $virtualClass]),
             'endUrl'   => route('instructor.classes.virtual_classes.end', [$class, $virtualClass]),

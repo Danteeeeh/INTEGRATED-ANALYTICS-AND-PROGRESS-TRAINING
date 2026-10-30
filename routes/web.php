@@ -829,6 +829,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::get('/', [StudentVirtualClassController::class, 'index'])->name('index');
                 Route::get('/{virtualClass}', [StudentVirtualClassController::class, 'show'])->name('show');
 
+                // Kept cheap: the details page polls it while it waits for the
+                // instructor to open the room.
+                Route::get('/{virtualClass}/status', [StudentVirtualClassController::class, 'status'])->name('status');
+
                 // Built-in Virtual Classroom (LiveKit): room, token, leave.
                 // Token generation is the expensive, abuse-prone action — rate
                 // limit it (master prompt §12).

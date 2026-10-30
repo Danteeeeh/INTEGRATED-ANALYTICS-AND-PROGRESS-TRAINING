@@ -136,6 +136,10 @@
     /* ── Status + misc ── */
     .vc-status{padding:10px 16px;font-size:.84rem;color:#cbd5e1;background:#0f172a;border-top:1px solid #253047;min-height:38px;display:flex;align-items:center;gap:9px}
     .vc-status.error{color:#fecaca}
+    .vc-config-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 20px;background:#3f151b;border-bottom:1px solid #7f1d1d;color:#fecaca}
+    .vc-config-banner i{font-size:1.05rem;color:#fca5a5;margin-top:2px}
+    .vc-config-banner strong{display:block;font-size:.9rem;color:#fee2e2;margin-bottom:4px}
+    .vc-config-banner p{margin:0;font-size:.82rem;line-height:1.55;overflow-wrap:anywhere}
     .vc-status i{color:#93c5fd}
     .vc-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#111827;border:1px solid #293449;color:#f9fafb;border-radius:12px;padding:10px 16px;font-size:.84rem;z-index:999;box-shadow:0 14px 34px rgba(2,6,23,.5)}
     .vc-audio-root{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
@@ -179,6 +183,18 @@
         </div>
     </header>
 
+    {{-- ═══ CONFIGURATION WARNING ═══ --}}
+    {{-- Rendered by the server, so it is visible even when the LiveKit client
+         script never loads, and always before the Join button is pressed. The
+         same partial warns on the class-details pages that lead here. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', [
+            'problem' => $livekitProblem,
+            'warningClass' => 'vc-config-banner',
+            'warningId' => 'livekitConfigBanner',
+        ])
+    @endif
+
     <div class="vc-room-body" id="vcRoomBody">
         <main class="vc-stage" id="vcStage">
             {{-- ═══ LOBBY ═══ --}}
@@ -194,7 +210,7 @@
                         <button type="button" class="vc-control" id="lobbyMicButton" title="Microphone" aria-label="Toggle microphone"><i class="fa-solid fa-microphone-slash"></i></button>
                         <button type="button" class="vc-control" id="lobbyCameraButton" title="Camera" aria-label="Toggle camera"><i class="fa-solid fa-video-slash"></i></button>
                     </div>
-                    <button type="button" class="vc-control wide primary" id="joinButton"><i class="fa-solid fa-right-to-bracket"></i> Join classroom</button>
+                    <button type="button" class="vc-control wide primary" id="joinButton" @disabled($livekitProblem) title="{{ $livekitProblem ? 'Joining is disabled until the video service is configured.' : 'Join classroom' }}"><i class="fa-solid fa-right-to-bracket"></i> Join classroom</button>
                     <p class="vc-room-meta" id="lobbyHint" role="status"></p>
                 </div>
             </div>
@@ -274,14 +290,18 @@
     </div>
 
     {{-- ═══ STATUS BAR ═══ --}}
-    <div class="vc-status" id="connectionStatus" role="status"><i class="fa-solid fa-circle-info"></i> Not connected. Click "Join classroom" to enter.</div>
+    <div class="vc-status" id="connectionStatus" role="status"><i class="fa-solid fa-circle-info"></i> {{ $livekitProblem ? 'Not connected. The video service has to be configured before this room can be joined.' : 'Not connected. Click "Join classroom" to enter.' }}</div>
 </div>
 
 <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px">
     <a class="btn-modal-cancel" href="{{ $backUrl }}" style="text-decoration:none;padding:10px 14px;border-radius:8px"><i class="fa-solid fa-arrow-left"></i> Back to class details</a>
     <span style="font-size:.8rem;color:#64748b;align-self:center">Follow your institution's online-class conduct and privacy policies.</span>
-</script type="module">
-import { Room, RoomEvent, Track, DataPublishKind } from 'https://cdn.jsdelivr.net/npm/livekit-client@2.15.6/+esm';
+</div>
+
+<script type="module">
+// Only exports that exist in livekit-client 2.x: importing a name the module
+// does not provide aborts the whole script, and the room never connects.
+import { Room, RoomEvent, Track } from 'https://cdn.jsdelivr.net/npm/livekit-client@2.15.6/+esm';
 
 /* ── Configuration ── */
 const tokenUrl = @json($tokenUrl);
@@ -297,7 +317,8 @@ const HAND_TOPIC = 'class-hand';
 const REACTION_TOPIC = 'class-reaction';
 const MUTE_ALL_TOPIC = 'class-mute-all';
 const END_MEETING_TOPIC = 'class-end-meeting';
-const dataOptions = typeof DataPublishKind !== 'undefined' ? { kind: DataPublishKind.Reliable } : { reliable: true };
+// v2 replaced the DataPacket_Kind enum with a boolean `reliable` option.
+const dataOptions = { reliable: true };
 const AVATAR_COLOURS = ['#2563eb','#7c3aed','#0891b2','#059669','#b45309','#be123c','#4f46e5','#0e7490'];
 
 /* ── DOM refs ── */
@@ -310,7 +331,7 @@ const el = {
     hand:$('handButton'), react:$('reactButton'), reactPop:$('reactPop'),
     chat:$('chatButton'), people:$('peopleButton'), spotlight:$('spotlightButton'), fullscreen:$('fullscreenButton'), settings:$('settingsButton'), leave:$('leaveButton'),
     chatTab:$('chatTabButton'), peopleTab:$('peopleTabButton'), chatPanel:$('chatPanel'), peoplePanel:$('peoplePanel'),
-    chatLog:$('chatLog'), chatPlaceholder:$('chatPlaceholder'), chatInput:$('chatInput'), chatSend:$('chatSend'), chatForm:$('chatForm'),
+    chatLog:$('chatLog'), chatPlaceholder:$('chatPlaceholder'), chatInput:$('chatInput'), chatSend:$('sendChatButton'), chatForm:$('chatForm'),
     chatUnread:$('chatUnread'), peopleList:$('peopleList'), peopleCount:$('peopleCount'),
     status:$('connectionStatus'), count:$('participantCount'), timer:$('vcTimer'),
     qualityBars:$('qualityBars'), qualityLabel:$('qualityLabel'), qualityChip:$('qualityChip'),
@@ -562,9 +583,12 @@ el.settings.addEventListener('click',()=>{ el.settingsPop.hidden=!el.settingsPop
 async function postJson(url){
     try{ const r=await fetch(url,{method:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'}); return r.ok; }catch(_){ return false; }
 }
-el.muteAll.addEventListener('click',async()=>{ if(!isInstructor) return; const ok=await postJson(muteAllUrl); if(ok){ await publish(MUTE_ALL_TOPIC,{kind:'mute-all'}); toast('All participants muted.'); } else setStatus('Mute all failed.',true); el.instructorPop.hidden=true; });
-el.endMeetingPop.addEventListener('click',async()=>{ if(!isInstructor) return; if(!confirm('End this meeting for everyone?')) return; const ok=await postJson(endUrl); if(ok){ await publish(END_MEETING_TOPIC,{kind:'end-meeting'}); toast('Meeting ended.'); window.location.href=backUrl; } else setStatus('End meeting failed.',true); el.instructorPop.hidden=true; });
-el.endMeeting.addEventListener('click',async()=>{ if(!isInstructor) return; if(!confirm('End this meeting for everyone?')) return; const ok=await postJson(endUrl); if(ok){ toast('Meeting ended.'); window.location.href=backUrl; } else setStatus('End meeting failed.',true); });
+// These four controls exist only for instructors. Wiring them unconditionally
+// threw a null handler error on the student page, which stopped the rest of
+// the module (chat, leave, panels) from ever running.
+el.muteAll?.addEventListener('click',async()=>{ if(!isInstructor) return; const ok=await postJson(muteAllUrl); if(ok){ await publish(MUTE_ALL_TOPIC,{kind:'mute-all'}); toast('All participants muted.'); } else setStatus('Mute all failed.',true); el.instructorPop.hidden=true; });
+el.endMeetingPop?.addEventListener('click',async()=>{ if(!isInstructor) return; if(!confirm('End this meeting for everyone?')) return; const ok=await postJson(endUrl); if(ok){ await publish(END_MEETING_TOPIC,{kind:'end-meeting'}); toast('Meeting ended.'); window.location.href=backUrl; } else setStatus('End meeting failed.',true); el.instructorPop.hidden=true; });
+el.endMeeting?.addEventListener('click',async()=>{ if(!isInstructor) return; if(!confirm('End this meeting for everyone?')) return; const ok=await postJson(endUrl); if(ok){ toast('Meeting ended.'); window.location.href=backUrl; } else setStatus('End meeting failed.',true); });
 
 /* ── Invite, fullscreen, panels ── */
 el.invite.addEventListener('click',async()=>{ try{ await navigator.clipboard.writeText(window.location.href); toast('Link copied.'); }catch(_){ toast('Copy address bar link instead.'); } });
@@ -573,7 +597,7 @@ el.fullscreen.addEventListener('click',()=>{
     else document.exitFullscreen().catch(_=>{});
 });
 document.addEventListener('fullscreenchange',()=>{ el.fullscreen.classList.toggle('vc-fullscreen-enter',!!document.fullscreenElement); el.fullscreen.classList.toggle('vc-fullscreen-exit',!document.fullscreenElement); el.fullscreen.title=document.fullscreenElement?'Exit fullscreen':'Fullscreen'; });
-el.info.addEventListener('click',()=>{ toast('Class: '+el.count.textContent+' participants · '+new Date().toLocaleTimeString()); });
+el.info?.addEventListener('click',()=>{ toast('Class: '+el.count.textContent+' participants · '+new Date().toLocaleTimeString()); });
 el.chatForm.addEventListener('submit',async(e)=>{
     e.preventDefault(); const text=el.chatInput.value.trim(); if(!room||!text) return;
     const payload={kind:'chat',id:uid(),name:currentName,text,ts:Date.now()}; const s=await publish(CHAT_TOPIC,payload);

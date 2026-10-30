@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\CourseProgress;
 use App\Models\LearningPlan;
 use App\Models\LearningPlanItem;
-use App\Models\LessonProgress;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -133,22 +132,7 @@ class LearningPlanService
 
     protected function learningStreak(int $studentId): int
     {
-        // Consecutive days with lesson activity, capped at 30.
-        $streak = 0;
-        $date = Carbon::today();
-
-        for ($i = 0; $i < 30; $i++) {
-            $hasActivity = LessonProgress::where('student_id', $studentId)
-                ->whereDate('updated_at', $date->copy()->subDays($i))
-                ->exists();
-
-            if ($hasActivity) {
-                $streak++;
-            } elseif ($i > 0) {
-                break;
-            }
-        }
-
-        return $streak;
+        // Same streak as the dashboard and My Progress (shared definition).
+        return app(ContentProgressService::class)->learningStreak($studentId);
     }
 }

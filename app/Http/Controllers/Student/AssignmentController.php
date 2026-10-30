@@ -8,14 +8,16 @@ use App\Models\AssignmentSubmission;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\MediaFile;
-use App\Models\StudentModuleAssignment;
 use App\Models\SubmissionFile;
+use App\Services\ContentProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
 {
+    public function __construct(private ContentProgressService $contentProgress) {}
+
     public function index(Course $course): View
     {
         $studentId = auth()->id();
@@ -31,34 +33,13 @@ class AssignmentController extends Controller
             abort(403);
         }
 
-        // Get module IDs assigned to this student
-        $assignedModuleIds = StudentModuleAssignment::byStudent($studentId)
-            ->byClass($enrollment->class_id)
-            ->pluck('module_id');
+        // The same section scope the dashboard and course overview use: another
+        // block's class of this course must not stock this list, and module
+        // work has to sit in one of this section's assigned modules.
+        $classIds = $this->contentProgress->sectionScopedClassIdsForCourse($studentId, $course->id);
 
-        $assignments = Assignment::published()
-            ->where(function ($q) use ($course, $assignedModuleIds) {
-                // Class-level assignments (not in modules)
-                $q->whereHas('class', function ($q2) use ($course) {
-                    $q2->where('course_id', $course->id);
-                })
-                // Module-level assignments (only from assigned modules)
-                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
-                    $q2->whereHas('module', function ($q3) use ($course, $assignedModuleIds) {
-                        $q3->where('course_id', $course->id)
-                            ->whereIn('id', $assignedModuleIds)
-                            ->published();
-                    });
-                })
-                // Lesson-level assignments (only from lessons in assigned modules)
-                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
-                    $q2->whereHas('lesson.module', function ($q3) use ($course, $assignedModuleIds) {
-                        $q3->where('course_id', $course->id)
-                            ->whereIn('id', $assignedModuleIds)
-                            ->published();
-                    });
-                });
-            })
+        $assignments = $this->contentProgress
+            ->sectionScopedAssignmentsQuery($classIds, collect([$course->id]))
             ->with(['submissions' => function ($q) use ($studentId) {
                 $q->ofStudent($studentId);
             }])
@@ -125,12 +106,17 @@ class AssignmentController extends Controller
                 ->with('error', 'You have already submitted this assignment and resubmission is not allowed.');
         }
 
+        // The deadline is final: once it passes the form closes. A granted
+        // extension is the only way back in, and isOverdueForStudent() already
+        // honours it.
         if ($assignment->isOverdueForStudent($studentId)) {
             return redirect()->route('student.courses.assignments.show', [$course, $assignment])
                 ->with('error', 'This assignment is overdue and no longer available for submission.');
         }
 
-        return view('student.assignments.submit', compact('course', 'assignment', 'enrollment', 'existingSubmission'));
+        $effectiveDeadline = $assignment->getEffectiveDeadlineForStudent($studentId);
+
+        return view('student.assignments.submit', compact('course', 'assignment', 'enrollment', 'existingSubmission', 'effectiveDeadline'));
     }
 
     public function submit(Request $request, Course $course, Assignment $assignment): RedirectResponse
@@ -159,22 +145,21 @@ class AssignmentController extends Controller
             return back()->with('error', 'You have already submitted this assignment.');
         }
 
+        // The deadline is final; only a per-student extension reopens it.
         if ($assignment->isOverdueForStudent($studentId)) {
             return back()->with('error', 'This assignment is overdue and no longer available for submission.');
         }
 
-        if ($assignment->max_attempts && $latestSubmission) {
+        // `max_attempts` defaults to 1 in the schema, so it only acts as a cap
+        // once the instructor raises it above that default. Otherwise it would
+        // contradict "allow resubmission" and refuse every resubmission.
+        if ($latestSubmission && $assignment->max_attempts > 1) {
             $attemptCount = AssignmentSubmission::ofAssignment($assignment->id)
                 ->ofStudent($studentId)
                 ->count();
             if ($attemptCount >= $assignment->max_attempts) {
                 return back()->with('error', 'You have reached the maximum number of attempts.');
             }
-        }
-
-        $isLate = $assignment->due_date && now()->gt($assignment->due_date);
-        if ($isLate && ! $assignment->allow_late) {
-            return back()->with('error', 'Late submissions are not allowed for this assignment.');
         }
 
         $attemptNumber = $latestSubmission ? $latestSubmission->attempt_number + 1 : 1;
@@ -200,7 +185,7 @@ class AssignmentController extends Controller
             'attempt_number' => $attemptNumber,
             'submission_text' => $validated['submission_text'] ?? null,
             'submitted_at' => now(),
-            'is_late' => $isLate,
+            'is_late' => false,
             'status' => AssignmentSubmission::STATUS_SUBMITTED,
         ]);
 

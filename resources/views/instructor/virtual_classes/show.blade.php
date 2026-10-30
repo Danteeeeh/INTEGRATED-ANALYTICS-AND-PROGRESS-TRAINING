@@ -17,6 +17,11 @@
 @endsection
 
 @section('content')
+    {{-- A broken video setup is visible before the Start / Join buttons below. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <div class="form-card">
         <h3>Virtual Class Details</h3>
 

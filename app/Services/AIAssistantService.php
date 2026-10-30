@@ -187,15 +187,7 @@ class AIAssistantService
             ->pluck('progress_percent')
             ->avg() ?? 0;
 
-        $streak = 0;
-        $date = Carbon::today();
-        for ($i = 0; $i < 30; $i++) {
-            if (\App\Models\LessonProgress::where('student_id', $studentId)->whereDate('updated_at', $date->copy()->subDays($i))->exists()) {
-                $streak++;
-            } elseif ($i > 0) {
-                break;
-            }
-        }
+        $streak = app(ContentProgressService::class)->learningStreak($studentId);
 
         return $this->performanceAssessment->assess($studentId, $classIds, (float) $overallProgress, $streak);
     }

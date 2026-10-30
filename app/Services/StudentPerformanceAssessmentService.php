@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
+use App\Models\ClassModel;
 use App\Models\Grade;
 use App\Models\LessonProgress;
 use App\Models\QuizAttempt;
@@ -12,6 +13,8 @@ use Illuminate\Support\Collection;
 
 class StudentPerformanceAssessmentService
 {
+    public function __construct(private ContentProgressService $contentProgress) {}
+
     /**
      * Build an explainable learner assessment from existing LMS signals.
      *
@@ -33,14 +36,31 @@ class StudentPerformanceAssessmentService
     public function assess(int $studentId, Collection $activeClassIds, float|int $overallProgress, int $learningStreak): array
     {
         $classIds = $activeClassIds->filter()->values();
+
+        // The courses behind those classes, needed to reach quizzes, modules and
+        // lessons that hang off a course instead of a class row.
+        $courseIds = $classIds->isEmpty()
+            ? collect()
+            : ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter()->values();
+
         $signalCount = 0;
         $riskScore = 0;
         $reasons = [];
         $recommendations = [];
         $signals = [];
 
+        // Only quizzes this student can actually see: their own sections'
+        // classes and the modules those sections were assigned. Unscoped, the
+        // panel counted every attempt the student ever made; course-wide, it
+        // still counted a module that belonged to another section of the same
+        // course.
+        $quizIds = $classIds->isEmpty()
+            ? collect()
+            : (clone $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds))->pluck('quizzes.id');
+
         $quizAttempts = QuizAttempt::query()
             ->where('student_id', $studentId)
+            ->whereIn('quiz_id', $quizIds)
             ->whereIn('status', [
                 QuizAttempt::STATUS_SUBMITTED,
                 QuizAttempt::STATUS_AUTO_SUBMITTED,
@@ -48,14 +68,14 @@ class StudentPerformanceAssessmentService
             ])
             ->get();
 
-        $quizScores = $quizAttempts->map(function (QuizAttempt $attempt): ?float {
-            $score = $attempt->score_percent;
-            if ($score === null && $attempt->score !== null) {
-                $score = (float) $attempt->score;
-            }
-
-            return $score === null ? null : (float) $score;
-        })->filter(fn (?float $score): bool => $score !== null)->values();
+        // `score` holds raw points (3 of 10), not a percentage, so treating it as
+        // one drew 3% for a 30% result. Attempts without a percentage are left
+        // out of the average instead.
+        $quizScores = $quizAttempts
+            ->pluck('score_percent')
+            ->filter(fn ($score): bool => $score !== null)
+            ->map(fn ($score): float => (float) $score)
+            ->values();
 
         if ($quizScores->isNotEmpty()) {
             $signalCount++;
@@ -88,10 +108,14 @@ class StudentPerformanceAssessmentService
             }
         }
 
-        $publishedAssignments = Assignment::query()
-            ->whereIn('class_id', $classIds)
-            ->where('status', Assignment::STATUS_PUBLISHED)
-            ->get(['id', 'due_date']);
+        // Same scope as the dashboard's assignment counts: class-level work for
+        // the student's classes plus work inside their sections' assigned
+        // modules. Filtering on `class_id` alone drops module-linked work, and
+        // the course-wide query picks up another section's module again.
+        $publishedAssignments = $classIds->isEmpty()
+            ? collect()
+            : $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
+                ->get(['assignments.id', 'assignments.due_date']);
 
         if ($publishedAssignments->isNotEmpty()) {
             $signalCount++;
@@ -203,9 +227,12 @@ class StudentPerformanceAssessmentService
             }
         }
 
+        // Scoped to the enrolled classes like every other grade surface. The
+        // unscoped version averaged grades from outside them, reporting 43
+        // released grades where the gradebook lists 25.
         $releasedGrades = Grade::query()
             ->where('student_id', $studentId)
-            ->whereHas('item', fn ($query) => $query->where('is_released', true))
+            ->whereHas('item', fn ($query) => $query->where('is_released', true)->whereIn('class_id', $classIds))
             ->whereNotNull('score_percent')
             ->pluck('score_percent');
 

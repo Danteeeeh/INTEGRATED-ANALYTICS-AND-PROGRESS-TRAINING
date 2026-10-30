@@ -17,6 +17,12 @@
 @endsection
 
 @section('content')
+    {{-- A broken video setup shows up while scanning the list, not only after
+         opening a class. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <div class="form-card">
         <h3>Class Information</h3>
         <div class="modal-section-title"><i class="fa-solid fa-info-circle"></i> Overview</div>
@@ -52,7 +58,9 @@
                 @forelse($virtualClasses as $vc)
                     @php
                         $myAtt = $vc->attendees->first();
-                        $canJoin = in_array($vc->status, [\App\Models\VirtualClass::STATUS_SCHEDULED, \App\Models\VirtualClass::STATUS_ONGOING]) && !empty($vc->meeting_url);
+                        // LiveKit sessions have no meeting_url, so the row
+                        // asks the model instead of testing for a link.
+                        $canJoin = $vc->studentCanJoin();
                     @endphp
                     <tr>
                         <td>

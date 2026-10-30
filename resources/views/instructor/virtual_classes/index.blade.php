@@ -17,6 +17,12 @@
         </x-slot>
     </x-user-page-header>
 
+    {{-- A broken video setup shows up while scanning the list, not only after
+         opening a class. --}}
+    @if($livekitProblem)
+        @include('partials.livekit-config-warning', ['problem' => $livekitProblem])
+    @endif
+
     <div class="user-panel">
         @if($virtualClasses->count() > 0)
             <div class="user-table-wrap">

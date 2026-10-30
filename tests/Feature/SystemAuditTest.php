@@ -10,20 +10,27 @@ use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\Enrollment;
+use App\Models\ExamAttempt;
 use App\Models\GradeItem;
+use App\Models\LoginVerification;
 use App\Models\Module;
 use App\Models\Program;
+use App\Models\Question;
 use App\Models\QuestionBank;
 use App\Models\QuizAttempt;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
 use App\Models\VirtualClass;
+use App\Services\BackupService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route as Router;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -57,6 +64,13 @@ class SystemAuditTest extends TestCase
      */
     protected bool $renderExceptions = false;
 
+    /**
+     * A broad route/link sweep is only useful while it remains broad. Keep a
+     * deliberate lower bound so a fixture, middleware, or route-list change
+     * cannot silently reduce the audit to a handful of pages.
+     */
+    protected const MINIMUM_AUDITED_PAGES = 50;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -66,8 +80,27 @@ class SystemAuditTest extends TestCase
         $admin      = User::factory()->admin()->create(['status' => 'active', 'email' => 'audit.admin@lms.local']);
         $instructor = User::factory()->instructor()->create(['status' => 'active', 'email' => 'audit.instructor@lms.local']);
         $student    = User::factory()->student()->create(['status' => 'active', 'email' => 'audit.student@lms.local']);
+        // The AA panel is a real role; without an actor its routes only ever
+        // answer 403 and the audit cannot tell a broken page from a guarded one.
+        $aaStaff = User::factory()->create([
+            'status' => 'active',
+            'email' => 'audit.aa@lms.local',
+            'role_id' => Role::where('slug', Role::AA_STAFF)->firstOrFail()->id,
+        ]);
 
-        $this->actors = compact('admin', 'instructor', 'student');
+        $this->actors = [
+            'admin' => $admin,
+            'instructor' => $instructor,
+            'student' => $student,
+            'aa_staff' => $aaStaff,
+        ];
+
+        // Media rows are only downloadable while their bytes exist on the disk.
+        Storage::fake('local');
+        Storage::disk('local')->put('audit/audit.txt', 'audit file');
+
+        // A backup download is only reachable when the file really exists.
+        File::put(app(BackupService::class)->directory().'/audit.sql', "-- audit backup\n");
 
         $period = AcademicPeriod::create([
             'name' => 'Audit Term',
@@ -135,22 +168,31 @@ class SystemAuditTest extends TestCase
             'created_by' => $instructor->id,
         ]);
 
+        // A submission fixture already exists by the time the audit opens the
+        // submit form (an instructor route creates it first), so the form only
+        // renders when resubmission is allowed. That is a real mode, not a
+        // concession: without it the page is a redirect and never audited.
         $assignment = Assignment::create([
             'class_id' => $class->id,
             'module_id' => $module->id,
             'title' => 'Audit Assignment',
             'slug' => 'audit-assign-'.uniqid(),
             'points' => 100,
+            'allow_resubmission' => true,
             'status' => Assignment::STATUS_PUBLISHED,
             'due_date' => now()->addDays(5),
             'created_by' => $instructor->id,
         ]);
 
+        // attempt_limit defaults to 1 and the audit already holds one submitted
+        // attempt for these, so Start would answer "no attempts left" instead
+        // of opening a paper.
         $quiz = \App\Models\Quiz::create([
             'class_id' => $class->id,
             'module_id' => $module->id,
             'title' => 'Audit Quiz',
             'slug' => 'audit-quiz-'.uniqid(),
+            'attempt_limit' => 5,
             'status' => 'published',
             'created_by' => $instructor->id,
         ]);
@@ -162,19 +204,26 @@ class SystemAuditTest extends TestCase
             'slug' => 'audit-exam-'.uniqid(),
             'exam_type' => 'midterm',
             'duration_minutes' => 60,
+            'attempt_limit' => 5,
             'status' => 'published',
             'created_by' => $instructor->id,
         ]);
 
+        // The built-in classroom is LiveKit-only: without a provider and room
+        // name its GET room page answers 404 for a reason that has nothing to
+        // do with the page being broken. Keep it open around "now" so the
+        // auto-close status sync does not end it before the probe.
         $virtualClass = VirtualClass::create([
             'class_id' => $class->id,
             'course_id' => $course->id,
             'instructor_id' => $instructor->id,
             'title' => 'Audit Virtual Class',
-            'status' => 'scheduled',
-            'meeting_date' => now(),
-            'start_time' => '09:00:00',
-            'end_time' => '10:00:00',
+            'status' => VirtualClass::STATUS_ONGOING,
+            'meeting_provider' => VirtualClass::PROVIDER_LIVEKIT,
+            'livekit_room_name' => 'audit-room',
+            'meeting_date' => today(),
+            'start_time' => now()->subMinutes(5)->format('H:i:s'),
+            'end_time' => now()->addHour()->format('H:i:s'),
             'created_by' => $instructor->id,
         ]);
 
@@ -195,7 +244,29 @@ class SystemAuditTest extends TestCase
         );
 
         $this->ids['user'] = $student->id;
-        $this->ids['mediaFileName'] = 'audit/audit.txt';
+
+        // Both Start routes refuse to open a paper with nothing on it, so each
+        // assessment gets the same served question.
+        $auditQuestion = $this->auditQuestion();
+        $quiz->questions()->attach($auditQuestion->id, ['position' => 1]);
+        $exam->questions()->attach($auditQuestion->id, ['order' => 1]);
+
+        // /login/verify only renders while a sign-in is pending; without this
+        // row the page can only ever bounce back to /login.
+        LoginVerification::create([
+            'user_id' => $student->id,
+            'code_hash' => Hash::make('123456'),
+            'attempts' => 0,
+            'expires_at' => now()->addMinutes(10),
+            'last_sent_at' => now(),
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        File::delete(app(BackupService::class)->directory().'/audit.sql');
+
+        parent::tearDown();
     }
 
     /** Run $factory once per $key and reuse the value for every later call. */
@@ -206,10 +277,133 @@ class SystemAuditTest extends TestCase
         return $this->lazyCache[$key];
     }
 
+    /**
+     * The question both assessments sit, with one right and one wrong choice.
+     *
+     * Attached to the quiz and the exam in setUp(): their Start routes answer a
+     * redirect ("no questions yet") instead of a paper when the fixture has
+     * none, which used to leave the attempt pages unaudited.
+     */
+    protected function auditQuestion(): Question
+    {
+        return $this->lazy('question', function () {
+            $question = Question::create([
+                'question_bank_id' => $this->ids['questionBank']->id,
+                'question_type' => Question::TYPE_MULTIPLE_CHOICE,
+                'question_text' => 'Audit question?',
+                'difficulty' => Question::DIFFICULTY_MEDIUM,
+                'default_points' => 1,
+                'created_by' => $this->ids['instructor']->id,
+                'status' => Question::STATUS_ACTIVE,
+            ]);
+
+            $question->choices()->createMany([
+                ['choice_text' => 'Correct choice', 'points' => 1, 'is_correct' => true, 'position' => 0],
+                ['choice_text' => 'Wrong choice', 'points' => 0, 'is_correct' => false, 'position' => 1],
+            ]);
+
+            return $question;
+        });
+    }
+
+    /**
+     * Query strings the audit has to send.
+     *
+     * These endpoints validate their input and bounce back with errors when it
+     * is missing, so the page — or the JSON the page calls — was never seen.
+     */
+    protected function queryFor(string $uri): string
+    {
+        return match ($uri) {
+            'instructor/dashboard/export' => '?type=students&format=csv',
+            'instructor/dashboard/search', 'student/dashboard/search' => '?query=audit&type=all',
+            'instructor/dashboard/analytics' => '?period=month&type=performance&class_id='.$this->ids['class']->id,
+            default => '',
+        };
+    }
+
+    /**
+     * A public page rendered for a signed-out visitor.
+     *
+     * The login, register and OTP screens sit behind the `guest` middleware:
+     * every signed-in actor is redirected away from them, so an audit that only
+     * ever signs in can never see them render.
+     */
+    protected function guestGet(string $uri, array $session = [])
+    {
+        $this->app['auth']->forgetGuards();
+
+        $response = $session
+            ? $this->withSession($session)->get('/'.$uri)
+            : $this->get('/'.$uri);
+
+        if ($session) {
+            $this->flushSession();
+        }
+
+        $this->app['auth']->forgetGuards();
+
+        return $response;
+    }
+
+    /** Extra session a guest-only page needs before it will render. */
+    protected function guestSession(string $uri): array
+    {
+        if ($uri !== 'login/verify') {
+            return [];
+        }
+
+        return [
+            'login_otp' => [
+                'user_id' => $this->ids['student']->id,
+                'email' => $this->ids['student']->email,
+                'created_at' => now()->timestamp,
+            ],
+        ];
+    }
+
     /** Fill {placeholders} in a URI with seeded ids. */
     protected function uriFor(string $uri): string
     {
         $ids = $this->ids;
+
+        // The edit page only accepts a *scheduled* class, while the LiveKit
+        // room only opens for the *ongoing* one; the same row cannot be both.
+        $virtualClassId = str_ends_with($uri, '/edit')
+            ? $this->lazy('scheduledVirtualClass', fn () => VirtualClass::create([
+                'class_id' => $ids['class']->id,
+                'course_id' => $ids['course']->id,
+                'instructor_id' => $ids['instructor']->id,
+                'title' => 'Audit Scheduled Virtual Class',
+                'status' => VirtualClass::STATUS_SCHEDULED,
+                'meeting_provider' => VirtualClass::PROVIDER_LIVEKIT,
+                'livekit_room_name' => 'audit-scheduled-room',
+                'meeting_date' => today()->addDay(),
+                'start_time' => '09:00:00',
+                'end_time' => '10:00:00',
+                'created_by' => $ids['instructor']->id,
+            ])->id)
+            : $ids['virtualClass']->id;
+
+        // {attempt} is an ExamAttempt on exam routes and a QuizAttempt on quiz
+        // routes; one shared row cannot satisfy both bindings.
+        $attemptId = str_contains($uri, '/exams/')
+            ? $this->lazy('examAttempt', fn () => ExamAttempt::create([
+                'exam_id'        => $ids['exam']->id,
+                'student_id'     => $ids['student']->id,
+                'attempt_number' => 1,
+                'status'         => 'submitted',
+                'started_at'     => now()->subMinutes(30),
+                'submitted_at'   => now()->subMinutes(5),
+            ])->id)
+            : $this->lazy('attempt', fn () => QuizAttempt::create([
+                'quiz_id'        => $ids['quiz']->id,
+                'student_id'     => $ids['student']->id,
+                'attempt_number' => 1,
+                'status'         => QuizAttempt::STATUS_SUBMITTED,
+                'started_at'     => now(),
+                'submitted_at'   => now(),
+            ])->id);
 
         // Bare keys: the substitution regex hands back the name without braces.
         $map = [
@@ -232,7 +426,7 @@ class SystemAuditTest extends TestCase
             'section'        => $ids['section']->id,
             'questionBank'   => $ids['questionBank']->id,
             'question_bank'  => $ids['questionBank']->id,
-            'virtualClass'   => $ids['virtualClass']->id,
+            'virtualClass'   => $virtualClassId,
 
             'submission' => $this->lazy('submission', fn () => AssignmentSubmission::create([
                 'assignment_id'  => $ids['assignment']->id,
@@ -248,22 +442,20 @@ class SystemAuditTest extends TestCase
                 ['item_type' => 'assignment', 'max_points' => 100, 'factor' => 1, 'position' => 0]
             )->id),
 
+            // Both the instructor edit page and the student show page require
+            // the announcement to belong to this course, and the instructor
+            // must be its author.
             'announcement' => $this->lazy('announcement', fn () => Announcement::create([
-                'title'      => 'Audit Announcement',
-                'body'       => 'Audit body',
-                'created_by' => $ids['admin']->id,
-                'status'     => 'published',
-                'publish_at' => now(),
+                'title'         => 'Audit Announcement',
+                'body'          => 'Audit body',
+                'audience_type' => Announcement::AUDIENCE_COURSE,
+                'course_id'     => $ids['course']->id,
+                'created_by'    => $ids['instructor']->id,
+                'status'        => 'published',
+                'publish_at'    => now(),
             ])->id),
 
-            'question' => $this->lazy('question', fn () => \App\Models\Question::create([
-                'question_text' => 'Audit question?',
-                'type'          => 'multiple_choice',
-                'difficulty'    => 'medium',
-                'points'        => 1,
-                'created_by'    => $ids['instructor']->id,
-                'question_bank_id' => $ids['questionBank']->id,
-            ])->id),
+            'question' => $this->auditQuestion()->id,
 
             'rubric' => $this->lazy('rubric', fn () => \App\Models\Rubric::create([
                 'title'      => 'Audit Rubric',
@@ -328,14 +520,7 @@ class SystemAuditTest extends TestCase
                 'created_by' => $ids['student']->id,
             ])->id),
 
-            'attempt' => $this->lazy('attempt', fn () => QuizAttempt::create([
-                'quiz_id'        => $ids['quiz']->id,
-                'student_id'     => $ids['student']->id,
-                'attempt_number' => 1,
-                'status'         => QuizAttempt::STATUS_SUBMITTED,
-                'started_at'     => now(),
-                'submitted_at'   => now(),
-            ])->id),
+            'attempt' => $attemptId,
 
             'termsOfService' => $this->lazy('termsOfService', fn () => \App\Models\TermsOfService::create([
                 'title'      => 'Audit Terms',
@@ -356,11 +541,15 @@ class SystemAuditTest extends TestCase
                 'uploader_id'   => $ids['instructor']->id,
             ])->id),
 
-            'file'        => $this->ids['mediaFileName'],
+            // The backup download only resolves .sql/.json names that exist in
+            // the backup directory; setUp() writes this one.
+            'file'        => 'audit.sql',
             'student_id'  => $ids['student']->id,
         ];
 
-        return preg_replace_callback('/\{(\w+)\??\}/', fn ($m) => $map[$m[1]] ?? $m[0], $uri);
+        $uri = preg_replace_callback('/\{(\w+)\??\}/', fn ($m) => $map[$m[1]] ?? $m[0], $uri);
+
+        return $uri.$this->queryFor($uri);
     }
 
     /** Which role's middleware demands this route. */
@@ -372,7 +561,7 @@ class SystemAuditTest extends TestCase
             if (str_starts_with($m, 'role:')) {
                 $roles = explode(',', substr($m, 5));
 
-                foreach (['instructor', 'admin', 'student'] as $known) {
+                foreach (['instructor', 'admin', 'student', 'aa_staff'] as $known) {
                     if (in_array($known, $roles, true)) {
                         return $known;
                     }
@@ -413,6 +602,25 @@ class SystemAuditTest extends TestCase
     }
 
     /**
+     * Pages that must continue to render in the generic sweep.
+     *
+     * These parameterized virtual-class routes were added after the audit's
+     * first version. They are important enough to guard explicitly: an
+     * accidental route or fixture change should not let the generic resolver
+     * skip the student or instructor class entry points without a failure.
+     *
+     * @return array<int, string>
+     */
+    protected function requiredRenderedUris(): array
+    {
+        return [
+            'instructor/classes/'.$this->ids['class']->id.'/virtual_classes',
+            'student/classes/'.$this->ids['class']->id.'/virtual_classes',
+            'student/classes/'.$this->ids['class']->id.'/virtual_classes/'.$this->ids['virtualClass']->id,
+        ];
+    }
+
+    /**
      * A route that opens an output buffer and never closes it leaks bytes into
      * the *next* response. Note it, then restore the depth so one bad page
      * cannot cascade.
@@ -427,16 +635,13 @@ class SystemAuditTest extends TestCase
 
     public function test_every_get_route_renders_for_its_role(): void
     {
-        // Flip this on when you need the real exception behind a flagged 500
-        // instead of the rendered error page.
-        $this->renderExceptions = true;
-
         $failures = [];
         $probed   = 0;
-        $rendered = [];
-        $leaks    = [];
-        $skipped  = [];
-        $depth    = ob_get_level();
+        $rendered   = [];
+        $leaks      = [];
+        $skipped    = [];
+        $redirected = [];
+        $depth      = ob_get_level();
 
         foreach ($this->gettableRoutes() as $route) {
             $uri = $this->uriFor($route->uri());
@@ -495,6 +700,31 @@ class SystemAuditTest extends TestCase
                 break;
             }
 
+            // Guest-only screens (login, register, the OTP form) bounce every
+            // signed-in actor; only a visitor sees them.
+            if ($status >= 300 && $status < 400) {
+                try {
+                    $response = $this->guestGet($uri, $this->guestSession($uri));
+                } catch (\Throwable $e) {
+                    $failures[] = sprintf(
+                        '%s  [guest]  %s: %s',
+                        $uri,
+                        class_basename($e),
+                        trim(explode("\n", $e->getMessage())[0])
+                    );
+                    $this->drainBuffers($uri, $leaks, $depth);
+                    continue;
+                }
+
+                $this->drainBuffers($uri, $leaks, $depth);
+                $status = $response->getStatusCode();
+                $body   = $response->getContent();
+            }
+
+            if ($status >= 300 && $status < 400) {
+                $redirected[] = explode('?', $uri)[0];
+            }
+
             if ($status >= 400) {
                 $note  = '';
 
@@ -516,7 +746,7 @@ class SystemAuditTest extends TestCase
             }
         }
 
-        $this->renderExceptions = true; $this->assertSame(["SHOW-ME"], $failures, sprintf(
+        $this->assertSame([], $failures, sprintf(
             "Probed %d GET routes, %d rendered OK, %d skipped.\nGET route failures:\n",
             $probed,
             count($rendered),
@@ -524,6 +754,28 @@ class SystemAuditTest extends TestCase
         ).implode("\n", $failures));
 
         $this->assertSame([], $leaks, "Unclosed output buffers:\n".implode("\n", $leaks));
+
+        $this->assertGreaterThanOrEqual(
+            self::MINIMUM_AUDITED_PAGES,
+            count($rendered),
+            sprintf('The GET-route sweep rendered only %d pages; expected at least %d.', count($rendered), self::MINIMUM_AUDITED_PAGES)
+        );
+
+        $this->assertSame(
+            [],
+            array_values(array_diff($this->requiredRenderedUris(), array_keys($rendered))),
+            "Required pages missing from the GET-route sweep:\n"
+        );
+
+        // "/" is a forwarding stub to the login screen; everything else must
+        // now land on a page or a download. A new redirect here means a route
+        // the audit silently stopped checking.
+        sort($redirected);
+        $this->assertSame(
+            ['/'],
+            $redirected,
+            "Routes that still redirect instead of rendering:\n".implode("\n", $redirected)
+        );
     }
 
     public function test_every_link_and_button_on_rendered_pages_points_at_a_real_route(): void
@@ -565,7 +817,7 @@ class SystemAuditTest extends TestCase
             }
 
             $pages++;
-            $base = $uri;
+            $base = explode('?', $uri)[0];
 
             foreach ($this->extractTargets($html) as $target) {
                 $raw++;
@@ -632,6 +884,12 @@ class SystemAuditTest extends TestCase
                 }
             }
         }
+
+        $this->assertGreaterThanOrEqual(
+            self::MINIMUM_AUDITED_PAGES,
+            $pages,
+            sprintf('The link audit rendered only %d pages; expected at least %d.', $pages, self::MINIMUM_AUDITED_PAGES)
+        );
 
         $summary = sprintf(
             "Audited %d pages, %d link/form targets (%d unique).\n",

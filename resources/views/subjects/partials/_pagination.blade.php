@@ -53,10 +53,12 @@
 </nav>
 
 <style>
+    /* Same --dash-* tokens as the list it pages through, so the pager stays legible
+       on the dark dashboard shell and follows light mode with the rest of the app. */
     .subjects-pager{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-    .subjects-pager-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:.78rem;font-weight:600;text-decoration:none}
-    .subjects-pager-btn:hover{border-color:#c7d2fe;color:#4338ca}
-    .subjects-pager-btn.is-active{background:#4f46e5;border-color:#4f46e5;color:#fff}
+    .subjects-pager-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border:1px solid var(--dash-line,rgba(153,174,214,.18));border-radius:8px;background:var(--dash-surface-raised,#1b2437);color:var(--dash-text,#eef4ff);font-size:.78rem;font-weight:600;text-decoration:none}
+    .subjects-pager-btn:hover{border-color:rgba(98,201,245,.45);color:var(--dash-cyan,#62c9f5);background:rgba(77,143,240,.14)}
+    .subjects-pager-btn.is-active{background:linear-gradient(135deg,#2449c6,#173aa8);border-color:#3159d1;color:#fff}
     .subjects-pager-btn.is-disabled{opacity:.4;cursor:not-allowed}
-    .subjects-pager-gap{padding:0 4px;color:#94a3b8}
+    .subjects-pager-gap{padding:0 4px;color:var(--dash-muted,#98a7c4)}
 </style>

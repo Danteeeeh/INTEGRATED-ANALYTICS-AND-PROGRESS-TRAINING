@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Instructor;
 use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\VirtualClass;
+use App\Services\LiveKitTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,7 +13,7 @@ use Illuminate\Support\Str;
 
 class VirtualClassController extends Controller
 {
-    public function index(ClassModel $class): View
+    public function index(ClassModel $class, LiveKitTokenService $tokens): View
     {
         $this->authorize('viewAny', VirtualClass::class);
 
@@ -27,7 +28,17 @@ class VirtualClassController extends Controller
         // Meetings whose end time has passed close themselves on view.
         $virtualClasses->getCollection()->each->syncStatus();
 
-        return view('instructor.virtual_classes.index', compact('class', 'virtualClasses'));
+        // A broken video setup is worth knowing about while scanning the list,
+        // not only after opening a class. One warning for the page, drawn from
+        // every meeting of this class rather than just the visible page, so an
+        // upcoming meeting on page two is not missed. The "could still be
+        // joined" rule lives in diagnoseForClass, so this page cannot drift
+        // from the class and room pages.
+        $livekitProblem = $tokens->diagnoseForClasses(
+            VirtualClass::where('class_id', $class->id)->orderBy('meeting_date')->get()
+        );
+
+        return view('instructor.virtual_classes.index', compact('class', 'virtualClasses', 'livekitProblem'));
     }
 
     public function create(ClassModel $class): View
@@ -81,7 +92,7 @@ class VirtualClassController extends Controller
             ->with('success', 'Virtual class created successfully.');
     }
 
-    public function show(ClassModel $class, VirtualClass $virtualClass): View
+    public function show(ClassModel $class, VirtualClass $virtualClass, LiveKitTokenService $tokens): View
     {
         $this->authorize('view', $virtualClass);
 
@@ -93,7 +104,12 @@ class VirtualClassController extends Controller
         // Auto-close the meeting once its scheduled end time has passed.
         $virtualClass->syncStatus();
 
-        return view('instructor.virtual_classes.show', compact('class', 'virtualClass'));
+        // Show a broken video setup here, before the Start / Join buttons: an
+        // instructor who starts a class nobody can join has already lost the
+        // session. The same diagnosis comes back from the classroom itself.
+        $livekitProblem = $tokens->diagnoseForClass($virtualClass);
+
+        return view('instructor.virtual_classes.show', compact('class', 'virtualClass', 'livekitProblem'));
     }
 
     public function edit(ClassModel $class, VirtualClass $virtualClass): View

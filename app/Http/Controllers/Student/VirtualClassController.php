@@ -7,13 +7,15 @@ use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\VirtualClass;
 use App\Models\VirtualClassAttendee;
+use App\Services\LiveKitTokenService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class VirtualClassController extends Controller
 {
-    public function index(ClassModel $class): View
+    public function index(ClassModel $class, LiveKitTokenService $tokens): View
     {
         $studentId = auth()->id();
 
@@ -34,10 +36,19 @@ class VirtualClassController extends Controller
             ->orderBy('start_time', 'asc')
             ->paginate(10);
 
-        return view('student.virtual_classes.index', compact('class', 'enrollment', 'virtualClasses'));
+        // A broken video setup is worth knowing about while scanning the list,
+        // not only after opening a class. One warning for the page, drawn from
+        // every meeting of this class rather than just the visible page (this
+        // list is oldest-first, so an upcoming meeting may be on a later page).
+        // The "could still be joined" rule lives in diagnoseForClass.
+        $livekitProblem = $tokens->diagnoseForClasses(
+            VirtualClass::where('class_id', $class->id)->orderBy('meeting_date')->get()
+        );
+
+        return view('student.virtual_classes.index', compact('class', 'enrollment', 'virtualClasses', 'livekitProblem'));
     }
 
-    public function show(ClassModel $class, VirtualClass $virtualClass): View
+    public function show(ClassModel $class, VirtualClass $virtualClass, LiveKitTokenService $tokens): View
     {
         $studentId = auth()->id();
 
@@ -60,7 +71,42 @@ class VirtualClassController extends Controller
             ->where('user_id', $studentId)
             ->first();
 
-        return view('student.virtual_classes.show', compact('class', 'enrollment', 'virtualClass', 'myAttendance'));
+        // A broken video setup is shown here, before the Join button, so a
+        // student is not left clicking a button that cannot work. The same
+        // diagnosis comes back from the classroom itself.
+        $livekitProblem = $tokens->diagnoseForClass($virtualClass);
+
+        return view('student.virtual_classes.show', compact('class', 'enrollment', 'virtualClass', 'myAttendance', 'livekitProblem'));
+    }
+
+    /**
+     * Whether this class can be joined yet, for the details page to poll.
+     *
+     * A student who opens the page before the instructor starts the class
+     * used to sit on a disabled button until a manual reload. The page asks
+     * this endpoint instead and swaps the button the moment the room opens.
+     */
+    public function status(ClassModel $class, VirtualClass $virtualClass): JsonResponse
+    {
+        $enrollment = Enrollment::where('student_id', auth()->id())
+            ->where('class_id', $class->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $enrollment) {
+            abort(403);
+        }
+
+        if ($virtualClass->class_id !== $class->id) {
+            abort(403);
+        }
+
+        return response()->json([
+            'status' => $virtualClass->status,
+            'can_join' => $virtualClass->studentCanJoin(),
+            'ended' => $virtualClass->hasEnded(),
+            'join_url' => route('student.classes.virtual_classes.join', [$class, $virtualClass]),
+        ]);
     }
 
     public function join(Request $request, ClassModel $class, VirtualClass $virtualClass): RedirectResponse

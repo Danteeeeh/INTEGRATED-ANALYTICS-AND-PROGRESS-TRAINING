@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Services\ContentProgressService;
 use App\Services\QuestionGrader;
 use App\Services\QuestionSnapshotService;
 
@@ -12,14 +13,17 @@ use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
-use App\Models\SectionModuleAssignment;
-use App\Models\StudentModuleAssignment;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class QuizController extends Controller
 {
+    public function __construct(private ContentProgressService $contentProgress) {}
+
     public function index(Course $course): View
     {
         $studentId = auth()->id();
@@ -35,35 +39,13 @@ class QuizController extends Controller
             abort(403);
         }
 
-        // Get module IDs assigned to this student's section
-        $assignedModuleIds = SectionModuleAssignment::active()
-            ->byCourse($course->id)
-            ->bySection($enrollment->class->section_id)
-            ->pluck('module_id');
+        // The shared section scope: class-level quizzes from another block's
+        // class of this course stay out, and module/lesson quizzes only count
+        // when they sit inside one of this section's assigned modules.
+        $classIds = $this->contentProgress->sectionScopedClassIdsForCourse($studentId, $course->id);
 
-        $quizzes = Quiz::published()
-            ->where(function ($q) use ($course, $assignedModuleIds) {
-                // Class-level quizzes (not in modules)
-                $q->whereHas('class', function ($q2) use ($course) {
-                    $q2->where('course_id', $course->id);
-                })
-                // Module-level quizzes (only from assigned modules)
-                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
-                    $q2->whereHas('module', function ($q3) use ($course, $assignedModuleIds) {
-                        $q3->where('course_id', $course->id)
-                            ->whereIn('id', $assignedModuleIds)
-                            ->published();
-                    });
-                })
-                // Lesson-level quizzes (only from lessons in assigned modules)
-                ->orWhere(function ($q2) use ($course, $assignedModuleIds) {
-                    $q2->whereHas('lesson.module', function ($q3) use ($course, $assignedModuleIds) {
-                        $q3->where('course_id', $course->id)
-                            ->whereIn('id', $assignedModuleIds)
-                            ->published();
-                    });
-                });
-            })
+        $quizzes = $this->contentProgress
+            ->sectionScopedQuizzesQuery($classIds, collect([$course->id]))
             ->with(['attempts' => function ($q) use ($studentId) {
                 $q->ofStudent($studentId)->latest();
             }])
@@ -173,8 +155,10 @@ class QuizController extends Controller
                     'attempt_id' => $inProgress->id,
                     'quiz_id' => $quiz->id,
                 ]);
-                // Delete the invalid attempt and let them start fresh
-                $inProgress->delete();
+                // Nothing was answered, so there is nothing worth keeping. A soft
+                // delete would leave the row occupying the (quiz, student,
+                // attempt_number) unique slot and make the next insert collide.
+                $inProgress->forceDelete();
             } else {
                 return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
             }
@@ -207,10 +191,96 @@ class QuizController extends Controller
                 ->with('error', 'This quiz has no active questions yet. Please contact your instructor.');
         }
 
+        $inProgress = $this->openAttempt($quiz, $studentId, $questions)
+            ->load('answers.question.choices');
+
+        return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+    }
+
+    /**
+     * Open the attempt, or hand back the one another request just opened.
+     *
+     * Two Start Attempt requests — a double click, or the same quiz open in two
+     * tabs — both read "no attempt in progress", both picked attempt #1 and
+     * raced for the same (quiz_id, student_id, attempt_number) slot. The loser
+     * died with SQLSTATE[23000] "Duplicate entry ... for key
+     * 'quiz_attempt_unique'".
+     *
+     * The insert therefore runs inside a transaction that re-checks the slot
+     * under a row lock, and a duplicate key falls back to the attempt that won
+     * the race instead of returning a 500.
+     */
+    protected function openAttempt(Quiz $quiz, int $studentId, Collection $questions): QuizAttempt
+    {
+        $lastDuplicate = null;
+
+        for ($try = 0; $try < 3; $try++) {
+            try {
+                return DB::transaction(
+                    fn () => $this->createAttempt($quiz, $studentId, $questions)
+                );
+            } catch (QueryException $e) {
+                if (! $this->isDuplicateAttemptNumber($e)) {
+                    throw $e;
+                }
+
+                $lastDuplicate = $e;
+            }
+
+            // Another request won the slot. Serve its attempt once the answer
+            // rows are frozen; while it is still inserting them, wait briefly
+            // and try again rather than render a paper with no questions.
+            $existing = QuizAttempt::ofQuiz($quiz->id)
+                ->ofStudent($studentId)
+                ->inProgress()
+                ->latest('id')
+                ->first();
+
+            if ($existing && $existing->answers()->exists()) {
+                return $existing;
+            }
+
+            usleep(100_000);
+        }
+
+        throw $lastDuplicate ?? new \RuntimeException('Could not open a quiz attempt.');
+    }
+
+    /**
+     * The insert half of openAttempt(): one transaction, one attempt number.
+     */
+    protected function createAttempt(Quiz $quiz, int $studentId, Collection $questions): QuizAttempt
+    {
+        // Re-check under a lock: this request may have passed the controller's
+        // earlier look while another one was already inserting.
+        $existing = QuizAttempt::ofQuiz($quiz->id)
+            ->ofStudent($studentId)
+            ->inProgress()
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            if ($existing->answers()->exists()) {
+                return $existing;
+            }
+
+            // An in-progress row with no questions is a half-finished start,
+            // not work worth keeping; free its (quiz, student, number) slot.
+            $existing->forceDelete();
+        }
+
+        // Number from the highest attempt ever recorded, trashed rows included:
+        // the unique index does not ignore soft-deleted attempts, so numbering
+        // from the live count would reuse a slot and throw a duplicate-key 500.
+        $nextAttemptNumber = (int) QuizAttempt::withTrashed()
+            ->ofQuiz($quiz->id)
+            ->ofStudent($studentId)
+            ->max('attempt_number') + 1;
+
         $attempt = QuizAttempt::create([
             'quiz_id' => $quiz->id,
             'student_id' => $studentId,
-            'attempt_number' => $attemptCount + 1,
+            'attempt_number' => $nextAttemptNumber,
             'started_at' => now(),
             'status' => QuizAttempt::STATUS_IN_PROGRESS,
         ]);
@@ -230,10 +300,19 @@ class QuizController extends Controller
             ]);
         }
 
-        $attempt->load('answers.question.choices');
-        $inProgress = $attempt;
+        return $attempt;
+    }
 
-        return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+    /**
+     * A duplicate on the quiz_attempt_unique slot — the race openAttempt()
+     * recovers from — as opposed to any other integrity error.
+     */
+    protected function isDuplicateAttemptNumber(QueryException $e): bool
+    {
+        $message = $e->getMessage();
+
+        return str_contains($message, 'quiz_attempt_unique')
+            || str_contains($message, 'UNIQUE constraint failed: quiz_attempts');
     }
 
     public function storeAttempt(Request $request, Course $course, Quiz $quiz): RedirectResponse

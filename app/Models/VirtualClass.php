@@ -136,7 +136,14 @@ class VirtualClass extends Model
             return 'n/a';
         }
 
-        $minutes = (int) abs($start->diffInMinutes($end, false));
+        // The schema stores one meeting date plus two clock times. An earlier
+        // end clock therefore denotes an overnight session, not a negative
+        // same-day interval. Move only that end datetime to the next day.
+        if ($end->lessThan($start)) {
+            $end->addDay();
+        }
+
+        $minutes = $start->diffInMinutes($end);
 
         return sprintf('%d hr %02d min', intdiv($minutes, 60), $minutes % 60);
     }
@@ -184,6 +191,28 @@ class VirtualClass extends Model
     public function canCancel(): bool
     {
         return in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true) && ! $this->hasEnded();
+    }
+
+    /**
+     * Can a student open this session from a listing row?
+     *
+     * A built-in LiveKit classroom has no meeting_url at all — the room lives
+     * inside the LMS and only opens once the instructor starts the class — so
+     * requiring a link hid the Join button on every LiveKit session. The rule
+     * mirrors what the join route actually allows: LiveKit needs the class to
+     * be live, while external providers still need their link to hand over.
+     */
+    public function studentCanJoin(): bool
+    {
+        if ($this->hasEnded() || ! in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true)) {
+            return false;
+        }
+
+        if ($this->meeting_provider === self::PROVIDER_LIVEKIT) {
+            return $this->status === self::STATUS_ONGOING;
+        }
+
+        return filled($this->meeting_url);
     }
 
     public function canEnd(): bool

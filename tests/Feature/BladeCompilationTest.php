@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Blade;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -22,13 +21,20 @@ use Tests\TestCase;
  */
 class BladeCompilationTest extends TestCase
 {
-    /**
-     * @return array<string, array{0: string}>
-     */
-    public static function viewProvider(): array
+    public function test_no_view_leaves_blade_syntax_behind(): void
     {
-        // Resolved from this file rather than resource_path(), which needs a
-        // booted application — the provider runs before the test case exists.
+        foreach (self::viewPaths() as $path) {
+            $this->assertViewCompiles($path);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function viewPaths(): array
+    {
+        // Resolved from this file rather than resource_path() so the list can
+        // be built without depending on the application's boot state.
         $root = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'views';
 
         if (! is_dir($root)) {
@@ -39,25 +45,22 @@ class BladeCompilationTest extends TestCase
             new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)
         );
 
-        $cases = [];
+        $paths = [];
 
         foreach ($files as $file) {
             if ($file->getExtension() !== 'php') {
                 continue;
             }
 
-            $relative = str_replace('\\', '/', substr($file->getPathname(), strlen(rtrim($root, '\\')) + 1));
-
-            $cases[$relative] = [$file->getPathname()];
+            $paths[] = $file->getPathname();
         }
 
-        ksort($cases);
+        sort($paths);
 
-        return $cases;
+        return $paths;
     }
 
-    #[DataProvider('viewProvider')]
-    public function test_the_view_leaves_no_blade_syntax_behind(string $path): void
+    private function assertViewCompiles(string $path): void
     {
         $source = file_get_contents($path);
 
