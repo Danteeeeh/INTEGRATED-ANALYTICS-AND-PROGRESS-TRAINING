@@ -16,7 +16,10 @@ class SecurityHeaders
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        // The built-in virtual classroom captures the camera and microphone
+        // from this origin. An empty allowlist ("camera=()") tells the browser
+        // to refuse getUserMedia, so the room could join but never publish.
+        $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
 
         if (! app()->environment('local', 'testing') && $request->secure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

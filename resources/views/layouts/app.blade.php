@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') — {{ config('app.name') }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-    @vite(['resources/css/sms-template.css', 'resources/css/app.css', 'resources/css/admin-ui.css', 'resources/css/compact-ui.css', 'resources/css/dashboard-palette.css', 'resources/css/dashboard-layout.css', 'resources/css/sidebar-polish.css', 'resources/css/user-list-ui.css', 'resources/css/admin-consistency.css', 'resources/css/filter-toolbar-ui.css', 'resources/css/topbar-global-ui.css', 'resources/css/profile-enhancements.css', 'resources/css/course-form-ui.css', 'resources/css/gradebook-ui.css', 'resources/css/role-admin-parity.css', 'resources/css/user-ui-system.css', 'resources/css/student-progress-ui.css', 'resources/css/lms-polish.css', 'resources/css/sidebar-layout-fix.css', 'resources/js/app.js'])
+    @vite(['resources/css/sms-template.css', 'resources/css/app.css', 'resources/css/admin-ui.css', 'resources/css/compact-ui.css', 'resources/css/dashboard-palette.css', 'resources/css/dashboard-layout.css', 'resources/css/sidebar-polish.css', 'resources/css/user-list-ui.css', 'resources/css/admin-consistency.css', 'resources/css/filter-toolbar-ui.css', 'resources/css/topbar-global-ui.css', 'resources/css/profile-enhancements.css', 'resources/css/course-form-ui.css', 'resources/css/gradebook-ui.css', 'resources/css/role-admin-parity.css', 'resources/css/user-ui-system.css', 'resources/css/student-progress-ui.css', 'resources/css/lms-polish.css', 'resources/css/charts.css', 'resources/css/sidebar-layout-fix.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
 <body class="{{ trim((auth()->check() ? 'admin-ui ' : '') . $__env->yieldContent('body-class')) }}">
@@ -203,12 +203,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const userHero = document.querySelector('.user-hero');
     const userHeroActions = userHero ? userHero.querySelector('.user-hero-actions') : null;
     if (userHero && userHeroActions && 'IntersectionObserver' in window) {
+        let heroVisible = true;
+        const syncUserHeroActions = function() {
+            // The floating dock exists for narrow layouts where the hero
+            // actions are far above the viewport. On desktop it would cover
+            // panel content, so keep the actions in the hero there.
+            const shouldDock = !heroVisible && window.matchMedia('(max-width: 1100px)').matches;
+            document.body.classList.toggle('user-hero-scrolled', shouldDock);
+        };
+
         const userHeroObserver = new IntersectionObserver(function(entries) {
-            const heroVisible = entries[0] && entries[0].isIntersecting;
-            document.body.classList.toggle('user-hero-scrolled', !heroVisible);
+            heroVisible = Boolean(entries[0] && entries[0].isIntersecting);
+            syncUserHeroActions();
         }, { threshold: 0, rootMargin: '-48px 0px 0px 0px' });
 
         userHeroObserver.observe(userHero);
+        window.addEventListener('resize', syncUserHeroActions);
     }
 
     // Collapsible sidebar groups: keep the active section visible and remember user preference.

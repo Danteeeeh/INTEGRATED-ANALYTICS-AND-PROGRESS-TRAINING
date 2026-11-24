@@ -16,6 +16,9 @@
 .admin-ui .crud-table td, .admin-ui .dash-table td, .admin-ui .table td { padding:10px 12px !important; color:var(--dash-text) !important; font-size:.75rem !important; border-bottom:1px solid rgba(153,174,214,.12) !important; vertical-align:middle !important; }
 .admin-ui .crud-table tbody tr:hover, .admin-ui .dash-table tbody tr:hover, .admin-ui .table tbody tr:hover { background:rgba(77,143,240,.1) !important; }
 .admin-ui .crud-table tbody tr:last-child td, .admin-ui .dash-table tbody tr:last-child td, .admin-ui .table tbody tr:last-child td { border-bottom:0 !important; }
+.admin-ui .dash-polish .dash-panel > .table-responsive {
+  width:100%; max-width:100%; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+}
 .admin-ui .actions-cell { display:table-cell !important; white-space:nowrap !important; }
 .admin-ui .actions-cell .btn-icon, .admin-ui .actions-cell > a, .admin-ui .actions-cell > form { margin-right:5px !important; }
 .admin-ui .search-box { display:flex !important; align-items:center !important; min-height:34px !important; padding:0 9px !important; background:#101625 !important; border:1px solid var(--dash-line) !important; border-radius:8px !important; }

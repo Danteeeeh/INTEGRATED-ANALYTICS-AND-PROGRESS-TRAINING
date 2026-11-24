@@ -22,6 +22,8 @@ use App\Models\ExamAttempt;
 use App\Models\User;
 use App\Models\VirtualClass;
 use App\Services\GradeService;
+use App\Services\VirtualClassPresence;
+use App\Services\VirtualClassRoomTimeline;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -36,7 +38,7 @@ class DashboardController extends Controller
     {
     }
 
-    public function __invoke(): View
+    public function __invoke(VirtualClassPresence $presence): View
     {
         $instructorId = auth()->id();
         $cacheKey = "instructor_dashboard_{$instructorId}";
@@ -47,7 +49,46 @@ class DashboardController extends Controller
             return $this->calculateDashboardStats($instructorId);
         });
 
-        return view('instructor.dashboard', compact('stats'));
+        // Live room data is deliberately NOT cached: a 15-minute-old headcount
+        // or "Start" window would defeat the point of the widget.
+        $classIds = ClassModel::where('instructor_id', $instructorId)->pluck('id');
+
+        $virtualRooms = VirtualClass::whereIn('class_id', $classIds)
+            ->whereDate('meeting_date', '>=', today())
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+            ->with('class.course')
+            ->orderBy('meeting_date')
+            ->orderBy('start_time')
+            ->get()
+            ->each->syncStatus()
+            ->filter(fn (VirtualClass $room) => ! $room->hasEnded())
+            ->map(function (VirtualClass $room) use ($presence) {
+                $live = $room->isLiveNow();
+                $snapshot = $live
+                    ? $presence->snapshot($room)
+                    : ['count' => 0, 'exact' => false, 'participants' => []];
+                $timeline = $live
+                    ? app(VirtualClassRoomTimeline::class)->snapshot($room)
+                    : null;
+
+                return [
+                    'room' => $room,
+                    'is_live' => $live,
+                    // Start is offered only close to the scheduled time, so the
+                    // button is not noise on a class that is days away.
+                    'can_start' => $room->canStart()
+                        && $room->startsAt() !== null
+                        && $room->startsAt()->lte(now()->addMinutes(30)),
+                    'headcount' => $snapshot['count'],
+                    'exact' => $snapshot['exact'],
+                    'participants' => $snapshot['participants'],
+                    'timeline' => $timeline,
+                    'live_count_url' => route('instructor.classes.virtual_classes.live-count', [$room->class, $room]),
+                ];
+            })
+            ->values();
+
+        return view('instructor.dashboard', compact('stats', 'virtualRooms'));
     }
 
     private function calculateDashboardStats(
@@ -112,11 +153,20 @@ class DashboardController extends Controller
         // Per-class completion counts for the faculty completion graph
         // ("ilang students na nakatapos" per class). Uses the same enrollments
         // relation already eager-loaded above — no extra queries.
-        $completionByClass = $myClasses->map(fn ($class) => [
-            'label' => trim(($class->code ?? '').' — '.($class->course?->title ?? 'Class')),
-            'completed' => $class->enrollments->where('status', 'completed')->count(),
-            'active' => $class->enrollments->where('status', 'active')->count(),
-        ])->values();
+        $completionByClass = $myClasses->map(function ($class) {
+            $completed = $class->enrollments->where('status', 'completed')->count();
+            $active = $class->enrollments->where('status', 'active')->count();
+
+            return [
+                // The axis carries the short class code; the course title lives
+                // in the tooltip so a long title cannot crush the chart.
+                'label' => $class->code ?? 'Class',
+                'course' => $class->course?->title ?? 'Class',
+                'completed' => $completed,
+                'active' => $active,
+                'total' => $completed + $active,
+            ];
+        })->values();
 
         // Get instructor's class IDs
         $classIds = $myClasses->pluck('id');
@@ -132,69 +182,16 @@ class DashboardController extends Controller
         // quiz attempts still waiting for a manual score — the faculty
         // dashboard's "list ng to-check na assignments", each with a direct
         // link to the grading screen.
-        $pendingSubmissionsList = AssignmentSubmission::whereHas('assignment', function ($query) use ($classIds, $courseIds) {
-            $query->whereIn('class_id', $classIds)
-                ->orWhereIn('course_id', $courseIds);
-        })
-            ->where('status', AssignmentSubmission::STATUS_SUBMITTED)
-            ->with(['assignment.class', 'student'])
-            ->orderBy('submitted_at')
-            ->limit(20)
-            ->get()
-            ->map(function ($submission) {
-                $assignment = $submission->assignment;
-                $courseId = $assignment?->resolveCourseId();
-
-                return [
-                    'kind' => 'Assignment',
-                    'title' => $assignment?->title ?? 'Assignment',
-                    'student' => $submission->student?->name ?? 'Student',
-                    'class_code' => $assignment?->class?->code ?? '',
-                    'submitted_at' => $submission->submitted_at,
-                    'url' => ($courseId && $assignment && $submission->id)
-                        ? route('instructor.courses.assignments.submissions.show', [$courseId, $assignment->id, $submission->id])
-                        : null,
-                ];
-            });
-
-        // Auto-submitted quiz attempts also await grading, not just 'submitted'.
-        $pendingQuizAttempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds, $courseIds) {
-            $query->whereIn('class_id', $classIds)
-                ->orWhereIn('course_id', $courseIds);
-        })
-            ->whereIn('status', [QuizAttempt::STATUS_SUBMITTED, QuizAttempt::STATUS_AUTO_SUBMITTED])
-            ->with(['quiz.class', 'student'])
-            ->orderBy('submitted_at')
-            ->limit(20)
-            ->get()
-            ->map(function ($attempt) {
-                $quiz = $attempt->quiz;
-                $courseId = $quiz?->resolveCourseId();
-
-                return [
-                    'kind' => 'Quiz',
-                    'title' => $quiz?->title ?? 'Quiz',
-                    'student' => $attempt->student?->name ?? 'Student',
-                    'class_code' => $quiz?->class?->code ?? '',
-                    'submitted_at' => $attempt->submitted_at,
-                    'url' => ($courseId && $quiz && $attempt->id)
-                        ? route('instructor.courses.quizzes.attempts.show', [$courseId, $quiz->id, $attempt->id])
-                        : null,
-                ];
-            });
-
-        $toCheck = $pendingSubmissionsList
-            ->concat($pendingQuizAttempts)
-            ->sortBy('submitted_at')
-            ->take(20)
-            ->values();
+        // The dashboard panel shows only the first 20 rows. Keep the full
+        // collection for the count and the dedicated to-check page.
+        $toCheckAll = $this->toCheckItems($instructorId);
+        $toCheck = $toCheckAll->take(20)->values();
 
         $upcomingAssignments = Assignment::whereHas('class', function ($query) use ($classIds) {
             $query->whereIn('id', $classIds);
         })->where('status', 'published')
             ->where('due_date', '>', now())
             ->orderBy('due_date')
-            ->limit(5)
             ->get();
 
         // Quiz metrics with optimized queries
@@ -203,7 +200,6 @@ class DashboardController extends Controller
         })->where('status', 'published')
             ->where('availability_from', '>', now())
             ->orderBy('availability_from')
-            ->limit(5)
             ->get();
 
         $recentQuizAttempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds, $courseIds) {
@@ -220,7 +216,6 @@ class DashboardController extends Controller
         })->where('status', 'published')
             ->where('starts_at', '>', now())
             ->orderBy('starts_at')
-            ->limit(5)
             ->get();
 
         $recentExamAttempts = ExamAttempt::whereHas('exam', function ($query) use ($classIds, $courseIds) {
@@ -231,12 +226,18 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Virtual classes with optimized queries
+        // Virtual classes: today's live/scheduled sessions count as upcoming
+        // too. Filtering on start_time > now() dropped every class that had
+        // already started — exactly the row an instructor wants to open.
         $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            ->where('start_time', '>', now())
+            ->whereDate('meeting_date', '>=', today())
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
+            ->orderBy('meeting_date')
             ->orderBy('start_time')
-            ->limit(5)
-            ->get();
+            ->get()
+            ->each->syncStatus()
+            ->filter(fn (VirtualClass $virtualClass) => ! $virtualClass->hasEnded())
+            ->values();
 
         // Combine upcoming activities
         $upcomingActivities = collect();
@@ -275,7 +276,9 @@ class DashboardController extends Controller
                 'url' => route('instructor.classes.virtual_classes.show', [$virtualClass->class, $virtualClass]),
             ]);
         }
-        $upcomingActivities = $upcomingActivities->sortBy('date')->take(5);
+        $allUpcomingActivities = $upcomingActivities->sortBy('date');
+        $upcomingActivitiesTotal = $allUpcomingActivities->count();
+        $upcomingActivities = $allUpcomingActivities->take(5);
 
         // Announcements with optimized queries
         $recentAnnouncements = Announcement::whereIn('course_id', $courseIds)
@@ -381,6 +384,7 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
+        $recentEnrollmentsTotal = Enrollment::whereHas('class', fn ($q) => $q->where('instructor_id', $instructorId))->count();
 
         return [
             // Academic Overview
@@ -434,20 +438,23 @@ class DashboardController extends Controller
 
             // Recent Activity
             'recent_enrollments' => $recentEnrollments,
+            'recent_enrollments_total' => $recentEnrollmentsTotal,
 
             // Upcoming Activities (combined)
             'upcoming_activities' => $upcomingActivities,
+            'upcoming_activities_all' => $allUpcomingActivities,
+            'upcoming_activities_total' => $upcomingActivitiesTotal,
 
             'my_classes_list' => $myClasses,
             'my_courses_list' => $myCourses,
 
             // At-risk indicators
             'at_risk_students' => $atRiskStudents,
-            'at_risk_count' => $atRiskStudents->count(),
+            'at_risk_count' => $atRiskEnrollments->count(),
 
             // Faculty dashboard: to-check queue + per-class completion counts
             'to_check' => $toCheck,
-            'to_check_count' => $toCheck->count(),
+            'to_check_count' => $toCheckAll->count(),
             'completion_by_class' => $completionByClass,
 
             // Grade extraction & submission (master prompt §4/§6). Scoped to this
@@ -459,6 +466,164 @@ class DashboardController extends Controller
                 ->where('instructor_id', $instructorId)
                 ->latest('id')->limit(5)->get(),
         ];
+    }
+
+    /**
+     * Full at-risk list behind the dashboard's "Needs attention" hint.
+     */
+    public function atRisk(): View
+    {
+        $enrollments = $this->atRiskEnrollments((int) auth()->id());
+
+        return view('instructor.dashboard.at-risk', [
+            'enrollments' => $enrollments,
+            'passingGrade' => (float) config('lms.passing_grade', 60),
+        ]);
+    }
+
+    /**
+     * Full submitted-work queue behind the dashboard's "To check" hint.
+     */
+    public function toCheck(): View
+    {
+        return view('instructor.dashboard.to-check', [
+            'items' => $this->toCheckItems((int) auth()->id()),
+        ]);
+    }
+
+    /**
+     * Full upcoming-activity list behind the dashboard's To-do hint.
+     */
+    public function activities(): View
+    {
+        $stats = $this->calculateDashboardStats((int) auth()->id());
+
+        return view('instructor.dashboard.activities', [
+            'activities' => $stats['upcoming_activities_all'] ?? collect(),
+        ]);
+    }
+
+    /**
+     * Full class-performance report behind the dashboard's class panel hint.
+     */
+    public function performance(): View
+    {
+        $stats = $this->calculateDashboardStats((int) auth()->id());
+
+        return view('instructor.dashboard.performance', [
+            'classPerformance' => $stats['class_performance'] ?? [],
+        ]);
+    }
+
+    /**
+     * Active enrollments whose released grade is below the passing mark.
+     * Kept separate from the dashboard's ten-row preview so links from the
+     * hint can show every at-risk enrollment, not just the panel slice.
+     */
+    private function atRiskEnrollments(int $instructorId): \Illuminate\Support\Collection
+    {
+        $passingGrade = (float) config('lms.passing_grade', 60);
+        $atRiskEnrollments = collect();
+
+        $classes = ClassModel::where('instructor_id', $instructorId)
+            ->with(['course', 'enrollments.student'])
+            ->get();
+
+        foreach ($classes as $class) {
+            $activeStudentIds = $class->enrollments
+                ->where('status', 'active')
+                ->pluck('student_id')
+                ->all();
+
+            if (empty($activeStudentIds)) {
+                continue;
+            }
+
+            $summaries = $this->grades->computeClassGradeSummaries($class->id, $activeStudentIds);
+            $atRiskIds = collect($summaries)
+                ->filter(fn ($summary) => $summary['is_graded'] && $summary['percent'] < $passingGrade)
+                ->keys();
+
+            if ($atRiskIds->isEmpty()) {
+                continue;
+            }
+
+            Enrollment::where('class_id', $class->id)
+                ->where('status', 'active')
+                ->whereIn('student_id', $atRiskIds)
+                ->with(['student', 'class.course'])
+                ->get()
+                ->each(function ($enrollment) use ($atRiskEnrollments, $summaries) {
+                    $enrollment->computed_percent = $summaries[$enrollment->student_id]['percent'] ?? null;
+                    $atRiskEnrollments->push($enrollment);
+                });
+        }
+
+        return $atRiskEnrollments->sortBy('computed_percent')->values();
+    }
+
+    /**
+     * Every submitted assignment/quiz item awaiting grading. The dashboard
+     * slices this for its panel; the dedicated page renders the whole list.
+     */
+    private function toCheckItems(int $instructorId): \Illuminate\Support\Collection
+    {
+        $classIds = ClassModel::where('instructor_id', $instructorId)->pluck('id');
+        $courseIds = Course::where('created_by', $instructorId)->pluck('id');
+
+        $pendingSubmissions = AssignmentSubmission::whereHas('assignment', function ($query) use ($classIds, $courseIds) {
+            $query->whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds);
+        })
+            ->where('status', AssignmentSubmission::STATUS_SUBMITTED)
+            ->with(['assignment.class', 'student'])
+            ->orderBy('submitted_at')
+            ->get()
+            ->map(function ($submission) {
+                $assignment = $submission->assignment;
+                $courseId = $assignment?->resolveCourseId();
+
+                return [
+                    'kind' => 'Assignment',
+                    'title' => $assignment?->title ?? 'Assignment',
+                    'student' => $submission->student?->name ?? 'Student',
+                    'class_code' => $assignment?->class?->code ?? '',
+                    'submitted_at' => $submission->submitted_at,
+                    'url' => ($courseId && $assignment && $submission->id)
+                        ? route('instructor.courses.assignments.submissions.show', [$courseId, $assignment->id, $submission->id])
+                        : null,
+                ];
+            });
+
+        // Auto-submitted quiz attempts also await grading, not just 'submitted'.
+        $pendingQuizAttempts = QuizAttempt::whereHas('quiz', function ($query) use ($classIds, $courseIds) {
+            $query->whereIn('class_id', $classIds)
+                ->orWhereIn('course_id', $courseIds);
+        })
+            ->whereIn('status', [QuizAttempt::STATUS_SUBMITTED, QuizAttempt::STATUS_AUTO_SUBMITTED])
+            ->with(['quiz.class', 'student'])
+            ->orderBy('submitted_at')
+            ->get()
+            ->map(function ($attempt) {
+                $quiz = $attempt->quiz;
+                $courseId = $quiz?->resolveCourseId();
+
+                return [
+                    'kind' => 'Quiz',
+                    'title' => $quiz?->title ?? 'Quiz',
+                    'student' => $attempt->student?->name ?? 'Student',
+                    'class_code' => $quiz?->class?->code ?? '',
+                    'submitted_at' => $attempt->submitted_at,
+                    'url' => ($courseId && $quiz && $attempt->id)
+                        ? route('instructor.courses.quizzes.attempts.show', [$courseId, $quiz->id, $attempt->id])
+                        : null,
+                ];
+            });
+
+        return $pendingSubmissions
+            ->concat($pendingQuizAttempts)
+            ->sortBy('submitted_at')
+            ->values();
     }
 
     /**
@@ -618,6 +783,7 @@ class DashboardController extends Controller
                     'to_check_count' => $stats['to_check_count'],
                     'upcoming_assignments_count' => $stats['upcoming_assignments']->count(),
                     'upcoming_quizzes_count' => $stats['upcoming_quizzes']->count(),
+                    'upcoming_activities_total' => $stats['upcoming_activities_total'],
                     'at_risk_count' => $stats['at_risk_count'],
                     'recent_enrollments_count' => $stats['recent_enrollments']->count(),
                 ],
@@ -882,11 +1048,37 @@ class DashboardController extends Controller
 
             switch ($type) {
                 case 'enrollment':
+                    // Real trend, not an invented 1..n ramp: count enrollments
+                    // per day inside the selected period and carry a running
+                    // total. enrolled_at is the AA date when present, falling
+                    // back to the LMS row timestamp.
+                    $trendStart = $gradedSince ?? now()->subMonth();
+                    $trendRows = Enrollment::whereIn('class_id', $stats['my_classes_list']->pluck('id'))
+                        ->whereRaw('COALESCE(enrolled_at, created_at) >= ?', [$trendStart])
+                        ->selectRaw('DATE(COALESCE(enrolled_at, created_at)) as day, COUNT(*) as total')
+                        ->groupBy('day')
+                        ->orderBy('day')
+                        ->get();
+
+                    $running = 0;
+                    $enrollmentTrend = $trendRows->map(function ($row) use (&$running) {
+                        $running += (int) $row->total;
+
+                        return [
+                            'date' => $row->day,
+                            'label' => \Carbon\Carbon::parse($row->day)->format('M j'),
+                            'count' => (int) $row->total,
+                            'cumulative' => $running,
+                        ];
+                    })->values();
+
                     $analytics = [
                         'total_enrollments' => $stats['active_enrollments'],
                         'completed_enrollments' => $stats['completed_enrollments'],
                         'completion_rate' => $stats['completion_rate'],
                         'at_risk_students' => $stats['at_risk_count'],
+                        'enrollment_trend' => $enrollmentTrend->all(),
+                        'enrollment_trend_total' => $enrollmentTrend->sum('count'),
                         'recent_enrollments' => $stats['recent_enrollments']->map(fn ($e) => [
                             'date' => $e->enrolled_at?->format('Y-m-d'),
                             'student' => $e->student->name,
@@ -992,7 +1184,19 @@ class DashboardController extends Controller
             ->flatMap(fn ($summaries) => collect($summaries)->where('is_graded', true));
 
         foreach ($graded as $summary) {
-            $distribution[$summary['letter_grade']] = ($distribution[$summary['letter_grade']] ?? 0) + 1;
+            $percent = (float) ($summary['percent'] ?? 0);
+            $letter = $summary['letter_grade'] ?? null;
+
+            // A missing or unexpected letter must still land in a real band,
+            // otherwise the doughnut silently loses that student.
+            if (! is_string($letter) || ! array_key_exists($letter, $distribution)) {
+                $letter = $percent >= 90 ? 'A'
+                    : ($percent >= 80 ? 'B'
+                    : ($percent >= 70 ? 'C'
+                    : ($percent >= 60 ? 'D' : 'F')));
+            }
+
+            $distribution[$letter]++;
         }
 
         return $distribution;
@@ -1003,16 +1207,17 @@ class DashboardController extends Controller
      */
     private function calculateAverageAttendance($classes): float
     {
-        $totalPresent = 0;
+        $totalAttended = 0;
         $totalRecords = 0;
 
         foreach ($classes as $class) {
             $records = AttendanceRecord::where('class_id', $class->id)->get();
             $totalRecords += $records->count();
-            $totalPresent += $records->where('status', 'present')->count();
+            // Late still counts as attended; only absent/excused do not.
+            $totalAttended += $records->whereIn('status', ['present', 'late'])->count();
         }
 
-        return $totalRecords > 0 ? ($totalPresent / $totalRecords) * 100 : 0;
+        return $totalRecords > 0 ? ($totalAttended / $totalRecords) * 100 : 0;
     }
 
     /**
@@ -1025,13 +1230,21 @@ class DashboardController extends Controller
         foreach ($classes as $class) {
             $records = AttendanceRecord::where('class_id', $class->id)->get();
             $presentCount = $records->where('status', 'present')->count();
+            $lateCount = $records->where('status', 'late')->count();
+            $absentCount = $records->where('status', 'absent')->count();
+            $excusedCount = $records->where('status', 'excused')->count();
             $totalRecords = $records->count();
+            $attended = $presentCount + $lateCount;
 
             $attendanceData[] = [
                 'class_code' => $class->code,
                 'course_title' => $class->course->title ?? 'N/A',
-                'attendance_rate' => $totalRecords > 0 ? ($presentCount / $totalRecords) * 100 : 0,
+                'attendance_rate' => $totalRecords > 0 ? ($attended / $totalRecords) * 100 : 0,
                 'total_records' => $totalRecords,
+                'present' => $presentCount,
+                'late' => $lateCount,
+                'absent' => $absentCount,
+                'excused' => $excusedCount,
             ];
         }
 

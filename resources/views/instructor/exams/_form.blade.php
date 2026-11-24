@@ -181,7 +181,7 @@
         <label class="checkbox-label"><input type="checkbox" name="show_correct_answers" value="1" @checked(old('show_correct_answers', $exam->show_correct_answers))> Show correct answers after grading</label>
         <label class="checkbox-label"><input type="checkbox" name="show_score" value="1" @checked(old('show_score', $exam->show_score))> Show the numeric score</label>
         <label class="checkbox-label"><input type="checkbox" name="requires_proctoring" value="1" @checked(old('requires_proctoring', $exam->requires_proctoring))> Requires proctoring</label>
-        <label class="checkbox-label"><input type="checkbox" name="record_session" value="1" @checked(old('record_session', $exam->record_session))> Record the session</label>
+        <small style="color:var(--dash-muted); display:block; margin:-2px 0 8px 24px;">Shows the proctoring notice and instructions. Camera/microphone enforcement is not automatic.</small>
         <label class="checkbox-label"><input type="checkbox" name="detect_tab_switch" value="1" @checked(old('detect_tab_switch', $exam->detect_tab_switch))> Detect tab switching</label>
         <label class="checkbox-label"><input type="checkbox" name="detect_copy_paste" value="1" @checked(old('detect_copy_paste', $exam->detect_copy_paste))> Detect copy/paste</label>
     </div>
@@ -199,17 +199,8 @@
         <span class="field-error">{{ $errors->first('instructions') }}</span>
     </div>
 
-    <div class="form-field">
-        <label>Video URL</label>
-        <input type="url" name="video_url" value="{{ old('video_url', $exam->video_url) }}" placeholder="https://...">
-        <span class="field-error">{{ $errors->first('video_url') }}</span>
-    </div>
-
-    <div class="form-field">
-        <label>Video Duration (minutes)</label>
-        <input type="number" name="video_duration_minutes" min="1" value="{{ old('video_duration_minutes', $exam->video_duration_minutes) }}">
-        <span class="field-error">{{ $errors->first('video_duration_minutes') }}</span>
-    </div>
+    {{-- Video URL / duration were removed: no student exam page ever rendered
+         them, so the fields only promised behaviour that did not exist. --}}
 </div>
 
 <script>

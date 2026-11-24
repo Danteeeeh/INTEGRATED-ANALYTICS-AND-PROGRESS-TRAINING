@@ -124,10 +124,20 @@
         <div class="dash-split-main">
     @if(($stats['aa_sync_recent'] ?? collect())->isNotEmpty())
         <section class="dash-panel">
+            @php $syncTotal = $stats['aa_sync_total'] ?? count($stats['aa_sync_recent']); @endphp
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-clock-rotate-left"></i> Recent sync activity</h4>
-                <span class="panel-count">{{ count($stats['aa_sync_recent']) }}</span>
+                @include('partials.dashboard-panel-cap', [
+                    'count' => $syncTotal,
+                    'shown' => 5,
+                    'total' => $syncTotal,
+                    'href' => route('admin.aa-sync.index'),
+                    'viewAllUrl' => route('admin.aa-sync.index'),
+                    'viewAllLabel' => 'All sync logs',
+                    'viewAllOnlyWhenCapped' => true,
+                ])
             </div>
+            <div class="table-responsive">
             <table class="crud-table">
                 <thead>
                     <tr>
@@ -141,7 +151,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($stats['aa_sync_recent'] as $log)
+                    @foreach(collect($stats['aa_sync_recent'])->take(5) as $log)
                         <tr>
                             <td>{{ $log->started_at?->format('M j, g:i A') ?? '—' }}</td>
                             <td>{{ $log->performedBy?->name ?? 'system' }}</td>
@@ -158,6 +168,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </section>
         @else
             <section class="dash-panel">
@@ -262,6 +273,7 @@
                 <span class="dash-outcome d-ok"><i class="fa-solid fa-circle-check"></i> LMS snapshots only</span>
                 <span class="dash-outcome"><i class="fa-solid fa-building-columns"></i> Official final grades stay in AA</span>
             </div>
+            <div class="table-responsive">
             <table class="crud-table">
                 <thead>
                     <tr>
@@ -290,6 +302,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </section>
 
         <section class="dash-panel">
@@ -458,6 +471,7 @@
                 <h4><i class="fa-solid fa-users"></i> Recent users</h4>
                 <a href="{{ route('admin.users.index') }}" class="view-all">View all</a>
             </div>
+            <div class="table-responsive">
             <table class="dash-table">
                 <thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead>
                 <tbody>
@@ -472,6 +486,7 @@
                 @endforelse
                 </tbody>
             </table>
+            </div>
         </section>
 
         <section class="dash-panel">
@@ -583,7 +598,12 @@
         <div class="analytics-content">
             <div class="analytics-grid">
                 <div class="analytics-card">
-                    <h5><i class="fa-solid fa-user-plus"></i> Enrollment Status</h5>
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-user-plus"></i> Enrollment Status</h5>
+                            <p class="chart-card-sub">Every enrollment record, grouped by status</p>
+                        </div>
+                    </div>
 
                     {{-- The doughnut alone cannot be checked: when every enrollment
                          is active it renders as one solid ring, and a legend listing
@@ -608,7 +628,7 @@
                         @endif
                     </p>
 
-                    <div id="adminEnrollmentChart" class="chart-container"
+                    <div id="adminEnrollmentChart" class="chart-container" data-chart-label="Enrollment status breakdown"
                          data-enrollment-total="{{ $enrollmentTotal }}"
                          @foreach(['active', 'pending', 'completed', 'dropped'] as $enrollmentStatus)
                              data-enrollment-{{ $enrollmentStatus }}="{{ (int) ($enrollmentBreakdown[$enrollmentStatus] ?? 0) }}"
@@ -624,34 +644,49 @@
                     </div>
 
                     @if($enrollmentTotal > 0)
-                        <ul id="adminEnrollmentLegend" style="list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;font-size:.78rem;">
+                        <ul id="adminEnrollmentLegend" class="chart-legend">
                             @foreach(['active' => 'Active', 'pending' => 'Pending', 'completed' => 'Completed', 'dropped' => 'Dropped'] as $enrollmentKey => $enrollmentLabel)
                                 @php $enrollmentCount = (int) ($enrollmentBreakdown[$enrollmentKey] ?? 0); @endphp
-                                <li style="display:flex;align-items:center;gap:8px;">
-                                    <span style="width:10px;height:10px;border-radius:3px;flex-shrink:0;background:{{ $enrollmentColours[$enrollmentKey] }};"></span>
+                                <li class="chart-legend-item">
+                                    <span class="chart-swatch" style="background:{{ $enrollmentColours[$enrollmentKey] }};"></span>
                                     <span>{{ $enrollmentLabel }}</span>
-                                    <strong style="margin-left:auto;">{{ $enrollmentCount }}</strong>
-                                    <span style="opacity:.6;">({{ round($enrollmentCount / $enrollmentTotal * 100) }}%)</span>
+                                    <strong>{{ $enrollmentCount }}</strong>
+                                    <span class="chart-legend-pct">{{ round($enrollmentCount / $enrollmentTotal * 100) }}%</span>
                                 </li>
                             @endforeach
                         </ul>
                     @endif
                 </div>
                 <div class="analytics-card">
-                    <h5><i class="fa-solid fa-book"></i> Courses by Status</h5>
-                    <div id="adminCoursesChart" class="chart-container">
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-book"></i> Courses by Status</h5>
+                            <p class="chart-card-sub">Published, draft and archived courses</p>
+                        </div>
+                    </div>
+                    <div id="adminCoursesChart" class="chart-container" data-chart-label="Courses by status">
                         <div class="chart-placeholder"><i class="fa-solid fa-chart-bar"></i><p>Loading…</p></div>
                     </div>
                 </div>
                 <div class="analytics-card">
-                    <h5><i class="fa-solid fa-users"></i> Users by Role</h5>
-                    <div id="adminUsersChart" class="chart-container">
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-users"></i> Users by Role</h5>
+                            <p class="chart-card-sub">All four roles, including AA Staff</p>
+                        </div>
+                    </div>
+                    <div id="adminUsersChart" class="chart-container" data-chart-label="Users by role">
                         <div class="chart-placeholder"><i class="fa-solid fa-chart-pie"></i><p>Loading…</p></div>
                     </div>
                 </div>
                 <div class="analytics-card">
-                    <h5><i class="fa-solid fa-clipboard-check"></i> Attendance Overview</h5>
-                    <div id="adminAttendanceChart" class="chart-container">
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-clipboard-check"></i> Attendance Overview</h5>
+                            <p class="chart-card-sub">All attendance records, including excused</p>
+                        </div>
+                    </div>
+                    <div id="adminAttendanceChart" class="chart-container" data-chart-label="Attendance overview">
                         <div class="chart-placeholder"><i class="fa-solid fa-chart-pie"></i><p>Loading…</p></div>
                     </div>
                 </div>
@@ -659,7 +694,7 @@
         </div>
     </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @vite('resources/js/charts.js')
     <script>
         // Auto-refresh admin stat tiles every 30s
         setInterval(async () => {
@@ -691,12 +726,29 @@
         const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
         const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
         const CHART_SLICE_BORDER = isLightTheme ? '#ffffff' : '#151c2c';
+        function chartPalette() { return LMSCharts.palette(); }
 
         function adminChartOptions() {
-            return {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { color: CHART_TEXT, boxWidth: 12, padding: 12 } } }
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '66%',
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => {
+                                const total = c.dataset.data.reduce((sum, value) => sum + Number(value || 0), 0);
+                                const value = Number(c.parsed || 0);
+                                const share = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return ` ${c.label}: ${value} (${share}%)`;
+                            },
+                        },
+                    },
+                },
             };
+
+            return window.LMSCharts ? LMSCharts.baseOptions(options) : options;
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -705,6 +757,7 @@
                 .then(res => {
                     if (!res.success) throw new Error(res.error || 'Failed');
                     const d = res.data;
+                    const palette = chartPalette();
 
                     // Enrollment doughnut
                     const ec = document.getElementById('adminEnrollmentChart');
@@ -712,8 +765,8 @@
                     const legend = document.getElementById('adminEnrollmentLegend');
 
                     const ENROLLMENT_COLOURS = {
-                        active: '#34d399', pending: '#fbbf24',
-                        completed: '#62c9f5', dropped: '#fb7185'
+                        active: palette.green, pending: palette.amber,
+                        completed: palette.cyan, dropped: palette.rose
                     };
 
                     const statusCounts = [
@@ -747,11 +800,11 @@
 
                         legend.innerHTML = statusCounts.map(function (s) {
                             const pct = Math.round((s.count / enrollmentTotal) * 100);
-                            return '<li style="display:flex;align-items:center;gap:8px;">'
-                                + '<span style="width:10px;height:10px;border-radius:3px;background:' + ENROLLMENT_COLOURS[s.key] + ';"></span>'
+                            return '<li class="chart-legend-item">'
+                                + '<span class="chart-swatch" style="background:' + ENROLLMENT_COLOURS[s.key] + ';"></span>'
                                 + '<span>' + s.label + '</span>'
-                                + '<strong style="margin-left:auto;">' + s.count + '</strong>'
-                                + '<span style="opacity:.6;">(' + pct + '%)</span>'
+                                + '<strong>' + s.count + '</strong>'
+                                + '<span class="chart-legend-pct">' + pct + '%</span>'
                                 + '</li>';
                         }).join('');
 
@@ -781,8 +834,8 @@
                             labels: ['Published', 'Draft', 'Archived'],
                             datasets: [{ label: 'Courses',
                                 data: [d.courses_by_status.published, d.courses_by_status.draft, d.courses_by_status.archived],
-                                backgroundColor: ['rgba(52,211,153,.6)', 'rgba(251,191,36,.6)', 'rgba(148,163,184,.6)'],
-                                borderColor: ['#34d399', '#fbbf24', '#94a3b8'], borderWidth: 1, borderRadius: 6, maxBarThickness: 50 }]
+                                backgroundColor: [LMSCharts.alpha(palette.green, .6), LMSCharts.alpha(palette.amber, .6), LMSCharts.alpha(palette.slate, .6)],
+                                borderColor: [palette.green, palette.amber, palette.slate], borderWidth: 1, borderRadius: 6, maxBarThickness: 50 }]
                         },
                         options: {
                             responsive: true, maintainAspectRatio: false,
@@ -794,16 +847,21 @@
                         }
                     });
 
-                    // Users by role doughnut
+                    // Users by role doughnut — all four roles, AA Staff included.
                     const uc = document.getElementById('adminUsersChart');
                     uc.innerHTML = '<canvas id="adminUsersCanvas"></canvas>';
                     destroyAdminChart('adminUsersChart');
                     adminCharts['adminUsersChart'] = new Chart(document.getElementById('adminUsersCanvas'), {
                         type: 'doughnut',
                         data: {
-                            labels: ['Admins', 'Instructors', 'Students'],
-                            datasets: [{ data: [d.users_by_role.admins, d.users_by_role.instructors, d.users_by_role.students],
-                                backgroundColor: ['#62c9f5', '#8b5cf6', '#34d399'], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
+                            labels: ['Admins', 'Faculty', 'Students', 'AA Staff'],
+                            datasets: [{ data: [
+                                d.users_by_role.admins,
+                                d.users_by_role.instructors,
+                                d.users_by_role.students,
+                                d.users_by_role.aa_staff
+                            ],
+                                backgroundColor: [palette.cyan, palette.purple, palette.green, palette.amber], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
                         },
                         options: adminChartOptions()
                     });
@@ -815,9 +873,14 @@
                     adminCharts['adminAttendanceChart'] = new Chart(document.getElementById('adminAttendCanvas'), {
                         type: 'doughnut',
                         data: {
-                            labels: ['Present', 'Absent', 'Late'],
-                            datasets: [{ data: [d.attendance.present, d.attendance.absent, d.attendance.late],
-                                backgroundColor: ['#34d399', '#fb7185', '#fbbf24'], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
+                            labels: ['Present', 'Late', 'Absent', 'Excused'],
+                            datasets: [{ data: [
+                                d.attendance.present,
+                                d.attendance.late,
+                                d.attendance.absent,
+                                d.attendance.excused
+                            ],
+                                backgroundColor: [palette.green, palette.amber, palette.rose, palette.slate], borderColor: CHART_SLICE_BORDER, borderWidth: 2 }]
                         },
                         options: adminChartOptions()
                     });
@@ -826,26 +889,5 @@
         });
     </script>
 
-    <style>
-        .dash-analytics { margin: 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
-        .dash-analytics .dash-panel-head { padding: 0 0 16px; border-bottom: 1px solid var(--dash-line, rgba(153,174,214,.18)); margin-bottom: 20px; }
-        .analytics-content { margin-top: 20px; }
-        .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-        .analytics-card {
-            background: rgba(77,143,240,.04); border: 1px solid var(--dash-line, rgba(153,174,214,.18));
-            border-radius: 12px; padding: 20px;
-        }
-        .analytics-card h5 { margin: 0 0 16px 0; font-size: 15px; font-weight: 700; color: var(--dash-text, #eef4ff); display: flex; align-items: center; gap: 8px; }
-        .analytics-card h5 i { color: var(--bcp-cyan-400, #62c9f5); }
-        .chart-container { position: relative; height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .chart-container canvas { max-height: 100%; }
-        .chart-placeholder { text-align: center; color: var(--dash-muted, #98a7c4); }
-        .chart-placeholder i { font-size: 44px; margin-bottom: 12px; color: rgba(153,174,214,.35); }
-        .chart-placeholder p { margin: 0; font-size: 14px; }
-        @media (max-width: 640px) {
-            .analytics-grid { grid-template-columns: 1fr; }
-            .dash-analytics { padding: 16px; }
-        }
-    </style>
 </div>
 @endsection

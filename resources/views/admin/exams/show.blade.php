@@ -117,12 +117,21 @@
             @else
                 <div class="user-table-wrap">
                     <table class="user-table">
-                        <thead><tr><th>Student</th><th>Status</th><th>Score</th><th>Started</th></tr></thead>
+                        <thead><tr><th>Student</th><th>Status</th><th>Proctoring</th><th>Score</th><th>Started</th></tr></thead>
                         <tbody>
                             @foreach($exam->attempts as $attempt)
                                 <tr>
                                     <td>{{ $attempt->student?->name ?? '—' }}</td>
                                     <td><x-user-status-badge :status="$attempt->status" :label="ucfirst((string) $attempt->status)" /></td>
+                                    <td>
+                                        @if($attempt->tab_switch_count || $attempt->suspicious_activity_count)
+                                            <span class="user-status danger">
+                                                {{ $attempt->tab_switch_count }} tab switch(es) · {{ $attempt->suspicious_activity_count }} clipboard event(s)
+                                            </span>
+                                        @else
+                                            <span style="color:var(--dash-muted);">—</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $attempt->score_percent !== null ? number_format((float) $attempt->score_percent, 2).'%' : '—' }}</td>
                                     <td>{{ $attempt->started_at?->diffForHumans() ?? '—' }}</td>
                                 </tr>

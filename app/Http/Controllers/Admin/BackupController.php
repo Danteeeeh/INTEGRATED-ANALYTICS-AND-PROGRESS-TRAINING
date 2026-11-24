@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\BackupService;
+use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -51,6 +52,8 @@ class BackupController extends Controller
         if (! in_array(strtolower($uploaded->getClientOriginalExtension()), ['sql', 'json'], true)) {
             return back()->with('error', 'Only .sql or .json backup files are supported.');
         }
+
+        app(FileUploadService::class)->assertSafeContent($uploaded, 'backup_file');
 
         $storedPath = $uploaded->storeAs('backups', 'restore_'.now()->format('Ymd_His').'.'.strtolower($uploaded->getClientOriginalExtension()));
 

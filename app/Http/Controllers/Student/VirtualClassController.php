@@ -15,6 +15,34 @@ use Illuminate\View\View;
 
 class VirtualClassController extends Controller
 {
+    /**
+     * Every virtual class across this student's active enrollments.
+     */
+    public function all(LiveKitTokenService $tokens): View
+    {
+        $studentId = auth()->id();
+
+        $classIds = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->pluck('class_id');
+
+        $virtualClasses = VirtualClass::whereIn('class_id', $classIds)
+            ->with(['class.course', 'instructor', 'attendees' => function ($q) use ($studentId) {
+                $q->where('user_id', $studentId);
+            }])
+            ->orderBy('meeting_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->paginate(20);
+
+        $virtualClasses->getCollection()->each->syncStatus();
+
+        $livekitProblem = $tokens->diagnoseForClasses(
+            VirtualClass::whereIn('class_id', $classIds)->orderBy('meeting_date')->get()
+        );
+
+        return view('student.virtual_classes.all', compact('virtualClasses', 'livekitProblem'));
+    }
+
     public function index(ClassModel $class, LiveKitTokenService $tokens): View
     {
         $studentId = auth()->id();
@@ -131,7 +159,10 @@ class VirtualClassController extends Controller
         // before issuing a token, and records attendance on token issue.
         if ($virtualClass->meeting_provider === VirtualClass::PROVIDER_LIVEKIT) {
             if ($virtualClass->status !== VirtualClass::STATUS_ONGOING || $virtualClass->hasEnded()) {
-                return back()->with('error', 'The instructor must start the virtual class before you can join.');
+                return back()->with(
+                    'error',
+                    $virtualClass->joinUnavailableReason() ?? 'The instructor must start the virtual class before you can join.'
+                );
             }
 
             return redirect()->route('student.classes.virtual_classes.room', [$class, $virtualClass]);

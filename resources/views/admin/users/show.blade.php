@@ -256,15 +256,6 @@
     font-weight: 600;
 }
 
-.badge-admin { background: #e74c3c; color: white; }
-.badge-instructor { background: #3498db; color: white; }
-.badge-student { background: #2ecc71; color: white; }
-
-.badge-active { background: #2ecc71; color: white; }
-.badge-inactive { background: #95a5a6; color: white; }
-.badge-suspended { background: #e74c3c; color: white; }
-.badge-pending { background: #f39c12; color: white; }
-
 .detail-section {
     margin-bottom: 30px;
 }

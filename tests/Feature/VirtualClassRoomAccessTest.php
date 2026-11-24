@@ -120,25 +120,26 @@ class VirtualClassRoomAccessTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        // The room script used to start with a stray closing tag, so the whole
-        // block rendered as text and the Join button never fetched a token —
-        // nobody could enter the room from any role.
-        $this->assertStringContainsString('<script type="module">', $html);
+        // The room loads its client from the Vite bundle now, but a stray
+        // closing tag used to leave the whole module block inert, so the page
+        // must still ship a real module script and the configuration the
+        // bundle reads.
+        $this->assertStringContainsString('<script type="module"', $html);
         $this->assertStringNotContainsString(
             '</script type="module">',
             $html,
             'A stray closing tag means the room script block was never opened.'
         );
-        $this->assertStringContainsString(
-            "from 'https://cdn.jsdelivr.net/npm/livekit-client@2.15.6/+esm'",
-            $html,
-            'The LiveKit client import must sit inside the module script.'
-        );
+        $this->assertStringContainsString('/build/assets/virtual-classroom', $html);
+        $this->assertStringContainsString('data-token-url="', $html);
 
-        // The Send button id is sendChatButton; wiring it as chatSend threw on
-        // connect and skipped the rest of the Connected handler.
-        $this->assertStringContainsString("chatSend:\$('sendChatButton')", $html);
-        $this->assertStringNotContainsString("chatSend:\$('chatSend')", $html);
+        // The client source itself must import LiveKit and bind the Send button
+        // by its real id; wiring it as chatSend threw on connect and skipped
+        // the rest of the Connected handler.
+        $client = (string) file_get_contents(base_path('resources/js/virtual-classroom.js'));
+        $this->assertStringContainsString("from 'livekit-client'", $client);
+        $this->assertStringContainsString("chatSend: \$('sendChatButton')", $client);
+        $this->assertStringNotContainsString("chatSend: \$('chatSend')", $client);
     }
 
     public function test_student_room_only_wires_the_controls_it_has(): void
@@ -151,13 +152,16 @@ class VirtualClassRoomAccessTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('id="endMeetingButton"', $html);
+        $this->assertStringNotContainsString('id="muteAllButton"', $html);
 
         // Students have no mute-all, end-meeting or info buttons. Wiring them
         // without a guard killed the rest of the module on the student page.
-        $this->assertStringContainsString('el.muteAll?.addEventListener', $html);
-        $this->assertStringContainsString('el.endMeetingPop?.addEventListener', $html);
-        $this->assertStringContainsString('el.endMeeting?.addEventListener', $html);
-        $this->assertStringContainsString('el.info?.addEventListener', $html);
+        // The bindings live in the bundled client, so assert them there.
+        $client = (string) file_get_contents(base_path('resources/js/virtual-classroom.js'));
+        $this->assertStringContainsString('if (el.muteAll) el.muteAll.addEventListener', $client);
+        $this->assertStringContainsString('if (el.endMeetingPop) el.endMeetingPop.addEventListener', $client);
+        $this->assertStringContainsString('if (el.endMeeting) el.endMeeting.addEventListener', $client);
+        $this->assertStringContainsString('if (el.info) el.info.addEventListener', $client);
     }
 
     public function test_student_without_enrollment_cannot_open_the_room(): void
@@ -345,7 +349,7 @@ class VirtualClassRoomAccessTest extends TestCase
             "The instructor warning must sit above the Join button."
         );
         $this->assertLessThan(
-            strpos($studentPage->getContent(), 'Join Meeting'),
+            strpos($studentPage->getContent(), 'Join Classroom'),
             strpos($studentPage->getContent(), 'livekitConfigWarning'),
             "The student warning must sit above the Join button."
         );
@@ -502,14 +506,19 @@ class VirtualClassRoomAccessTest extends TestCase
 
     public function test_student_list_still_offers_join_for_an_external_meeting_link(): void
     {
+        // Derive the meeting date from the start clock too: between 11 PM and
+        // midnight "an hour from now" is 00:xx, and pairing that clock with
+        // today's date would put the session ~23 hours in the past.
+        $startsAt = now()->addHour();
+
         $zoom = VirtualClass::create([
             'course_id' => $this->class->course_id,
             'class_id' => $this->class->id,
             'instructor_id' => $this->instructor->id,
             'title' => 'Zoom Session',
-            'meeting_date' => now()->toDateString(),
-            'start_time' => now()->addHour()->format('H:i:s'),
-            'end_time' => now()->addHours(2)->format('H:i:s'),
+            'meeting_date' => $startsAt->toDateString(),
+            'start_time' => $startsAt->format('H:i:s'),
+            'end_time' => $startsAt->copy()->addHour()->format('H:i:s'),
             'meeting_provider' => VirtualClass::PROVIDER_ZOOM,
             'meeting_url' => 'https://zoom.us/j/123456789',
             'status' => VirtualClass::STATUS_SCHEDULED,
@@ -529,7 +538,7 @@ class VirtualClassRoomAccessTest extends TestCase
         $this->actingAs($this->enrolledStudent)
             ->get(route('student.classes.virtual_classes.show', [$this->class, $room]))
             ->assertOk()
-            ->assertSee('Join Meeting')
+            ->assertSee('Join Classroom')
             ->assertSee(route('student.classes.virtual_classes.join', [$this->class, $room]));
     }
 
@@ -667,7 +676,7 @@ class VirtualClassRoomAccessTest extends TestCase
         $response->assertDontSee($room->end_time);
 
         $this->assertLessThan(
-            strpos($response->getContent(), 'Join Meeting'),
+            strpos($response->getContent(), 'Join Classroom'),
             strpos($response->getContent(), 'classScheduleLine'),
             'The schedule must sit on the status card, above the Join button.'
         );
@@ -687,6 +696,15 @@ class VirtualClassRoomAccessTest extends TestCase
         // each consumer, including records loaded fresh from the database.
         $persisted = $room->fresh();
         $this->assertSame('1 hr 00 min', $persisted->durationLabel());
+
+        // The same rule keeps the session joinable: an overnight class must not
+        // count as already ended just because its end clock is numerically
+        // smaller than its start clock.
+        $this->assertFalse($persisted->hasEnded());
+        $this->assertSame(
+            $persisted->meeting_date->copy()->addDay()->toDateString(),
+            $persisted->endsAt()->toDateString()
+        );
 
         $this->actingAs($this->enrolledStudent)
             ->get(route('student.classes.virtual_classes.show', [$this->class, $persisted]))

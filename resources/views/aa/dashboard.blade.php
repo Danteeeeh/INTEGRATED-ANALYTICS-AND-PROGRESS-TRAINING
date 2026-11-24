@@ -10,6 +10,12 @@
     // The AA Staff role keeps view-only access; nothing here writes anything.
     $aaSyncRecent = \App\Models\AaSyncLog::latest('started_at')->take(4)->get();
     $aaLastSync = $aaSyncRecent->first();
+
+    $aaEnrollmentChartData = [
+        ['label' => 'Active', 'count' => (int) ($stats['enrollments_active'] ?? 0)],
+        ['label' => 'Pending', 'count' => (int) ($stats['enrollments_pending'] ?? 0)],
+        ['label' => 'Completed', 'count' => (int) ($stats['enrollments_completed'] ?? 0)],
+    ];
 @endphp
 
 @section('page-title-bar')
@@ -18,7 +24,7 @@
             <i class="fa-solid fa-building-columns"></i>
             Academic Affairs Overview
         </h2>
-        <span class="topbar-role-badge" style="margin-left:8px;padding:4px 10px;border-radius:999px;background:rgba(98,201,245,.12);color:#62c9f5;font-size:.72rem;font-weight:700;white-space:nowrap;">View-Only</span>
+        <span class="topbar-role-badge" style="margin-left:8px;padding:4px 10px;border-radius:999px;background:rgba(98,201,245,.12);color:var(--dash-cyan);font-size:.72rem;font-weight:700;white-space:nowrap;">View-Only</span>
     </div>
 @endsection
 
@@ -169,6 +175,14 @@
 
         <div class="dash-split-side">
             <section class="dash-panel">
+                <div class="dash-panel-head aa-chart-head">
+                    <h4><i class="fa-solid fa-chart-pie"></i> Enrollment status</h4>
+                    <span class="panel-count">{{ collect($aaEnrollmentChartData)->sum('count') }}</span>
+                </div>
+                <div id="aaEnrollmentChart" class="chart-container" data-chart-label="Enrollment status breakdown"></div>
+            </section>
+
+            <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-bolt"></i> Academic reports &amp; data</h4>
                 </div>
@@ -276,3 +290,50 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@vite('resources/js/charts.js')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('aaEnrollmentChart');
+    if (!container) return;
+
+    const rows = @json($aaEnrollmentChartData);
+    const total = rows.reduce((sum, row) => sum + row.count, 0);
+    const palette = LMSCharts.palette();
+    const chartColors = [palette.green, palette.amber, palette.cyan];
+
+    if (!total) {
+        container.innerHTML = '<div class="chart-placeholder"><i class="fa-solid fa-user-plus"></i><p>No enrollment records yet</p></div>';
+        return;
+    }
+
+    LMSCharts.mount(container, {
+        type: 'doughnut',
+        data: {
+            labels: rows.map(row => row.label),
+            datasets: [{
+                data: rows.map(row => row.count),
+                backgroundColor: chartColors,
+                borderWidth: 2,
+            }],
+        },
+        options: LMSCharts.baseOptions({
+            cutout: '66%',
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const value = Number(context.parsed || 0);
+                            const share = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return ` ${context.label}: ${value} (${share}%)`;
+                        },
+                    },
+                },
+            },
+        }),
+    });
+});
+</script>
+@endpush

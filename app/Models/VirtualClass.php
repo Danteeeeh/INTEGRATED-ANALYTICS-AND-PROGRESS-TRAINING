@@ -116,16 +116,24 @@ class VirtualClass extends Model
             return null;
         }
 
-        return Carbon::parse($this->meeting_date->format('Y-m-d').' '.$this->end_time);
+        $start = $this->startsAt();
+        $end = Carbon::parse($this->meeting_date->format('Y-m-d').' '.$this->end_time);
+
+        // An end clock earlier than the start clock is an overnight session
+        // (11:00 PM – 1:00 AM). Without moving the end to the next day,
+        // hasEnded() treats it as finished the moment it is created.
+        if ($start && $end->lessThan($start)) {
+            $end->addDay();
+        }
+
+        return $end;
     }
 
     /**
      * Human-readable span of the session.
      *
-     * Lives here rather than in the view because a session can legitimately
-     * end before it starts (a data-entry slip, or a session that crossed
-     * midnight): Carbon's diff() hands back a negative interval and formatting
-     * that throws, which used to blow up the whole admin page.
+     * Lives here rather than in the views so the student, admin and instructor
+     * pages cannot format the same session differently.
      */
     public function durationLabel(): string
     {
@@ -134,13 +142,6 @@ class VirtualClass extends Model
 
         if (! $start || ! $end) {
             return 'n/a';
-        }
-
-        // The schema stores one meeting date plus two clock times. An earlier
-        // end clock therefore denotes an overnight session, not a negative
-        // same-day interval. Move only that end datetime to the next day.
-        if ($end->lessThan($start)) {
-            $end->addDay();
         }
 
         $minutes = $start->diffInMinutes($end);
@@ -164,6 +165,7 @@ class VirtualClass extends Model
             'zoom' => 'Zoom',
             'google_meet' => 'Google Meet',
             'microsoft_teams' => 'Microsoft Teams',
+            'livekit' => 'Virtual Classroom',
             'other' => 'Other',
             null, '' => 'Other',
             default => ucfirst((string) $this->meeting_provider),
@@ -181,6 +183,24 @@ class VirtualClass extends Model
     public function isLive(): bool
     {
         return $this->status === self::STATUS_ONGOING;
+    }
+
+    /**
+     * Is this session hosted by the LMS itself (LiveKit)?
+     */
+    public function isLiveKit(): bool
+    {
+        return $this->meeting_provider === self::PROVIDER_LIVEKIT;
+    }
+
+    /**
+     * Is the room open right now? Unlike isLive() this also checks the clock,
+     * so a session whose end time passed but whose status has not been synced
+     * yet is not treated as joinable.
+     */
+    public function isLiveNow(): bool
+    {
+        return $this->status === self::STATUS_ONGOING && ! $this->hasEnded();
     }
 
     public function canStart(): bool
@@ -202,17 +222,48 @@ class VirtualClass extends Model
      * mirrors what the join route actually allows: LiveKit needs the class to
      * be live, while external providers still need their link to hand over.
      */
-    public function studentCanJoin(): bool
+    public function canStudentJoin(): bool
     {
         if ($this->hasEnded() || ! in_array($this->status, [self::STATUS_SCHEDULED, self::STATUS_ONGOING], true)) {
             return false;
         }
 
-        if ($this->meeting_provider === self::PROVIDER_LIVEKIT) {
+        if ($this->isLiveKit()) {
             return $this->status === self::STATUS_ONGOING;
         }
 
         return filled($this->meeting_url);
+    }
+
+    /**
+     * Backwards-compatible name used by the listing views.
+     */
+    public function studentCanJoin(): bool
+    {
+        return $this->canStudentJoin();
+    }
+
+    /**
+     * Why a student cannot join yet, for the surfaces that show a disabled
+     * button. Null means the session is joinable.
+     */
+    public function joinUnavailableReason(): ?string
+    {
+        if ($this->status === self::STATUS_CANCELLED) {
+            return 'This class was cancelled.';
+        }
+
+        if ($this->status === self::STATUS_COMPLETED || $this->hasEnded()) {
+            return 'This class has ended.';
+        }
+
+        if ($this->isLiveKit()) {
+            return $this->status === self::STATUS_ONGOING
+                ? null
+                : 'Waiting for the instructor to start this class.';
+        }
+
+        return filled($this->meeting_url) ? null : 'The meeting link has not been added yet.';
     }
 
     public function canEnd(): bool
@@ -261,8 +312,17 @@ class VirtualClass extends Model
             ->whereDate('meeting_date', '<=', now()->toDateString())
             ->get()
             ->each(function (self $virtualClass) use (&$affected) {
-                if ($virtualClass->syncStatus()) {
-                    $affected++;
+                if (! $virtualClass->syncStatus()) {
+                    return;
+                }
+
+                $affected++;
+
+                // A LiveKit room keeps running until its room is deleted; the
+                // status alone only stops new tokens. Closing through the
+                // session closer also seals the open attendance rows.
+                if ($virtualClass->isLiveKit() && $virtualClass->livekit_room_name) {
+                    app(\App\Services\VirtualClassSessionCloser::class)->close($virtualClass);
                 }
             });
 

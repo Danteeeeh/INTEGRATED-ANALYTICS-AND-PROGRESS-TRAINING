@@ -188,7 +188,7 @@
                 @if($quiz->time_limit_minutes)
                     <div style="text-align: center; min-width: 140px;">
                         <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Time Remaining</div>
-                        <div class="timer-circle normal" id="timerCircle">{{ $quiz->time_limit_minutes }}:00</div>
+                        <div class="timer-circle normal" id="timerCircle">{{ sprintf('%02d:%02d', intdiv($remainingSeconds, 60), $remainingSeconds % 60) }}</div>
                         <div class="timer-progress-bar">
                             <div class="timer-progress-fill" id="timerProgress" style="width: 100%;"></div>
                         </div>
@@ -307,7 +307,7 @@
                                            name="answers[{{ $qid }}]"
                                            value="{{ $choice['id'] }}"
                                            {{ old('answers.'.$qid) == $choice['id'] ? 'checked' : '' }}
-                                           onchange="markAnswered({{ $index }})"
+
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
                                     <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice['text'] !!}</span>
                                 </label>
@@ -323,7 +323,7 @@
                                            name="answers[{{ $qid }}][]"
                                            value="{{ $choice['id'] }}"
                                            {{ in_array($choice['id'], old('answers.'.$qid, [])) ? 'checked' : '' }}
-                                           onchange="markAnswered({{ $index }})"
+
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
                                     <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;">{!! $choice['text'] !!}</span>
                                 </label>
@@ -338,7 +338,7 @@
                             <textarea name="answers[{{ $qid }}]"
                                       rows="{{ $qtype === 'essay' ? '12' : '6' }}"
                                       placeholder="{{ $qtype === 'identification' ? 'Type your answer...' : 'Enter your answer here...' }}"
-                                      oninput="markAnswered({{ $index }})"
+
                                       style="width: 100%; padding: 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; font-size: 1.05rem; resize: vertical; transition: all 0.2s; line-height: 1.7; background: #f8fafc;">{{ old('answers.'.$qid) }}</textarea>
                         </div>
                     @endif
@@ -378,10 +378,17 @@
     </div>
 
     <script>
+        const attemptId = {{ $inProgress->id }};
+        const storageKey = 'quizAnswers_' + attemptId;
         let currentQuestion = 0;
         let totalQuestions = {{ $inProgress->answers->count() }};
         let answeredQuestions = new Set();
-        let timeRemaining = {{ $quiz->time_limit_minutes ? $quiz->time_limit_minutes * 60 : 0 }};
+        // Server-computed from started_at + time limit, so a refresh, reconnect
+        // or phone lock resumes the same clock instead of a fresh full one.
+        let timeRemaining = {{ $remainingSeconds }};
+        // Absolute deadline: background tabs throttle timers, so decrementing
+        // a counter would drift and submit late after the laptop wakes.
+        const deadline = Date.now() + timeRemaining * 1000;
         let timerInterval;
 
         // Refresh CSRF token periodically (every 30 minutes)
@@ -405,9 +412,9 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            updateNavigation();
-            startTimer();
             loadSavedAnswers();
+            syncAnsweredQuestions();
+            startTimer();
 
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
@@ -440,10 +447,20 @@
             }
         }
 
-        function markAnswered(index) {
-            answeredQuestions.add(index);
+        // Rebuild the answered set from what is actually on screen. Restored
+        // answers (localStorage, or server-side old() input) are set
+        // programmatically, so they never fire an input event; without this
+        // scan the counter, the green nav buttons and the submit warning all
+        // read them as unanswered.
+        function syncAnsweredQuestions() {
+            answeredQuestions.clear();
+            document.querySelectorAll('.question-card').forEach((card, index) => {
+                const answered = [...card.querySelectorAll('input, textarea')].some(input =>
+                    (input.type === 'radio' || input.type === 'checkbox') ? input.checked : input.value.trim() !== ''
+                );
+                if (answered) answeredQuestions.add(index);
+            });
             updateNavigation();
-            autoSave();
         }
 
         function updateNavigation() {
@@ -492,59 +509,74 @@
         function startTimer() {
             @if($quiz->time_limit_minutes)
                 const totalTime = {{ $quiz->time_limit_minutes * 60 }};
+                let expiredHandled = false;
+
+                function tick() {
+                    timeRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+
+                    const minutes = Math.floor(timeRemaining / 60);
+                    const seconds = timeRemaining % 60;
+                    const timerCircle = document.getElementById('timerCircle');
+                    const timerProgress = document.getElementById('timerProgress');
+
+                    timerCircle.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+
+                    // Update progress bar (clamped: an extension can outlive the
+                    // nominal duration, and a bar over 100% looks broken).
+                    const progressPercent = Math.max(0, Math.min(100, (timeRemaining / totalTime) * 100));
+                    timerProgress.style.width = progressPercent + '%';
+
+                    // Timer color states
+                    timerCircle.classList.remove('normal', 'warning', 'danger');
+                    timerProgress.classList.remove('warning', 'danger');
+
+                    if (timeRemaining <= 60) {
+                        timerCircle.classList.add('danger');
+                        timerProgress.classList.add('danger');
+                    } else if (timeRemaining <= 300) {
+                        timerCircle.classList.add('warning');
+                        timerProgress.classList.add('warning');
+                    } else {
+                        timerCircle.classList.add('normal');
+                    }
+
+                    // Warning when 5 minutes remaining
+                    if (timeRemaining === 300) {
+                        showNotification('⚠️ You have 5 minutes remaining!', 'warning');
+                    }
+
+                    // Warning when 1 minute remaining
+                    if (timeRemaining === 60) {
+                        showNotification('⚠️ You have 1 minute remaining!', 'danger');
+                    }
+
+                    // Warning when 30 seconds remaining
+                    if (timeRemaining === 30) {
+                        showNotification('⚠️ Only 30 seconds left!', 'danger');
+                    }
+
+                    // Auto-submit when time expires
+                    if (timeRemaining <= 0 && !expiredHandled) {
+                        expiredHandled = true;
+                        clearInterval(timerInterval);
+                        showNotification('⏰ Time has expired! Your answers will be auto-submitted.', 'danger');
+                        setTimeout(() => {
+                            document.getElementById('quizForm').requestSubmit();
+                        }, 2000);
+                    }
+                }
+
                 if (timeRemaining > 0) {
-                    timerInterval = setInterval(function() {
-                        timeRemaining--;
+                    // Paint at once so the progress bar matches the server-rendered
+                    // clock before the first interval fires.
+                    tick();
+                    timerInterval = setInterval(tick, 1000);
 
-                        const minutes = Math.floor(timeRemaining / 60);
-                        const seconds = timeRemaining % 60;
-                        const timerCircle = document.getElementById('timerCircle');
-                        const timerProgress = document.getElementById('timerProgress');
-
-                        timerCircle.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-
-                        // Update progress bar
-                        const progressPercent = (timeRemaining / totalTime) * 100;
-                        timerProgress.style.width = progressPercent + '%';
-
-                        // Timer color states
-                        timerCircle.classList.remove('normal', 'warning', 'danger');
-                        timerProgress.classList.remove('warning', 'danger');
-
-                        if (timeRemaining <= 60) {
-                            timerCircle.classList.add('danger');
-                            timerProgress.classList.add('danger');
-                        } else if (timeRemaining <= 300) {
-                            timerCircle.classList.add('warning');
-                            timerProgress.classList.add('warning');
-                        } else {
-                            timerCircle.classList.add('normal');
-                        }
-
-                        // Warning when 5 minutes remaining
-                        if (timeRemaining === 300) {
-                            showNotification('⚠️ You have 5 minutes remaining!', 'warning');
-                        }
-
-                        // Warning when 1 minute remaining
-                        if (timeRemaining === 60) {
-                            showNotification('⚠️ You have 1 minute remaining!', 'danger');
-                        }
-
-                        // Warning when 30 seconds remaining
-                        if (timeRemaining === 30) {
-                            showNotification('⚠️ Only 30 seconds left!', 'danger');
-                        }
-
-                        // Auto-submit when time expires
-                        if (timeRemaining <= 0) {
-                            clearInterval(timerInterval);
-                            showNotification('⏰ Time has expired! Your answers will be auto-submitted.', 'danger');
-                            setTimeout(() => {
-                                document.getElementById('quizForm').submit();
-                            }, 2000);
-                        }
-                    }, 1000);
+                    // A tab that wakes up after being throttled must resync its
+                    // clock immediately, not wait for the next interval.
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'visible') tick();
+                    });
                 }
             @endif
         }
@@ -585,12 +617,26 @@
             }
         }
 
+        let autoSaveTimer;
+
+        // Typing an essay must not write localStorage on every keystroke; the
+        // 30s interval started on page load is the safety net if the tab closes
+        // before the debounce fires.
+        function scheduleAutoSave() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSave, 800);
+        }
+
         function autoSave() {
             const formData = new FormData(document.getElementById('quizForm'));
             const answers = {};
 
-            // Convert FormData to proper object handling arrays
             for (const [key, value] of formData.entries()) {
+                // Only answers belong in the safety copy. Persisting _token would
+                // restore a stale CSRF token after a session rotation and make
+                // the real submit fail with 419.
+                if (!key.startsWith('answers')) continue;
+
                 if (key.endsWith('[]')) {
                     const cleanKey = key.slice(0, -2);
                     if (!answers[cleanKey]) {
@@ -602,7 +648,12 @@
                 }
             }
 
-            localStorage.setItem('quizAnswers_' + {{ $inProgress->id }}, JSON.stringify(answers));
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(answers));
+            } catch (e) {
+                // Private mode or a full quota: the form still submits normally.
+                return;
+            }
 
             // Show auto-save notification
             const warning = document.getElementById('autoSaveWarning');
@@ -613,37 +664,57 @@
         }
 
         function loadSavedAnswers() {
-            const saved = localStorage.getItem('quizAnswers_' + {{ $inProgress->id }});
-            if (saved) {
-                const answers = JSON.parse(saved);
-                for (const [key, value] of Object.entries(answers)) {
-                    const elements = document.querySelectorAll(`[name="${key}"]`);
-                    elements.forEach(el => {
-                        if (el.type === 'radio') {
-                            el.checked = el.value == value;
-                        } else if (el.type === 'checkbox') {
-                            el.checked = Array.isArray(value) ? value.includes(el.value) : el.value == value;
-                        } else {
-                            el.value = value;
-                        }
-                    });
-                }
+            let answers;
+            try {
+                answers = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            } catch (e) {
+                // Corrupt or blocked storage must not stop the timer/navigation.
+                return;
+            }
+
+            for (const [key, value] of Object.entries(answers || {})) {
+                // Older saves included _token; never write that back.
+                if (!key.startsWith('answers')) continue;
+
+                const elements = document.querySelectorAll(`[name="${key}"]`);
+                elements.forEach(el => {
+                    if (el.type === 'radio') {
+                        el.checked = el.value == value;
+                    } else if (el.type === 'checkbox') {
+                        el.checked = Array.isArray(value) ? value.includes(el.value) : el.value == value;
+                    } else {
+                        el.value = value;
+                    }
+                });
             }
         }
 
         function confirmSubmit() {
             const unanswered = totalQuestions - answeredQuestions.size;
-            if (unanswered > 0) {
-                return confirm(`You have ${unanswered} unanswered question(s). Are you sure you want to submit?`);
-            }
-            return confirm('Are you sure you want to submit your quiz? This action cannot be undone.');
+            const message = unanswered > 0
+                ? `You have ${unanswered} unanswered question(s). Are you sure you want to submit?`
+                : 'Are you sure you want to submit your quiz? This action cannot be undone.';
+
+            // Only the server knows whether the submission was accepted, so
+            // nothing is cleared here: the results page removes the safety
+            // copy once the attempt is stored. Cancelling loses nothing.
+            return confirm(message);
         }
 
-        // Prevent auto-save from interfering with form submission
-        document.getElementById('quizForm').addEventListener('submit', function(e) {
-            // Remove localStorage before submitting to avoid conflicts
-            localStorage.removeItem('quizAnswers_' + {{ $inProgress->id }});
+        // One delegated listener owns the answered state: restored answers,
+        // radios, checkboxes and textareas all take the same path.
+        document.getElementById('quizForm').addEventListener('input', function () {
+            syncAnsweredQuestions();
+            scheduleAutoSave();
         });
+
+        // A background tab never fires the 30s interval, and a sleeping laptop
+        // may unload the page without warning. Flush the debounce so the last
+        // answers are in the safety copy the server falls back to.
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') autoSave();
+        });
+        window.addEventListener('pagehide', autoSave);
 
         // Keyboard navigation
         document.addEventListener('keydown', function(e) {

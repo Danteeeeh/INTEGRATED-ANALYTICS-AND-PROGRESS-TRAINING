@@ -2,11 +2,12 @@
 .admin-ui {
     --admin-surface: linear-gradient(145deg, rgba(26, 38, 62, .98), rgba(15, 23, 39, .96));
     --admin-elevated: rgba(77, 143, 240, .1);
-    --admin-accent: #5b9cff;
-    --admin-success: #2dd4bf;
-    --admin-warning: #fbbf24;
-    --admin-danger: #fb7185;
+    --admin-accent: var(--dash-accent, #5b9cff);
+    --admin-success: var(--dash-status-active, #2dd4bf);
+    --admin-warning: var(--dash-warning, #fbbf24);
+    --admin-danger: var(--dash-status-danger, #fb7185);
 }
+
 .admin-ui .content { width: min(100%, 1560px); margin-inline: auto; padding: 30px clamp(18px, 3vw, 42px) 44px; }
 .admin-ui .page-title-bar { display:flex !important; align-items:center; justify-content:space-between; gap:18px; min-height:68px; padding:0 0 22px !important; margin:0 0 22px !important; background:transparent !important; border:0 !important; border-bottom:1px solid var(--bcp-line) !important; box-shadow:none !important; }
 .admin-ui .page-title { display:flex; align-items:center; gap:13px; margin:0; font-size:clamp(1.25rem, 2.2vw, 1.7rem) !important; font-weight:800; letter-spacing:-.035em; color:var(--bcp-ink) !important; }
@@ -33,13 +34,14 @@
 .admin-ui .table tbody tr:hover, .admin-ui .crud-table tbody tr:hover, .admin-ui .dash-table tbody tr:hover { background:rgba(91,156,255,.075); }
 .admin-ui .table tbody tr:last-child td, .admin-ui .crud-table tbody tr:last-child td, .admin-ui .dash-table tbody tr:last-child td { border-bottom:0 !important; }
 .admin-ui .badge, .admin-ui .status-badge, .admin-ui .dash-meta-chip { display:inline-flex !important; align-items:center; gap:6px; padding:6px 10px !important; border-radius:999px !important; border:1px solid transparent; font-size:.7rem !important; font-weight:800 !important; line-height:1; }
-.admin-ui .badge-active, .admin-ui .badge-published, .admin-ui .badge-completed, .admin-ui .m-green { color:#5eead4 !important; background:rgba(45,212,191,.12) !important; border-color:rgba(45,212,191,.25) !important; }
-.admin-ui .badge-inactive, .admin-ui .badge-archived, .admin-ui .badge-closed, .admin-ui .m-gray { color:#c3cce0 !important; background:rgba(148,163,184,.12) !important; border-color:rgba(148,163,184,.2) !important; }
-.admin-ui .badge-pending, .admin-ui .badge-draft { color:#fcd34d !important; background:rgba(251,191,36,.12) !important; border-color:rgba(251,191,36,.25) !important; }
-.admin-ui .badge-suspended, .admin-ui .badge-dropped, .admin-ui .badge-rejected { color:#fda4af !important; background:rgba(251,113,133,.12) !important; border-color:rgba(251,113,133,.25) !important; }
-.admin-ui .badge-admin { color:#c4b5fd !important; background:rgba(167,139,250,.12) !important; border-color:rgba(167,139,250,.25) !important; }
-.admin-ui .badge-instructor { color:#7dd3fc !important; background:rgba(56,189,248,.12) !important; border-color:rgba(56,189,248,.25) !important; }
-.admin-ui .badge-student { color:#86efac !important; background:rgba(74,222,128,.12) !important; border-color:rgba(74,222,128,.25) !important; }
+.admin-ui .badge-active, .admin-ui .badge-published, .admin-ui .badge-completed, .admin-ui .badge-success, .admin-ui .m-green { color:var(--dash-status-active) !important; background:rgba(45,212,191,.12) !important; border-color:rgba(45,212,191,.25) !important; }
+.admin-ui .badge-inactive, .admin-ui .badge-archived, .admin-ui .badge-closed, .admin-ui .badge-secondary, .admin-ui .m-gray { color:var(--dash-status-inactive) !important; background:rgba(148,163,184,.12) !important; border-color:rgba(148,163,184,.2) !important; }
+.admin-ui .badge-pending, .admin-ui .badge-draft { color:var(--dash-status-pending) !important; background:rgba(251,191,36,.12) !important; border-color:rgba(251,191,36,.25) !important; }
+.admin-ui .badge-warning { color:var(--dash-warning) !important; background:rgba(251,191,36,.12) !important; border-color:rgba(251,191,36,.25) !important; }
+.admin-ui .badge-suspended, .admin-ui .badge-dropped, .admin-ui .badge-rejected, .admin-ui .badge-danger { color:var(--dash-status-danger) !important; background:rgba(251,113,133,.12) !important; border-color:rgba(251,113,133,.25) !important; }
+.admin-ui .badge-admin { color:var(--dash-accent) !important; background:rgba(167,139,250,.12) !important; border-color:rgba(167,139,250,.25) !important; }
+.admin-ui .badge-instructor, .admin-ui .badge-program { color:var(--dash-cyan) !important; background:rgba(56,189,248,.12) !important; border-color:rgba(56,189,248,.25) !important; }
+.admin-ui .badge-student { color:var(--dash-status-active) !important; background:rgba(74,222,128,.12) !important; border-color:rgba(74,222,128,.25) !important; }
 .admin-ui .action-buttons, .admin-ui .actions-cell { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
 .admin-ui .btn-icon { display:inline-grid !important; place-items:center; width:34px !important; min-width:34px !important; height:34px !important; padding:0 !important; color:var(--bcp-ink) !important; background:rgba(255,255,255,.04) !important; border:1px solid var(--bcp-line) !important; border-radius:9px !important; }
 .admin-ui .btn-icon:hover { color:#fff !important; background:rgba(91,156,255,.2) !important; border-color:rgba(91,156,255,.48) !important; }

@@ -95,13 +95,23 @@
                                 </div>
                             </div>
                             <div class="text-right">
-                                @if($attempt->status === 'submitted' || $attempt->status === 'auto_submitted')
-                                    <div class="text-lg font-semibold {{ $attempt->is_passed ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ $attempt->score_percent }}%
-                                    </div>
-                                    <div class="text-sm text-gray-600">
-                                        {{ $attempt->is_passed ? 'Passed' : 'Failed' }}
-                                    </div>
+                                @if(in_array($attempt->status, ['submitted', 'auto_submitted', 'graded', 'reviewed'], true))
+                                    @if($exam->show_score)
+                                        <div class="text-lg font-semibold {{ $attempt->is_passed === null ? 'text-gray-700' : ($attempt->is_passed ? 'text-green-600' : 'text-red-600') }}">
+                                            {{ $attempt->score_percent }}%
+                                        </div>
+                                        <div class="text-sm text-gray-600">
+                                            @if($attempt->is_passed === null)
+                                                Pending grading
+                                            @elseif($attempt->is_passed)
+                                                Passed
+                                            @else
+                                                Failed
+                                            @endif
+                                        </div>
+                                    @else
+                                        <div class="text-sm text-gray-600">Score hidden</div>
+                                    @endif
                                 @else
                                     <div class="text-sm text-gray-600">{{ ucfirst($attempt->status) }}</div>
                                 @endif

@@ -3,6 +3,8 @@
 # Startup script for HostForge
 # This runs when the container starts
 
+set -e
+
 echo "Starting application..."
 
 # Ensure .env file exists
@@ -16,6 +18,11 @@ mkdir -p storage/framework/cache
 mkdir -p storage/framework/sessions
 mkdir -p storage/framework/views
 mkdir -p storage/logs
+
+# The HostForge persistent volume is mounted outside the release directory.
+if [ -n "${LMS_STORAGE_PATH:-}" ]; then
+    mkdir -p "$LMS_STORAGE_PATH/public" "$LMS_STORAGE_PATH/backups"
+fi
 
 echo "Storage directories created"
 

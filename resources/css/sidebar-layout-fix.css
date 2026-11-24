@@ -101,6 +101,13 @@ body:has(.sidebar.collapsed) .main {
     body:has(.sidebar.collapsed) .main {
         margin-left: 0 !important;
     }
+    /* Below the drawer breakpoint the sidebar overlays the page, so never
+       reserve its desktop gutter even if the collapsed class is out of sync. */
+    .main {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
 }
 
 /* Safety net so a temporarily-invisible sidebar does not leave a gap. */

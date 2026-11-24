@@ -48,7 +48,7 @@ body.light-mode .topbar {
   box-shadow:0 4px 10px rgba(23,58,168,.32), inset 0 1px 0 rgba(255,255,255,.18) !important;
 }
 .hamburger:focus-visible {
-  outline:3px solid rgba(98,201,245,.9) !important;
+  outline:3px solid var(--bcp-focus, #7db7ff) !important;
   outline-offset:3px !important;
 }
 body.light-mode .hamburger {

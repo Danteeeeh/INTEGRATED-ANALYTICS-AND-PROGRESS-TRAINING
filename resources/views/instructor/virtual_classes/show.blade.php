@@ -133,8 +133,11 @@
                     @case('microsoft_teams')
                         <i class="fa-solid fa-video" style="color:#6264A7;"></i> Microsoft Teams
                         @break
+                    @case(\App\Models\VirtualClass::PROVIDER_LIVEKIT)
+                        <i class="fa-solid fa-video" style="color:#0ea5e9;"></i> {{ $virtualClass->providerLabel() }}
+                        @break
                     @default
-                        <i class="fa-solid fa-video"></i> Other
+                        <i class="fa-solid fa-video"></i> {{ $virtualClass->providerLabel() }}
                 @endswitch
             </span>
         </div>

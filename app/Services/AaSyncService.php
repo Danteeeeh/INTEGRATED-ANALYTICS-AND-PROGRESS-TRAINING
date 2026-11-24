@@ -12,8 +12,9 @@ use App\Models\Program;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
+use App\Notifications\LmsPasswordReset;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 /**
@@ -254,14 +255,14 @@ class AaSyncService
             'departments' => $departments,
             'programs' => $programs,
             'sections' => $sections,
-        ], 'default_student_password');
+        ]);
     }
 
     protected function syncFaculty(array $map): array
     {
         $instructorRoleId = Role::where('slug', Role::INSTRUCTOR)->value('id');
 
-        return $this->upsertUsers($map, $instructorRoleId, [], 'default_faculty_password');
+        return $this->upsertUsers($map, $instructorRoleId, []);
     }
 
     protected function syncClasses(array $map): array
@@ -439,14 +440,11 @@ class AaSyncService
      *
      * @param  array<string, \Illuminate\Support\Collection>  $lookups
      */
-    protected function upsertUsers(array $map, int $roleId, array $lookups, string $passwordConfigKey): array
+    protected function upsertUsers(array $map, int $roleId, array $lookups): array
     {
         $columns = $map['columns'] ?? [];
         $statusMap = $map['status_map'] ?? ['active' => 'active'];
         $skipEmails = config('aa_sync.skip_emails', []);
-        $resetPasswords = (bool) config('aa_sync.reset_passwords', false);
-        $defaultPassword = (string) config('aa_sync.'.$passwordConfigKey, 'Welcome@123');
-
         $counts = $this->blankCounts();
 
         foreach ($this->aaRows($map['table']) as $row) {
@@ -489,17 +487,15 @@ class AaSyncService
                     if ($user->trashed()) {
                         $user->restore();
                     }
-                    if ($resetPasswords) {
-                        $user->password = Hash::make($defaultPassword);
-                    }
                     $user->save();
                     $counts['updated']++;
                 } else {
-                    User::create($values + [
+                    $user = User::create($values + [
                         'email' => $email,
-                        'password' => $defaultPassword,
+                        'password' => $this->newAccountPassword(),
                     ]);
                     $counts['created']++;
+                    $this->sendActivationEmail($user);
                 }
             } catch (\Throwable $e) {
                 $counts['failed']++;
@@ -508,6 +504,35 @@ class AaSyncService
         }
 
         return $counts;
+    }
+
+    /**
+     * Initial password for one synced account. Every account gets its own
+     * random value; there is no shared-password override or fallback.
+     */
+    protected function newAccountPassword(): string
+    {
+        return Str::random(32);
+    }
+
+    /**
+     * Give a newly synced account a one-time password-set link. The random
+     * password is never included in the email; the token is the only secret
+     * the recipient receives. A mail failure is reported but must not roll
+     * back the account that was already created.
+     */
+    protected function sendActivationEmail(User $user): void
+    {
+        if (! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            $token = Password::broker()->createToken($user);
+            $user->notify(new LmsPasswordReset($token, true));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

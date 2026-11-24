@@ -18,6 +18,7 @@ body.light-mode {
     --lms-border: rgba(35, 59, 101, .15);
     --lms-border-strong: rgba(18, 119, 169, .38);
     --lms-text-muted: #5d7090;
+    --lms-accent: #0e7490;
     --lms-accent-soft: rgba(30, 146, 201, .11);
     --lms-gold-soft: rgba(202, 138, 4, .12);
 }
@@ -76,7 +77,7 @@ body.light-mode {
 
 .sidebar-nav .nav-link:focus-visible,
 .nav-group-label:focus-visible {
-    outline: 3px solid var(--lms-accent) !important;
+    outline: 3px solid var(--bcp-focus, var(--lms-accent)) !important;
     outline-offset: 2px;
 }
 
@@ -146,7 +147,7 @@ body.light-mode .topbar {
 .theme-toggle:focus-visible,
 .avatar:focus-visible,
 .search-submit:focus-visible {
-    outline: 3px solid var(--lms-accent) !important;
+    outline: 3px solid var(--bcp-focus, var(--lms-accent)) !important;
     outline-offset: 2px;
 }
 
@@ -184,7 +185,7 @@ button[type="submit"]:hover {
 .action-btn:focus-visible,
 button[type="submit"]:focus-visible,
 a:focus-visible {
-    outline: 3px solid var(--lms-accent) !important;
+    outline: 3px solid var(--bcp-focus, var(--lms-accent)) !important;
     outline-offset: 2px;
 }
 
@@ -327,7 +328,7 @@ body.light-mode .table th, body.light-mode .user-table-wrap .table th, body.ligh
 a:focus-visible, button:focus-visible, input:focus-visible,
 select:focus-visible, textarea:focus-visible,
 .nav-link:focus-visible, .search-wrap input:focus-visible {
-    outline: 3px solid var(--bcp-ring-color, rgba(98,201,245,.55)) !important;
+    outline: 3px solid var(--bcp-focus, var(--lms-accent)) !important;
     outline-offset: 2px;
 }
 

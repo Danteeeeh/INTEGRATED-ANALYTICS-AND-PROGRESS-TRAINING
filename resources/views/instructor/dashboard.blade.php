@@ -43,6 +43,7 @@
         --id-bg:#eef2f9;--id-surface:#ffffff;--id-surface-2:#f7f9fd;--id-surface-3:#eef2f9;
         --id-line:rgba(24,44,84,.10);--id-line-strong:rgba(24,44,84,.16);
         --id-text:#16233c;--id-muted:#5a6b8a;--id-faint:#8a97b1;
+        --id-brand:#2563eb;--id-cyan:#0e7490;
         --id-shadow:0 8px 24px rgba(24,44,84,.08);
         --id-shadow-lg:0 16px 42px rgba(24,44,84,.14);
     }
@@ -51,6 +52,9 @@
                    radial-gradient(700px 380px at -10% 12%,rgba(92,201,245,.07),transparent 50%),
                    var(--id-bg);
     }
+
+    .dash-join-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:var(--id-brand);color:#fff;font-size:.72rem;font-weight:800;border:0;cursor:pointer;text-decoration:none}
+    .dash-end{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;background:rgba(251,113,133,.14);color:var(--id-rose);font-size:.72rem;font-weight:800;border:1px solid rgba(251,113,133,.34);cursor:pointer}
 </style>
 <div class="dash-scope">
     <div class="user-page">
@@ -163,10 +167,18 @@
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-chart-simple"></i> Class performance</h4>
-                <span class="panel-count">{{ count($stats['class_performance'] ?? []) }}</span>
+                @include('partials.dashboard-panel-cap', [
+                    'count' => count($stats['class_performance'] ?? []),
+                    'shown' => 6,
+                    'total' => count($stats['class_performance'] ?? []),
+                    'href' => route('instructor.dashboard.performance'),
+                    'viewAllUrl' => route('instructor.dashboard.performance'),
+                    'viewAllLabel' => 'Full report',
+                    'viewAllOnlyWhenCapped' => true,
+                ])
             </div>
             <ul class="perf-list">
-                @forelse(($stats['class_performance'] ?? []) as $perf)
+                @forelse(collect($stats['class_performance'] ?? [])->take(6) as $perf)
                     @php $pClass = $perf['class'] ?? null; @endphp
                     @if($pClass)
                         <li class="perf-item">
@@ -192,21 +204,20 @@
                     <li class="dash-list-empty"><i class="fa-solid fa-school"></i> No classes yet</li>
                 @endforelse
             </ul>
-            @if(count($stats['completion_by_class'] ?? []))
-                {{-- Completion graph: ilang students na nakatapos per class (vs. active). --}}
-                <div style="padding:0 14px 14px">
-                    <div id="completionChart" class="chart-container" style="height:230px"></div>
-                </div>
-            @endif
         </section>
 
         <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-triangle-exclamation"></i> Needs attention</h4>
-                <span class="panel-count">{{ $stats['at_risk_count'] ?? 0 }}</span>
+                @include('partials.dashboard-panel-cap', [
+                    'count' => $stats['at_risk_count'] ?? 0,
+                    'shown' => 4,
+                    'total' => $stats['at_risk_count'] ?? 0,
+                    'href' => route('instructor.dashboard.at-risk'),
+                ])
             </div>
             <ul class="dash-list">
-                @forelse(($stats['at_risk_students'] ?? []) as $enrollment)
+                @forelse(collect($stats['at_risk_students'] ?? [])->take(4) as $enrollment)
                     <li class="dash-list-item">
                         <span class="dash-list-icon i-rose"><i class="fa-solid fa-user"></i></span>
                         <div class="dash-list-body">
@@ -228,10 +239,15 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-book-open"></i> My courses</h4>
-                    <a href="{{ route('instructor.courses.index') }}" class="view-all">View all</a>
+                    @include('partials.dashboard-panel-cap', [
+                        'shown' => 3,
+                        'total' => count($stats['class_performance'] ?? []),
+                        'href' => route('instructor.dashboard.performance'),
+                        'viewAllUrl' => route('instructor.dashboard.performance'),
+                    ])
                 </div>
                 <div class="course-card-grid">
-                    @forelse(($stats['class_performance'] ?? []) as $perf)
+                    @forelse(collect($stats['class_performance'] ?? [])->take(3) as $perf)
                         @php
                             $cClass = $perf['class'] ?? null;
                             $cCourse = $cClass?->course;
@@ -269,10 +285,17 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-user-plus"></i> Recent course activity</h4>
-                    <span class="panel-count">{{ ($stats['recent_enrollments'] ?? collect())->count() }}</span>
+                    @include('partials.dashboard-panel-cap', [
+                        'count' => $stats['recent_enrollments_total'] ?? ($stats['recent_enrollments'] ?? collect())->count(),
+                        'shown' => 5,
+                        'total' => $stats['recent_enrollments_total'] ?? ($stats['recent_enrollments'] ?? collect())->count(),
+                        'href' => route('instructor.enrollments.index'),
+                        'viewAllUrl' => route('instructor.enrollments.index'),
+                        'viewAllOnlyWhenCapped' => true,
+                    ])
                 </div>
                 <ul class="dash-list">
-                    @forelse(($stats['recent_enrollments'] ?? []) as $enrollment)
+                    @forelse(collect($stats['recent_enrollments'] ?? [])->take(5) as $enrollment)
                         <li class="dash-list-item">
                             <span class="dash-list-icon i-green"><i class="fa-solid fa-user-graduate"></i></span>
                             <div class="dash-list-body">
@@ -294,7 +317,13 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-file-export"></i> Extract &amp; submit grades</h4>
-                    <a href="{{ route('instructor.grade-submissions.index') }}" class="view-all">History</a>
+                    @include('partials.dashboard-panel-cap', [
+                        'shown' => 5,
+                        'total' => $stats['grade_submissions_total'] ?? 0,
+                        'href' => route('instructor.grade-submissions.index'),
+                        'viewAllUrl' => route('instructor.grade-submissions.index'),
+                        'viewAllLabel' => 'History',
+                    ])
                 </div>
                 <div class="dash-quick-actions">
                     <a href="{{ route('instructor.grade-submissions.index') }}" class="btn btn-primary"><i class="fa-solid fa-file-export"></i> Extract grades</a>
@@ -307,7 +336,7 @@
                     <span class="dash-outcome d-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{ $stats['grade_submissions_incomplete'] ?? 0 }} incomplete</span>
                 </div>
                 <ul class="dash-list">
-                    @forelse(($stats['grade_submissions_recent'] ?? []) as $submission)
+                    @forelse(collect($stats['grade_submissions_recent'] ?? [])->take(5) as $submission)
                         <li class="dash-list-item">
                             <span class="dash-list-icon {{ $submission->status === 'submitted' ? 'i-green' : ($submission->status === 'failed' ? 'i-rose' : 'i-amber') }}">
                                 <i class="fa-solid {{ $submission->status === 'submitted' ? 'fa-circle-check' : ($submission->status === 'failed' ? 'fa-circle-exclamation' : 'fa-clock') }}"></i>
@@ -357,12 +386,21 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-list-check"></i> To-do list</h4>
-                    <span class="panel-count" id="upcoming-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+                    @include('partials.dashboard-panel-cap', [
+                        'countId' => 'upcoming-count',
+                        'count' => $stats['upcoming_activities_total'] ?? ($stats['upcoming_activities'] ?? collect())->count(),
+                        'shown' => 5,
+                        'total' => $stats['upcoming_activities_total'] ?? ($stats['upcoming_activities'] ?? collect())->count(),
+                        'href' => route('instructor.dashboard.activities'),
+                        'viewAllUrl' => route('instructor.dashboard.activities'),
+                        'viewAllLabel' => 'All activities',
+                        'viewAllOnlyWhenCapped' => true,
+                    ])
                 </div>
                 <div style="padding:14px">
                     @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
                         <div class="activity-list">
-                            @foreach($stats['upcoming_activities'] as $activity)
+                            @foreach(collect($stats['upcoming_activities'])->take(5) as $activity)
                                 <div class="activity-item">
                                     <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : ($activity['type'] === 'Exam' ? 'fa-graduation-cap' : 'fa-video')) }}" aria-hidden="true"></i>
                                     <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
@@ -381,10 +419,16 @@
     <section class="dash-panel">
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-clipboard-check"></i> To check</h4>
-            <span class="panel-count" id="to-check-count">{{ $stats['to_check_count'] ?? 0 }}</span>
+            @include('partials.dashboard-panel-cap', [
+                'countId' => 'to-check-count',
+                'count' => $stats['to_check_count'] ?? 0,
+                'shown' => 5,
+                'total' => $stats['to_check_count'] ?? 0,
+                'href' => route('instructor.dashboard.to-check'),
+            ])
         </div>
         <ul class="dash-list">
-            @forelse(($stats['to_check'] ?? []) as $item)
+            @forelse(collect($stats['to_check'] ?? [])->take(5) as $item)
                 <li class="dash-list-item">
                     <span class="dash-list-icon {{ $item['kind'] === 'Quiz' ? 'i-violet' : 'i-amber' }}">
                         <i class="fa-solid {{ $item['kind'] === 'Quiz' ? 'fa-circle-question' : 'fa-file-pen' }}"></i>
@@ -406,39 +450,229 @@
         </ul>
     </section>
 
-            {{-- ═══ UPCOMING VIRTUAL CLASSES ═══ --}}
+            {{-- ═══ LIVE ROOM STATUS (Canvas-style headcount + trend) ═══ --}}
+            @php
+                $rooms = collect($virtualRooms ?? []);
+                $liveRoom = $rooms->firstWhere('is_live', true);
+            @endphp
+            @if($liveRoom)
+                {{-- Widget styles travel with the widget, so a dashboard with no
+                     live room does not ship its markup or CSS at all. --}}
+                <style>
+                    .dash-live-room{border:1px solid rgba(91,140,255,.28)}
+                    .dash-live-room-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.7fr);gap:18px;padding:16px 18px 18px}
+                    .dash-live-room-title{margin:0 0 10px;font-weight:800;color:var(--id-text)}
+                    .dash-live-room-metrics{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+                    .dash-live-room-count{font-size:1.7rem;font-weight:850;color:var(--id-text);line-height:1}
+                    .dash-live-room-label{display:block;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--id-muted)}
+                    .dash-live-room-trend{font-size:.78rem;font-weight:700;color:var(--id-cyan)}
+                    .dash-live-room canvas{width:100%;height:64px;margin-top:12px;display:block}
+                    .dash-live-room-note{margin:10px 0 0;font-size:.68rem;color:var(--id-faint)}
+                    .dash-live-room-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:170px;overflow:auto}
+                    .dash-live-room-event{display:flex;align-items:center;gap:8px;font-size:.74rem;color:var(--id-muted);padding:5px 8px;border-radius:8px;background:var(--id-surface-2)}
+                    .dash-live-room-event.is-join{color:var(--id-green)}
+                    .dash-live-room-event.is-leave{color:var(--id-rose)}
+                    .dash-live-room-event-name{font-weight:700;color:var(--id-text)}
+                    .dash-live-count{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:3px 9px;border-radius:999px;background:rgba(52,211,153,.12);color:var(--id-green);font-size:.7rem;font-weight:800}
+                    @media(max-width:860px){.dash-live-room-grid{grid-template-columns:1fr}}
+                </style>
+                <section class="dash-panel dash-live-room"
+                    data-live-room-url="{{ $liveRoom['live_count_url'] }}"
+                    data-live-room-payload="{{ json_encode([
+                        'history' => $liveRoom['timeline']['points'] ?? [],
+                        'peak' => $liveRoom['timeline']['peak'] ?? 0,
+                        'now' => $liveRoom['timeline']['now'] ?? 0,
+                        'events' => $liveRoom['timeline']['events'] ?? [],
+                    ]) }}">
+                    <div class="dash-panel-head">
+                        <h4><i class="fa-solid fa-video"></i> Live room status</h4>
+                        <span class="panel-count">{{ $liveRoom['room']->class?->code ?? '' }}</span>
+                    </div>
+                    <div class="dash-live-room-grid">
+                        <div>
+                            <p class="dash-live-room-title">{{ $liveRoom['room']->title }}</p>
+                            <div class="dash-live-room-metrics">
+                                <div>
+                                    <span class="dash-live-room-count" data-live-room-count>{{ $liveRoom['exact'] ? '' : '~' }}{{ $liveRoom['headcount'] }}</span>
+                                    <span class="dash-live-room-label">Students in room</span>
+                                </div>
+                                <span class="dash-live-room-trend" data-live-room-trend>Peak {{ $liveRoom['timeline']['peak'] ?? 0 }} · now {{ $liveRoom['timeline']['now'] ?? 0 }}</span>
+                            </div>
+                            <canvas data-live-room-canvas height="64" aria-label="Headcount trend"></canvas>
+                            <p class="dash-live-room-note">Headcounts and the trend come from LMS attendance records; LiveKit supplies the exact live roster.</p>
+                        </div>
+                        <ul class="dash-live-room-feed" data-live-room-feed>
+                            @forelse(($liveRoom['timeline']['events'] ?? []) as $event)
+                                <li class="dash-live-room-event is-{{ $event['type'] }}">
+                                    <i class="fa-solid {{ $event['type'] === 'join' ? 'fa-right-to-bracket' : 'fa-right-from-bracket' }}"></i>
+                                    <span class="dash-live-room-event-name">{{ $event['name'] }}</span>
+                                    <span>{{ $event['type'] === 'join' ? 'joined' : 'left' }}</span>
+                                </li>
+                            @empty
+                                <li class="dash-live-room-event">No joins recorded yet.</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </section>
+            @endif
+
+            {{-- ═══ VIRTUAL CLASSES (today + upcoming) ═══ --}}
             <section class="dash-panel">
                 <div class="dash-panel-head">
-                    <h4><i class="fa-solid fa-video"></i> Upcoming virtual classes</h4>
-                    <span class="panel-count">{{ count($stats['upcoming_virtual_classes'] ?? []) }}</span>
+                    <h4><i class="fa-solid fa-video"></i> Virtual classes</h4>
+                    @include('partials.dashboard-panel-cap', [
+                        'count' => $rooms->count(),
+                        'shown' => 4,
+                        'total' => $rooms->count(),
+                        'href' => route('instructor.virtual-classes.index'),
+                        'viewAllUrl' => route('instructor.virtual-classes.index'),
+                        'viewAllLabel' => 'All virtual classes',
+                        'viewAllOnlyWhenCapped' => true,
+                    ])
                 </div>
                 <ul class="dash-list">
-                    @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
+                    @forelse($rooms->take(4) as $row)
+                        @php $vc = $row['room']; @endphp
                         <li class="dash-list-item">
                             <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
                             <div class="dash-list-body">
-                                <p class="dash-list-title">{{ $vc->title }}</p>
+                                <p class="dash-list-title">
+                                    {{ $vc->title }}
+                                    @if($row['is_live'])
+                                        <span class="dash-meta-chip m-green">Live now</span>
+                                    @endif
+                                </p>
                                 <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }} · {{ $vc->class?->code ?? '' }}</p>
+                                @if($row['is_live'])
+                                    <span class="dash-live-count" data-live-count-url="{{ $row['live_count_url'] }}"
+                                          data-live-participants="{{ json_encode($row['participants']) }}"
+                                          data-viewer-id="{{ auth()->id() }}">
+                                        <i class="fa-solid fa-users"></i>
+                                        <span data-live-count-text>{{ $row['exact'] ? '' : '~' }}{{ $row['headcount'] }} in room</span>
+                                    </span>
+                                @endif
                             </div>
                             <div class="dash-list-meta">
                                 <span class="dash-meta-chip m-blue">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->format('M j, g:i A') }}</span>
-                                <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
+                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">
+                                    @if($row['is_live'])
+                                        <a href="{{ route('instructor.classes.virtual_classes.room', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}" class="dash-join-btn">
+                                            <i class="fa-solid fa-video"></i> Enter
+                                        </a>
+                                        <form method="POST" action="{{ route('instructor.classes.virtual_classes.end', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}" onsubmit="return confirm('End this class for everyone?');" style="display:inline">
+                                            @csrf
+                                            <button type="submit" class="dash-end"><i class="fa-solid fa-stop"></i> End</button>
+                                        </form>
+                                    @elseif($row['can_start'])
+                                        <form method="POST" action="{{ route('instructor.classes.virtual_classes.start', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}" style="display:inline">
+                                            @csrf
+                                            <button type="submit" class="dash-join-btn"><i class="fa-solid fa-play"></i> Start</button>
+                                        </form>
+                                    @endif
+                                    <a href="{{ route('instructor.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}" class="dash-list-date">Details</a>
+                                </div>
                             </div>
                         </li>
                     @empty
                         <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
                     @endforelse
                 </ul>
+                <script>
+                (function () {
+                    const POLL_MS = 20000;
+
+                    const esc = (value) => String(value == null ? '' : value)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    function drawTrend(canvas, points) {
+                        if (!canvas || !canvas.getContext || !points || !points.length) return;
+                        const ctx = canvas.getContext('2d');
+                        const width = canvas.width = canvas.clientWidth || 320;
+                        const height = canvas.height;
+                        const max = Math.max(1, ...points.map((p) => Number(p.count) || 0));
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.beginPath();
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#34d399';
+                        points.forEach((point, index) => {
+                            const x = points.length === 1 ? 0 : (index / (points.length - 1)) * width;
+                            const y = height - ((Number(point.count) || 0) / max) * (height - 6) - 3;
+                            index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                        });
+                        ctx.stroke();
+                    }
+
+                    function paintRoom(root, data) {
+                        const count = root.querySelector('[data-live-room-count]');
+                        if (count) count.textContent = (data.exact ? '' : '~') + (data.count ?? 0);
+
+                        const trend = root.querySelector('[data-live-room-trend]');
+                        if (trend) trend.textContent = 'Peak ' + (data.peak ?? 0) + ' · now ' + (data.now ?? 0);
+
+                        drawTrend(root.querySelector('canvas[data-live-room-canvas]'), data.history || []);
+
+                        const feed = root.querySelector('[data-live-room-feed]');
+                        if (feed && Array.isArray(data.events)) {
+                            feed.innerHTML = data.events.length
+                                ? data.events.map((event) => '<li class="dash-live-room-event is-' + esc(event.type) + '">'
+                                    + '<span class="dash-live-room-event-name">' + esc(event.name) + '</span>'
+                                    + '<span>' + (event.type === 'join' ? 'joined' : 'left') + '</span></li>').join('')
+                                : '<li class="dash-live-room-event">No joins recorded yet.</li>';
+                        }
+                    }
+
+                    function paintChip(chip, data) {
+                        const text = chip.querySelector('[data-live-count-text]');
+                        if (text) text.textContent = (data.exact ? '' : '~') + (data.count ?? 0) + ' in room';
+                    }
+
+                    async function poll(url) {
+                        const response = await fetch(url, {
+                            headers: { 'Accept': 'application/json' },
+                            credentials: 'same-origin',
+                        });
+                        if (!response.ok) throw new Error('poll failed');
+                        return response.json();
+                    }
+
+                    document.querySelectorAll('[data-live-room-url]').forEach((root) => {
+                        const payload = root.dataset.liveRoomPayload;
+                        if (payload) {
+                            try {
+                                const initial = JSON.parse(payload);
+                                const trend = root.querySelector('[data-live-room-trend]');
+                                if (trend) trend.textContent = 'Peak ' + (initial.peak ?? 0) + ' · now ' + (initial.now ?? 0);
+                                drawTrend(root.querySelector('canvas[data-live-room-canvas]'), initial.history || []);
+                            } catch (_) { /* keep server-rendered values */ }
+                        }
+
+                        setInterval(async () => {
+                            try { paintRoom(root, await poll(root.dataset.liveRoomUrl)); } catch (_) { /* offline */ }
+                        }, POLL_MS);
+                    });
+
+                    document.querySelectorAll('[data-live-count-url]').forEach((chip) => {
+                        setInterval(async () => {
+                            try { paintChip(chip, await poll(chip.dataset.liveCountUrl)); } catch (_) { /* offline */ }
+                        }, POLL_MS);
+                    });
+                })();
+                </script>
             </section>
 
             {{-- ═══ RECENT NOTIFICATIONS ═══ --}}
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-bullhorn"></i> Recent notifications</h4>
-                    <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
+                    @include('partials.dashboard-panel-cap', [
+                        'count' => $stats['total_announcements'] ?? 0,
+                        'shown' => 3,
+                        'total' => $stats['total_announcements'] ?? 0,
+                        'href' => route('instructor.announcements.index'),
+                    ])
                 </div>
                 <ul class="announce-feed">
-                    @forelse(($stats['recent_announcements'] ?? []) as $announcement)
+                    @forelse(collect($stats['recent_announcements'] ?? [])->take(3) as $announcement)
                         <li class="announce-item">
                             <div class="announce-date">
                                 <span class="ad-day">{{ $announcement->created_at?->format('j') }}</span>
@@ -490,29 +724,63 @@
             <p class="analytics-hint" style="margin:0 0 12px;font-size:.72rem;color:var(--dash-muted,#98a7c4);">
                 Pick a metric above and press <strong>Load</strong>. Only the selected card renders data.
             </p>
+            @if(count($stats['completion_by_class'] ?? []))
+                {{-- Wide enough for one readable row per class; the old slot was
+                     inside the narrow class-performance column, which forced
+                     Chart.js to rotate every label. --}}
+                <div class="analytics-card" style="margin-bottom:var(--chart-gap)">
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-chart-column"></i> Completion by class</h5>
+                            <p class="chart-card-sub">Students completed vs. active per class · AA enrollment status</p>
+                        </div>
+                    </div>
+                    <div id="completionChart" class="chart-container chart-tall" data-chart-label="Students completed versus active per class"></div>
+                </div>
+            @endif
             <div class="analytics-grid">
                 <div class="analytics-card" data-analytics-type="performance">
-                    <h5><i class="fa-solid fa-chart-line"></i> Grade Distribution</h5>
-                    <div id="gradeDistributionChart" class="chart-container"></div>
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-chart-line"></i> Grade Distribution</h5>
+                            <p class="chart-card-sub">Released LMS scores only · A–F bands</p>
+                        </div>
+                    </div>
+                    <div id="gradeDistributionChart" class="chart-container" data-chart-label="Grade distribution by letter band"></div>
                 </div>
                 <div class="analytics-card" data-analytics-type="enrollment">
-                    <h5><i class="fa-solid fa-users"></i> Enrollment Trends</h5>
-                    <div id="enrollmentTrendsChart" class="chart-container"></div>
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-users"></i> Enrollment Trends</h5>
+                            <p class="chart-card-sub">New enrollments in the selected period · running total</p>
+                        </div>
+                    </div>
+                    <div id="enrollmentTrendsChart" class="chart-container" data-chart-label="Enrollment trend"></div>
                 </div>
                 <div class="analytics-card" data-analytics-type="attendance">
-                    <h5><i class="fa-solid fa-clipboard-check"></i> Attendance Overview</h5>
-                    <div id="attendanceOverviewChart" class="chart-container"></div>
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-clipboard-check"></i> Attendance Overview</h5>
+                            <p class="chart-card-sub">Present + late over all recorded sessions</p>
+                        </div>
+                    </div>
+                    <div id="attendanceOverviewChart" class="chart-container" data-chart-label="Attendance rate per class"></div>
                 </div>
                 <div class="analytics-card" data-analytics-type="engagement">
-                    <h5><i class="fa-solid fa-comments"></i> Engagement Metrics</h5>
-                    <div id="engagementMetricsChart" class="chart-container"></div>
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-comments"></i> Engagement Metrics</h5>
+                            <p class="chart-card-sub">Announcements, virtual classes and participation</p>
+                        </div>
+                    </div>
+                    <div id="engagementMetricsChart" class="chart-container" data-chart-label="Engagement metrics"></div>
                 </div>
             </div>
         </div>
     </section>
 
     {{-- ═══ ENHANCED DASHBOARD FUNCTIONALITY ═══ --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @vite('resources/js/charts.js')
     <script>
         // Palette-safe chart text colours. These are the exact values the
         // --dash-* tokens already hold for each theme (dark default / light
@@ -523,6 +791,7 @@
         const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
         const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
         const CHART_SLICE_BORDER = isLightTheme ? '#ffffff' : '#151c2c';
+        function chartPalette() { return LMSCharts.palette(); }
 
         // Dropdown functionality
         document.querySelectorAll('.dropdown').forEach(dropdown => {
@@ -542,15 +811,16 @@
 
         // Completion graph — ilang students na nakatapos (vs. active) per class.
         // Server-rendered data; no extra request needed to draw it.
-        (function renderCompletionChart() {
+        document.addEventListener('DOMContentLoaded', function () {
             const container = document.getElementById('completionChart');
             if (!container || typeof Chart === 'undefined') return;
 
             const completionData = @json($stats['completion_by_class'] ?? []);
             if (!completionData.length) return;
 
+            const palette = chartPalette();
             const style = getComputedStyle(document.querySelector('.main:has(.dash-scope) .content') || document.body);
-            const axisColor = style.getPropertyValue('--id-faint').trim() || '#72809e';
+            const axisColor = style.getPropertyValue('--id-muted').trim() || '#9aa9c7';
             const gridColor = style.getPropertyValue('--id-line').trim() || 'rgba(140,163,210,.14)';
 
             container.innerHTML = '<canvas id="completionChartCanvas"></canvas>';
@@ -562,14 +832,16 @@
                         {
                             label: 'Completed',
                             data: completionData.map(d => d.completed),
-                            backgroundColor: 'rgba(52, 211, 153, .85)',
+                            backgroundColor: LMSCharts.alpha(palette.green, .85),
                             borderRadius: 6,
+                            maxBarThickness: 18,
                         },
                         {
                             label: 'Active',
                             data: completionData.map(d => d.active),
-                            backgroundColor: 'rgba(91, 140, 255, .55)',
+                            backgroundColor: LMSCharts.alpha(palette.brand, .55),
                             borderRadius: 6,
+                            maxBarThickness: 18,
                         },
                     ],
                 },
@@ -577,30 +849,37 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
                         x: {
                             stacked: true,
                             beginAtZero: true,
                             ticks: { color: axisColor, precision: 0 },
                             grid: { color: gridColor },
+                            border: { display: false },
                         },
                         y: {
                             stacked: true,
-                            ticks: { color: axisColor },
+                            ticks: { color: axisColor, autoSkip: false },
                             grid: { display: false },
                         },
                     },
                     plugins: {
-                        legend: { labels: { color: axisColor } },
-                        title: {
-                            display: true,
-                            text: 'Students completed vs. active per class',
-                            color: axisColor,
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                // The header already says what the chart is; the
+                                // tooltip adds the full course name and the
+                                // class size the stacked bars add up to.
+                                title: (items) => completionData[items[0].dataIndex].course,
+                                label: (c) => ` ${c.dataset.label}: ${c.parsed.x}`,
+                                footer: (items) => `${completionData[items[0].dataIndex].total} active or completed`,
+                            },
                         },
                     },
                 },
             });
-        })();
+        });
 
         // Real-time dashboard refresh
         async function refreshDashboard() {
@@ -658,8 +937,8 @@
                         toCheckEl.textContent = stats.to_check_count;
                     }
                     const upcomingCountEl = document.getElementById('upcoming-count');
-                    if (upcomingCountEl && stats.upcoming_assignments_count !== undefined && stats.upcoming_quizzes_count !== undefined) {
-                        upcomingCountEl.textContent = stats.upcoming_assignments_count + stats.upcoming_quizzes_count;
+                    if (upcomingCountEl && stats.upcoming_activities_total !== undefined) {
+                        upcomingCountEl.textContent = stats.upcoming_activities_total;
                     }
                 }
             } catch (error) {
@@ -817,6 +1096,12 @@
 
             destroyChart(cardId);
 
+            // The grade summary lives beside the fixed-height chart container,
+            // not inside it. Clear it when the card switches to an idle state.
+            container.parentElement
+                ?.querySelectorAll('.average-grade')
+                .forEach((summary) => summary.remove());
+
             container.innerHTML = `
                 <div class="chart-placeholder">
                     <i class="fa-solid ${icon || 'fa-chart-simple'}"></i>
@@ -916,11 +1201,21 @@
             const container = document.getElementById('enrollmentTrendsChart');
             destroyChart('enrollmentTrendsChart');
 
-            const recent = analytics.recent_enrollments || [];
+            const trend = analytics.enrollment_trend || [];
+            const palette = chartPalette();
 
-            // Cumulative enrollment counts — meaningful trend data
-            const counts = [];
-            recent.forEach((_, i) => counts.push(i + 1));
+            if (!trend.length) {
+                if (window.LMSCharts) {
+                    LMSCharts.empty(container, {
+                        message: 'No enrollments in this period',
+                        hint: 'New AA-synced enrollments will appear here.',
+                        icon: 'fa-user-plus',
+                    });
+                } else {
+                    container.innerHTML = '<div class="chart-placeholder"><i class="fa-solid fa-user-plus"></i><p>No enrollments in this period</p></div>';
+                }
+                return;
+            }
 
             container.innerHTML = '<canvas id="enrollmentChartCanvas"></canvas>';
             const ctx = document.getElementById('enrollmentChartCanvas');
@@ -928,16 +1223,16 @@
             chartInstances['enrollmentTrendsChart'] = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: recent.length ? recent.map(e => e.date || '') : ['No data'],
+                    labels: trend.map(t => t.label),
                     datasets: [{
-                        label: 'Enrollments',
-                        data: counts.length ? counts : [0],
+                        label: 'Running total',
+                        data: trend.map(t => t.cumulative),
                         fill: true,
-                        borderColor: '#62c9f5',
-                        backgroundColor: 'rgba(98, 201, 245, 0.15)',
+                        borderColor: palette.cyan,
+                        backgroundColor: LMSCharts.alpha(palette.cyan, 0.15),
                         tension: 0.4,
                         pointRadius: 4,
-                        pointBackgroundColor: '#62c9f5'
+                        pointBackgroundColor: palette.cyan
                     }]
                 },
                 options: {
@@ -948,8 +1243,8 @@
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
-                                    const e = recent[context.dataIndex];
-                                    return e ? `${e.student} — ${e.course}` : '';
+                                    const row = trend[context.dataIndex];
+                                    return row ? ` ${row.count} new · ${context.parsed.y} total` : '';
                                 }
                             }
                         }
@@ -970,7 +1265,7 @@
             summary.className = 'analytics-summary';
             summary.innerHTML = `
                 <div class="summary-item">
-                    <span class="summary-label">Total Enrollments</span>
+                    <span class="summary-label">Active enrollments</span>
                     <span class="summary-value">${analytics.total_enrollments}</span>
                 </div>
                 <div class="summary-item">
@@ -978,11 +1273,11 @@
                     <span class="summary-value">${analytics.completed_enrollments}</span>
                 </div>
                 <div class="summary-item">
-                    <span class="summary-label">Completion Rate</span>
+                    <span class="summary-label">Avg. live progress</span>
                     <span class="summary-value">${analytics.completion_rate.toFixed(1)}%</span>
                 </div>
                 <div class="summary-item">
-                    <span class="summary-label">At-Risk Students</span>
+                    <span class="summary-label">At-risk students</span>
                     <span class="summary-value warning">${analytics.at_risk_students}</span>
                 </div>
             `;
@@ -993,6 +1288,7 @@
             const container = document.getElementById('gradeDistributionChart');
             destroyChart('gradeDistributionChart');
             const distribution = analytics.grade_distribution;
+            const palette = chartPalette();
 
             // Doughnut chart para sa grade distribution
             container.innerHTML = '<canvas id="gradeChartCanvas"></canvas>';
@@ -1009,7 +1305,7 @@
                     labels: buckets.map((k, i) => `${ranges[i]} — ${Number(distribution[k]) || 0}`),
                     datasets: [{
                         data: buckets.map(k => Number(distribution[k]) || 0),
-                        backgroundColor: ['#34d399', '#62c9f5', '#fbbf24', '#fb923c', '#fb7185'],
+                        backgroundColor: [palette.green, palette.cyan, palette.amber, palette.orange, palette.rose],
                         borderColor: CHART_SLICE_BORDER,
                         borderWidth: 2
                     }]
@@ -1034,7 +1330,12 @@
                 }
             });
 
-            // Average grade line
+            // Average grade line. Keep it outside the fixed-height canvas
+            // container so the chart and summary are not clipped by the card.
+            container.parentElement
+                ?.querySelectorAll('.average-grade')
+                .forEach((summary) => summary.remove());
+
             const avgWrap = document.createElement('div');
             avgWrap.className = 'average-grade';
 
@@ -1050,12 +1351,13 @@
                     <span class="avg-sub">Release and grade items to build the distribution</span>
                 `;
 
-            container.appendChild(avgWrap);
+            container.parentElement?.appendChild(avgWrap);
         }
 
         function displayAttendanceAnalytics(analytics) {
             const container = document.getElementById('attendanceOverviewChart');
             destroyChart('attendanceOverviewChart');
+            const palette = chartPalette();
 
             const byClass = analytics.attendance_by_class || [];
             container.innerHTML = '<canvas id="attendanceChartCanvas"></canvas>';
@@ -1066,10 +1368,10 @@
                 data: {
                     labels: byClass.length ? byClass.map(c => c.class_code) : ['No data'],
                     datasets: [{
-                        label: 'Attendance Rate %',
+                        label: 'Attendance rate (present + late)',
                         data: byClass.length ? byClass.map(c => c.attendance_rate.toFixed(1)) : [0],
-                        backgroundColor: 'rgba(52, 211, 153, 0.6)',
-                        borderColor: '#34d399',
+                        backgroundColor: LMSCharts.alpha(palette.green, 0.6),
+                        borderColor: palette.green,
                         borderWidth: 1,
                         borderRadius: 6,
                         maxBarThickness: 40
@@ -1085,7 +1387,7 @@
                             callbacks: {
                                 label: (context) => {
                                     const cls = byClass[context.dataIndex];
-                                    return cls ? ` ${cls.attendance_rate.toFixed(1)}% (${cls.total_records} records)` : '';
+                                    return cls ? ` ${cls.attendance_rate.toFixed(1)}% · ${cls.present} present, ${cls.late} late, ${cls.absent} absent, ${cls.excused} excused` : '';
                                 }
                             }
                         }
@@ -1107,7 +1409,7 @@
             summary.className = 'attendance-summary';
             summary.innerHTML = `
                 <div class="summary-item">
-                    <span class="summary-label">Average Attendance Rate</span>
+                    <span class="summary-label">Average attendance (present + late)</span>
                     <span class="summary-value">${analytics.average_attendance_rate.toFixed(1)}%</span>
                 </div>
                 <div class="summary-item">
@@ -1206,15 +1508,15 @@
         .dash-scope .search-no-results,.dash-scope .search-loading{padding:20px;text-align:center;color:var(--id-muted)}
         .dash-scope .search-loading i{margin-right:8px}
         .dash-scope .type-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:750;letter-spacing:.03em;margin-left:8px;vertical-align:middle}
-        .dash-scope .type-badge.type-student{background:rgba(52,211,153,.13);color:#6ee7b7}
-        .dash-scope .type-badge.type-course{background:rgba(91,140,255,.15);color:#9db9ff}
-        .dash-scope .type-badge.type-class{background:rgba(92,201,245,.13);color:#7dd6f8}
-        .dash-scope .type-badge.type-assignment{background:rgba(251,191,36,.13);color:#fcd34d}
-        .dash-scope .type-badge.type-quiz{background:rgba(167,139,250,.15);color:#c4b5fd}
+        .dash-scope .type-badge.type-student{background:rgba(52,211,153,.13);color:var(--dash-status-active)}
+        .dash-scope .type-badge.type-course{background:rgba(91,140,255,.15);color:var(--dash-status-info)}
+        .dash-scope .type-badge.type-class{background:rgba(92,201,245,.13);color:var(--dash-cyan)}
+        .dash-scope .type-badge.type-assignment{background:rgba(251,191,36,.13);color:var(--dash-status-pending)}
+        .dash-scope .type-badge.type-quiz{background:rgba(167,139,250,.15);color:var(--dash-accent)}
         .dash-scope .status-badge{padding:2px 8px;border-radius:12px;font-size:12px;font-weight:500}
-        .dash-scope .status-badge.published{background:rgba(52,211,153,.13);color:#6ee7b7}
-        .dash-scope .status-badge.draft{background:rgba(251,191,36,.13);color:#fcd34d}
-        .dash-scope .status-badge.active{background:rgba(91,140,255,.15);color:#9db9ff}
+        .dash-scope .status-badge.published{background:rgba(52,211,153,.13);color:var(--dash-status-active)}
+        .dash-scope .status-badge.draft{background:rgba(251,191,36,.13);color:var(--dash-status-pending)}
+        .dash-scope .status-badge.active{background:rgba(91,140,255,.15);color:var(--dash-status-info)}
 
         /* Stat tiles are rendered by x-user-stat-card (`.user-stat-card`),
            already fully styled by user-ui-system.css; the old
@@ -1227,32 +1529,22 @@
         .dash-scope .dash-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 20px;border-bottom:1px solid var(--id-line)}
         .dash-scope .dash-panel-head h4{margin:0;color:var(--id-text);font-size:.78rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;display:flex;align-items:center;gap:9px}
         .dash-scope .dash-panel-head h4 i{color:var(--id-brand)}
-        .dash-scope .dash-panel-head .panel-count{min-width:26px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(91,140,255,.14);color:var(--id-brand);font-size:.66rem;font-weight:800;padding:0 8px}
-        body.light-mode .dash-scope .dash-panel-head .panel-count{color:#1d4ed8}
+        .dash-scope .dash-panel-head .panel-count{min-width:26px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(91,140,255,.14);color:var(--dash-accent);font-size:.66rem;font-weight:800;padding:0 8px}
 
         .dash-scope .dash-list-item{display:flex;align-items:center;gap:12px;padding:12px 12px;border-radius:12px;transition:background .18s}
         .dash-scope .dash-list-item:hover{background:rgba(91,140,255,.07)}
         .dash-scope .dash-list-item+.dash-list-item{border-top:1px solid var(--id-line)}
         .dash-scope .dash-list-icon{display:grid;place-items:center;width:37px;height:37px;flex:none;border-radius:11px;font-size:.85rem;background:rgba(91,140,255,.13);color:var(--id-brand)}
-        .dash-scope .dash-list-icon.i-violet{background:rgba(167,139,250,.14);color:#c4b5fd}
-        .dash-scope .dash-list-icon.i-green{background:rgba(52,211,153,.13);color:#6ee7b7}
-        .dash-scope .dash-list-icon.i-rose{background:rgba(251,113,133,.13);color:#fda4af}
-        .dash-scope .dash-list-icon.i-amber{background:rgba(251,191,36,.13);color:#fcd34d}
-        body.light-mode .dash-scope .dash-list-icon{color:#1d4ed8}
-        body.light-mode .dash-scope .dash-list-icon.i-violet{color:#7c3aed}
-        body.light-mode .dash-scope .dash-list-icon.i-green{color:#059669}
-        body.light-mode .dash-scope .dash-list-icon.i-rose{color:#e11d48}
-        body.light-mode .dash-scope .dash-list-icon.i-amber{color:#b45309}
+        .dash-scope .dash-list-icon.i-violet{background:rgba(167,139,250,.14);color:var(--dash-accent)}
+        .dash-scope .dash-list-icon.i-green{background:rgba(52,211,153,.13);color:var(--dash-status-active)}
+        .dash-scope .dash-list-icon.i-rose{background:rgba(251,113,133,.13);color:var(--dash-status-danger)}
+        .dash-scope .dash-list-icon.i-amber{background:rgba(251,191,36,.13);color:var(--dash-status-pending)}
         .dash-scope .dash-meta-chip{padding:3px 9px;border-radius:999px;font-size:.64rem;font-weight:800;letter-spacing:.03em;white-space:nowrap}
-        .dash-scope .dash-meta-chip.m-green{color:#6ee7b7;background:rgba(52,211,153,.13)}
-        .dash-scope .dash-meta-chip.m-amber{color:#fcd34d;background:rgba(251,191,36,.13)}
-        .dash-scope .dash-meta-chip.m-rose{color:#fda4af;background:rgba(251,113,133,.13)}
-        .dash-scope .dash-meta-chip.m-blue{color:#9db9ff;background:rgba(91,140,255,.14)}
-        .dash-scope .dash-meta-chip.m-gray{color:var(--id-muted);background:rgba(148,163,184,.13)}
-        body.light-mode .dash-scope .dash-meta-chip.m-green{color:#047857}
-        body.light-mode .dash-scope .dash-meta-chip.m-amber{color:#b45309}
-        body.light-mode .dash-scope .dash-meta-chip.m-rose{color:#be123c}
-        body.light-mode .dash-scope .dash-meta-chip.m-blue{color:#1d4ed8}
+        .dash-scope .dash-meta-chip.m-green{color:var(--dash-status-active);background:rgba(52,211,153,.13)}
+        .dash-scope .dash-meta-chip.m-amber{color:var(--dash-status-pending);background:rgba(251,191,36,.13)}
+        .dash-scope .dash-meta-chip.m-rose{color:var(--dash-status-danger);background:rgba(251,113,133,.13)}
+        .dash-scope .dash-meta-chip.m-blue{color:var(--dash-status-info);background:rgba(91,140,255,.14)}
+        .dash-scope .dash-meta-chip.m-gray{color:var(--dash-status-inactive);background:rgba(148,163,184,.13)}
         .dash-scope .dash-list-empty{padding:26px 18px;text-align:center;color:var(--id-muted);font-size:.82rem}
         .dash-scope .dash-list-empty i{margin-right:8px;opacity:.7}
 
@@ -1260,8 +1552,7 @@
         .dash-scope .perf-item{padding:12px 4px}
         .dash-scope .perf-item+.perf-item{border-top:1px solid var(--id-line)}
         .dash-scope .perf-name{color:var(--id-text);font-size:.83rem;font-weight:700}
-        .dash-scope .perf-score{color:var(--id-brand);font-size:.74rem;font-weight:800}
-        body.light-mode .dash-scope .perf-score{color:#1d4ed8}
+        .dash-scope .perf-score{color:var(--dash-accent);font-size:.74rem;font-weight:800}
         .dash-scope .perf-bar{height:7px;border-radius:999px;background:var(--id-surface-3);overflow:hidden;margin-top:8px}
         .dash-scope .perf-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1a3fb5,#5b8cff,#5cc9f5);transition:width .6s ease}
         .dash-scope .perf-meta{color:var(--id-muted);font-size:.66rem}
@@ -1270,51 +1561,14 @@
         .dash-scope .announce-item{display:flex;gap:13px;padding:12px 12px;border-radius:12px;transition:background .18s}
         .dash-scope .announce-item:hover{background:rgba(91,140,255,.07)}
         .dash-scope .announce-item+.announce-item{border-top:1px solid var(--id-line)}
-        .dash-scope .announce-date{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:48px;height:48px;border-radius:13px;background:linear-gradient(150deg,rgba(91,140,255,.2),rgba(92,201,245,.1));border:1px solid rgba(91,140,255,.25);color:var(--id-brand)}
+        .dash-scope .announce-date{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:48px;height:48px;border-radius:13px;background:linear-gradient(150deg,rgba(91,140,255,.2),rgba(92,201,245,.1));border:1px solid rgba(91,140,255,.25);color:var(--dash-accent)}
         .dash-scope .announce-date .ad-day{color:var(--id-text);font-size:1.05rem;font-weight:800;line-height:1}
         .dash-scope .announce-date .ad-mon{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
-        body.light-mode .dash-scope .announce-date{color:#1d4ed8}
         .dash-scope .announce-title{color:var(--id-text)}
 
-        /* ── Analytics ────────────────────────────────────── */
-        .dash-scope .dash-analytics{margin:0;padding:22px;background:var(--id-surface);border:1px solid var(--id-line);border-radius:18px;box-shadow:var(--id-shadow)}
-        .dash-scope .dash-analytics .dash-panel-head{padding:0 0 16px;border-bottom:1px solid var(--id-line);margin-bottom:20px}
-        .dash-scope .analytics-toast{display:none;margin-bottom:16px;padding:10px 14px;border-radius:10px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#6ee7b7;font-size:.8rem;font-weight:650}
-        .dash-scope .analytics-toast.show{display:block;animation:idFadeInOut 3s ease}
-        @keyframes idFadeInOut{0%{opacity:0;transform:translateY(-4px)}10%,85%{opacity:1;transform:translateY(0)}100%{opacity:0}}
-        .dash-scope .analytics-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-        .dash-scope .analytics-select{padding:8px 12px;border:1px solid var(--id-line-strong);border-radius:9px;background:var(--id-surface-3);color:var(--id-text);cursor:pointer;font-size:13.5px}
-        .dash-scope .analytics-btn{padding:9px 17px;background:linear-gradient(135deg,#3a6af0,#1a3fb5);color:#fff;border:1px solid rgba(120,160,255,.4);border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:700;transition:filter .18s,transform .16s}
-        .dash-scope .analytics-btn:hover:not(:disabled){filter:brightness(1.15);transform:translateY(-1px)}
-        .dash-scope .analytics-btn:disabled{opacity:.7;cursor:default}
-        .dash-scope .analytics-content{margin-top:20px}
-        .dash-scope .analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
-        .dash-scope .analytics-card{background:var(--id-surface-2);border:1px solid var(--id-line);border-radius:14px;padding:20px}
-        .dash-scope .analytics-card h5{margin:0 0 16px;font-size:.82rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--id-text);display:flex;align-items:center;gap:8px}
-        .dash-scope .analytics-card h5 i{color:var(--id-brand)}
-        .dash-scope .chart-container{position:relative;height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-        .dash-scope .chart-container canvas{max-height:100%}
-        .dash-scope .chart-placeholder{text-align:center;color:var(--id-muted)}
-        .dash-scope .chart-placeholder i{font-size:44px;margin-bottom:12px;color:var(--id-line-strong)}
-        .dash-scope .chart-placeholder p{margin:0;font-size:14px}
-        .dash-scope .analytics-summary,.dash-scope .attendance-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;margin-top:18px;padding-top:16px;border-top:1px solid var(--id-line)}
-        .dash-scope .summary-item{display:flex;flex-direction:column;gap:4px}
-        .dash-scope .summary-label{font-size:11px;color:var(--id-muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-        .dash-scope .summary-value{font-size:21px;font-weight:800;color:var(--id-text)}
-        .dash-scope .summary-value.warning{color:var(--id-rose)}
-        .dash-scope .average-grade{display:flex;flex-direction:column;gap:2px;margin-top:16px;padding-top:16px;border-top:1px solid var(--id-line);width:100%;text-align:center}
-        .dash-scope .avg-label{font-size:14px;font-weight:700;color:var(--id-text)}
-        .dash-scope .avg-sub{font-size:12px;color:var(--id-muted)}
+        /* Analytics cards, charts and KPI tiles come from resources/css/charts.css. */
         .dash-scope .attendance-bar{background:var(--id-surface-3)}
         .dash-scope .grade-progress{background:var(--id-surface-3)}
-        .dash-scope .metric-item{display:flex;align-items:center;gap:12px;padding:13px;background:var(--id-surface-2);border:1px solid var(--id-line);border-radius:11px}
-        .dash-scope .metric-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(91,140,255,.14);border-radius:12px;color:var(--id-brand);font-size:16px}
-        body.light-mode .dash-scope .metric-icon{color:#1d4ed8}
-        .dash-scope .metric-label{flex:1;font-size:14px;color:var(--id-muted)}
-        .dash-scope .metric-value{font-size:18px;font-weight:750;color:var(--id-text)}
-        .dash-scope .engagement-metrics{display:flex;flex-direction:column;gap:12px}
-        .dash-scope .grade-label,.dash-scope .class-label{color:var(--id-muted)}
-        .dash-scope .grade-count,.dash-scope .attendance-rate{color:var(--id-text)}
 
         /* ── Dropdown ─────────────────────────────────────── */
         .dash-scope .dropdown{position:relative;display:inline-block}

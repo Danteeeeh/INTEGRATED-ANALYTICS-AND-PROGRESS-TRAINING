@@ -43,6 +43,12 @@ class FileController extends Controller
                 ],
             ], 201);
 
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

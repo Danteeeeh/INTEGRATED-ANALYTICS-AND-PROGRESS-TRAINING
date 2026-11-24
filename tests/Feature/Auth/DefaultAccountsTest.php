@@ -55,4 +55,58 @@ class DefaultAccountsTest extends TestCase
         Mail::assertNothingSent();
         $this->assertDatabaseCount('login_verifications', 0);
     }
+
+    public function test_new_accounts_are_created_active_and_verified(): void
+    {
+        $this->seed(UserSeeder::class);
+
+        $owner = User::where('email', 'johncedrickdayandante6@gmail.com')->firstOrFail();
+
+        $this->assertTrue($owner->isActive());
+        $this->assertNotNull($owner->email_verified_at);
+    }
+
+    public function test_redeploying_the_seeder_does_not_reactivate_or_reverify_an_existing_account(): void
+    {
+        $this->seed(UserSeeder::class);
+
+        $owner = User::where('email', 'johncedrickdayandante6@gmail.com')->firstOrFail();
+        $owner->status = 'inactive';
+        $owner->email_verified_at = null;
+        $owner->save();
+
+        // `release.sh` runs `migrate --seed` on every deploy.
+        $this->seed(UserSeeder::class);
+
+        $fresh = $owner->fresh();
+        $this->assertSame('inactive', $fresh->status);
+        $this->assertNull($fresh->email_verified_at);
+    }
+
+    public function test_redeploying_the_seeder_does_not_revert_profile_edits(): void
+    {
+        $this->seed(UserSeeder::class);
+
+        $owner = User::where('email', 'johncedrickdayandante6@gmail.com')->firstOrFail();
+        $owner->update(['first_name' => 'Renamed', 'identifier' => 'OTP-9999']);
+
+        $this->seed(UserSeeder::class);
+
+        $fresh = $owner->fresh();
+        $this->assertSame('Renamed', $fresh->first_name);
+        $this->assertSame('OTP-9999', $fresh->identifier);
+    }
+
+    public function test_seeding_does_not_collide_with_a_soft_deleted_account(): void
+    {
+        $this->seed(UserSeeder::class);
+
+        // `php artisan lms:demo-accounts delete` leaves the row, and its unique
+        // email, behind. The next deploy seeds again — that must not throw.
+        User::where('email', 'admin@lms.local')->firstOrFail()->delete();
+
+        $this->seed(UserSeeder::class);
+
+        $this->assertSoftDeleted('users', ['email' => 'admin@lms.local']);
+    }
 }

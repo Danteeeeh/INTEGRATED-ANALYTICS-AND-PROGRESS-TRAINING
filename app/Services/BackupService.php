@@ -12,16 +12,42 @@ use RuntimeException;
  * Database backup / restore for the LMS.
  *
  * Uses `mysqldump` when available (XAMPP ships it), otherwise falls back to a
- * portable JSON snapshot of every table. Backups live in storage/app/backups.
+ * portable JSON snapshot of every table. Backups live in the configured local
+ * storage root (storage/app/backups by default, or LMS_STORAGE_PATH/backups on
+ * HostForge).
  */
 class BackupService
 {
     protected string $backupDir;
 
-    public function __construct()
+    /**
+     * Connection to read/write. Null means the application's default.
+     * The restore rehearsal passes a temporary SQLite connection here so a
+     * backup can be proven restorable without touching production data.
+     */
+    protected ?string $connectionName;
+
+    public function __construct(?string $connectionName = null, ?string $backupDir = null)
     {
-        $this->backupDir = storage_path('app/backups');
+        $this->connectionName = $connectionName;
+
+        $root = rtrim(
+            (string) config('filesystems.disks.local.root', storage_path('app')),
+            '/\\'
+        );
+
+        $this->backupDir = $backupDir ?: $root.'/backups';
         File::ensureDirectoryExists($this->backupDir);
+    }
+
+    protected function db()
+    {
+        return DB::connection($this->connectionName);
+    }
+
+    protected function schema()
+    {
+        return Schema::connection($this->connectionName);
     }
 
     /**
@@ -66,6 +92,34 @@ class BackupService
             ? $sql
             : json_encode($this->snapshot(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
+        if ($contents === false) {
+            throw new RuntimeException('Could not encode the database snapshot as JSON.');
+        }
+
+        File::put($this->backupDir.'/'.$name, $contents);
+
+        return $name;
+    }
+
+    /**
+     * Force a portable JSON backup.
+     *
+     * Used by the restore rehearsal, which replays the snapshot into a
+     * temporary SQLite database. A mysqldump file cannot be replayed there.
+     */
+    public function createJson(): string
+    {
+        $name = $this->uniqueName('json');
+
+        $contents = json_encode(
+            $this->snapshot(),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
+
+        if ($contents === false) {
+            throw new RuntimeException('Could not encode the database snapshot as JSON.');
+        }
+
         File::put($this->backupDir.'/'.$name, $contents);
 
         return $name;
@@ -101,7 +155,8 @@ class BackupService
      */
     protected function tryMysqldump(): ?string
     {
-        $config = config('database.connections.'.config('database.default'));
+        $connectionName = $this->connectionName ?? config('database.default');
+        $config = config('database.connections.'.$connectionName);
 
         if (! $config || ! in_array($config['driver'] ?? null, ['mysql', 'mariadb'], true)) {
             return null;
@@ -165,7 +220,7 @@ class BackupService
         $tables = $this->tableNames();
 
         foreach ($tables as $tableName) {
-            $data[$tableName] = DB::table($tableName)->get()->map(fn ($row) => (array) $row)->all();
+            $data[$tableName] = $this->db()->table($tableName)->get()->map(fn ($row) => (array) $row)->all();
         }
 
         return $data;
@@ -182,25 +237,25 @@ class BackupService
      */
     protected function tableNames(): array
     {
-        $driver = DB::connection()->getDriverName();
+        $driver = $this->db()->getDriverName();
 
         $names = match ($driver) {
-            'sqlite' => collect(DB::select(
+            'sqlite' => collect($this->db()->select(
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
             ))->pluck('name'),
 
-            'mysql', 'mariadb' => collect(DB::select('SHOW FULL TABLES'))
+            'mysql', 'mariadb' => collect($this->db()->select('SHOW FULL TABLES'))
                 // SHOW FULL TABLES returns two columns: Tables_in_<db> and
                 // Table_type. Keep base tables only, and skip the views.
                 ->filter(fn ($row) => ((array) $row)['Table_type'] ?? 'BASE TABLE' === 'BASE TABLE')
                 ->map(fn ($row) => array_values((array) $row)[0]),
 
-            'pgsql' => collect(DB::select(
+            'pgsql' => collect($this->db()->select(
                 "SELECT table_name AS name FROM information_schema.tables
                  WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'"
             ))->pluck('name'),
 
-            'sqlsrv' => collect(DB::select(
+            'sqlsrv' => collect($this->db()->select(
                 "SELECT TABLE_NAME AS name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
             ))->pluck('name'),
 
@@ -251,7 +306,7 @@ class BackupService
         $sql = File::get($path);
 
         foreach ($this->splitSqlStatements($sql) as $statement) {
-            DB::statement($statement);
+            $this->db()->statement($statement);
         }
     }
 
@@ -393,14 +448,14 @@ class BackupService
         // same reason. Suspend the checks for the duration of the restore.
         $this->withoutForeignKeyChecks(function () use ($data) {
             foreach ($data as $table => $rows) {
-                if (! Schema::hasTable($table)) {
+                if (! $this->schema()->hasTable($table)) {
                     continue;
                 }
 
-                DB::table($table)->truncate();
+                $this->db()->table($table)->truncate();
 
                 foreach (array_chunk($rows, 500) as $chunk) {
-                    DB::table($table)->insert($chunk);
+                    $this->db()->table($table)->insert($chunk);
                 }
             }
         });
@@ -421,23 +476,23 @@ class BackupService
      */
     protected function withoutForeignKeyChecks(callable $callback): void
     {
-        $driver = DB::connection()->getDriverName();
-        $inTransaction = DB::transactionLevel() > 0;
+        $driver = $this->db()->getDriverName();
+        $inTransaction = $this->db()->transactionLevel() > 0;
 
         if ($driver === 'sqlite') {
             if (! $inTransaction) {
-                DB::statement('PRAGMA foreign_keys = OFF');
+                $this->db()->statement('PRAGMA foreign_keys = OFF');
             }
 
-            DB::statement('PRAGMA defer_foreign_keys = ON');
+            $this->db()->statement('PRAGMA defer_foreign_keys = ON');
 
             try {
-                DB::transaction($callback);
+                $this->db()->transaction($callback);
             } finally {
-                DB::statement('PRAGMA defer_foreign_keys = OFF');
+                $this->db()->statement('PRAGMA defer_foreign_keys = OFF');
 
                 if (! $inTransaction) {
-                    DB::statement('PRAGMA foreign_keys = ON');
+                    $this->db()->statement('PRAGMA foreign_keys = ON');
                 }
             }
 
@@ -452,12 +507,12 @@ class BackupService
             ? 'SET session_replication_role = origin'
             : 'SET FOREIGN_KEY_CHECKS = 1';
 
-        DB::statement($statement);
+        $this->db()->statement($statement);
 
         try {
-            DB::transaction($callback);
+            $this->db()->transaction($callback);
         } finally {
-            DB::statement($restore);
+            $this->db()->statement($restore);
         }
     }
 

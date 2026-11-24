@@ -75,6 +75,10 @@ class SystemAuditTest extends TestCase
     {
         parent::setUp();
 
+        // Registration is gated off by default; this audit walks every GET
+        // route and must still be able to render the form, so enable it here.
+        config(['lms.registration_enabled' => true]);
+
         $this->seed([RoleSeeder::class, PermissionSeeder::class]);
 
         $admin      = User::factory()->admin()->create(['status' => 'active', 'email' => 'audit.admin@lms.local']);

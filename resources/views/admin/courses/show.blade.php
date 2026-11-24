@@ -299,11 +299,6 @@
     font-weight: 600;
 }
 
-.badge-draft { background: #95a5a6; color: white; }
-.badge-published { background: #2ecc71; color: white; }
-.badge-archived { background: #e74c3c; color: white; }
-.badge-program { background: #3498db; color: white; }
-
 .detail-section {
     margin-bottom: 30px;
 }

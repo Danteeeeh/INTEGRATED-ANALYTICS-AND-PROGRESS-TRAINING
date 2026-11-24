@@ -229,6 +229,274 @@ class StudentDashboardScopingTest extends TestCase
         $this->assertStringContainsString($this->hiddenCourse->code, $html);
     }
 
+    public function test_overdue_hint_is_hidden_when_the_list_fits_the_two_item_cap(): void
+    {
+        foreach (range(1, 2) as $index) {
+            $this->assignmentIn($this->ownClass, "Overdue task $index")
+                ->update(['due_date' => now()->subDays($index)]);
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('2 overdue items');
+        $response->assertDontSee('Showing 2 of 2');
+    }
+
+    public function test_overdue_hint_counts_all_items_beyond_the_two_item_cap(): void
+    {
+        foreach (range(1, 7) as $index) {
+            $this->assignmentIn($this->ownClass, "Overdue task $index")
+                ->update(['due_date' => now()->subDays($index)]);
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+
+        $stats = $response->viewData('stats');
+
+        $this->assertSame(7, $stats['overdue_assignments_total']);
+        $this->assertCount(5, $stats['overdue_assignments'], 'The overdue query keeps its five-row fetch cap.');
+
+        $response->assertSee('7 overdue items');
+        $response->assertSee('Showing 2 of 7');
+        $this->assertSame(2, substr_count($response->getContent(), 'class="od-name"'));
+
+        $this->assertSame(
+            7,
+            $this->actingAs($this->student)
+                ->getJson(route('student.dashboard.real-time-stats'))
+                ->json('data.overdue_count'),
+            'The auto-refresh must keep the full overdue total, not the five-row fetch cap.'
+        );
+    }
+
+    public function test_upcoming_activities_hint_uses_the_uncapped_total(): void
+    {
+        foreach (range(1, 5) as $index) {
+            $this->assignmentIn($this->ownClass, "Upcoming task $index")
+                ->update(['due_date' => now()->addDays($index)]);
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+        $response->assertDontSee('Showing 5 of 5');
+        $this->assertSame(5, $response->viewData('stats')['upcoming_activities_total']);
+
+        $this->assignmentIn($this->ownClass, 'Upcoming task 6')
+            ->update(['due_date' => now()->addDays(6)]);
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+        $response->assertSee('Showing 5 of 6');
+
+        $stats = $response->viewData('stats');
+        $this->assertSame(6, $stats['upcoming_activities_total'], 'The hint must count all upcoming activities, not only the five listed.');
+        $this->assertCount(5, $stats['upcoming_activities']);
+    }
+
+    public function test_announcements_hint_appears_only_after_the_three_item_cap(): void
+    {
+        foreach (range(1, 3) as $index) {
+            $this->announcementIn($this->ownClass, "Announcement $index");
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+        $response->assertDontSee('Showing 3 of 3');
+
+        $stats = $response->viewData('stats');
+        $this->assertSame(3, $stats['total_announcements']);
+        $this->assertCount(3, $stats['announcements']);
+
+        $this->announcementIn($this->ownClass, 'Announcement 4');
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+        $response->assertSee('Showing 3 of 4');
+
+        $stats = $response->viewData('stats');
+        $this->assertSame(4, $stats['total_announcements']);
+        $this->assertSame(
+            3,
+            substr_count($response->getContent(), 'class="announce-item"'),
+            'The announcements panel keeps its three-row display cap.'
+        );
+    }
+
+    public function test_capped_todo_and_announcement_hints_report_their_full_totals(): void
+    {
+        foreach (range(1, 6) as $index) {
+            $this->assignmentIn($this->ownClass, "To-do task $index")
+                ->update(['due_date' => now()->addDays($index)]);
+
+            $this->announcementIn($this->ownClass, "Announcement $index");
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+
+        $response->assertOk();
+
+        $hints = $this->panelShowingHints($response->getContent());
+        $this->assertSame(
+            ['text' => 'Showing 2 of 6', 'href' => route('student.incomplete')],
+            $hints['To-do list'] ?? null,
+            'The To-do panel hint must report its own uncapped total.'
+        );
+        $this->assertSame(
+            ['text' => 'Showing 3 of 6', 'href' => route('student.announcements.index')],
+            $hints['Announcements'] ?? null,
+            'The Announcements panel hint must report its own uncapped total.'
+        );
+
+        $stats = $response->viewData('stats');
+        $this->assertCount(6, $stats['upcoming_assignments']);
+        $this->assertSame(6, $stats['total_announcements']);
+
+        $this->actingAs($this->student)
+            ->getJson(route('student.dashboard.real-time-stats'))
+            ->assertOk()
+            ->assertJsonPath('data.upcoming_tasks', 6);
+    }
+
+    public function test_capped_todo_and_announcement_hints_stay_hidden_at_the_boundary(): void
+    {
+        foreach (range(1, 2) as $index) {
+            $this->assignmentIn($this->ownClass, "Boundary to-do $index")
+                ->update(['due_date' => now()->addDays($index)]);
+        }
+
+        foreach (range(1, 3) as $index) {
+            $this->announcementIn($this->ownClass, "Boundary announcement $index");
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+
+        $hints = $this->panelShowingHints($response->getContent());
+        $this->assertArrayNotHasKey(
+            'To-do list',
+            $hints,
+            'Two upcoming to-dos exactly fill the To-do cap, so the hint must stay hidden.'
+        );
+        $this->assertArrayNotHasKey(
+            'Announcements',
+            $hints,
+            'Three announcements exactly fill the Announcements cap, so the hint must stay hidden.'
+        );
+
+        $stats = $response->viewData('stats');
+        $this->assertCount(2, $stats['upcoming_assignments']);
+        $this->assertSame(3, $stats['total_announcements']);
+    }
+
+    public function test_todo_hint_and_real_time_total_match_for_mixed_upcoming_work(): void
+    {
+        foreach (range(1, 3) as $index) {
+            $this->assignmentIn($this->ownClass, "Mixed to-do assignment $index")
+                ->update(['due_date' => now()->addDays($index)]);
+        }
+
+        foreach (range(1, 2) as $index) {
+            $this->quizIn($this->ownClass, "Mixed to-do quiz $index")
+                ->update(['availability_from' => now()->addDays($index)]);
+        }
+
+        $this->examIn($this->ownClass, 'Mixed to-do exam');
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+        $response->assertSee('Showing 5 of 6');
+
+        $stats = $response->viewData('stats');
+        $this->assertCount(3, $stats['upcoming_assignments']);
+        $this->assertCount(2, $stats['upcoming_quizzes']);
+        $this->assertCount(1, $stats['upcoming_exams']);
+        $this->assertSame(6, $stats['upcoming_tasks_total']);
+
+        preg_match('/Showing \d+ of (\d+)/', $response->getContent(), $hint);
+        $this->assertArrayHasKey(1, $hint, 'The rendered To-do hint should show its uncapped total.');
+
+        $realTimeTotal = $this->actingAs($this->student)
+            ->getJson(route('student.dashboard.real-time-stats'))
+            ->assertOk()
+            ->json('data.upcoming_tasks');
+
+        $this->assertSame(
+            (int) $hint[1],
+            $realTimeTotal,
+            'The real-time count must match the rendered To-do hint for mixed assignments, quizzes and exams.'
+        );
+    }
+
+    public function test_todo_hint_and_real_time_total_match_when_all_six_tasks_are_quizzes_and_exams(): void
+    {
+        foreach (range(1, 3) as $index) {
+            $this->quizIn($this->ownClass, "Quiz-only to-do $index")
+                ->update(['availability_from' => now()->addDays($index)]);
+
+            $this->examIn($this->ownClass, "Exam-only to-do $index")
+                ->update(['starts_at' => now()->addDays($index)]);
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+
+        $hints = $this->panelShowingHints($response->getContent());
+        $this->assertSame(
+            ['text' => 'Showing 4 of 6', 'href' => route('student.incomplete')],
+            $hints['To-do list'] ?? null,
+            'All six upcoming items are quizzes and exams, so the To-do hint must report the full total.'
+        );
+
+        $stats = $response->viewData('stats');
+        $this->assertCount(0, $stats['upcoming_assignments']);
+        $this->assertCount(3, $stats['upcoming_quizzes']);
+        $this->assertCount(3, $stats['upcoming_exams']);
+        $this->assertSame(6, $stats['upcoming_tasks_total']);
+
+        preg_match('/^Showing \d+ of (\d+)$/', $hints['To-do list']['text'], $hint);
+        $this->assertArrayHasKey(1, $hint, 'The rendered To-do hint should expose its uncapped total.');
+
+        $realTimeTotal = $this->actingAs($this->student)
+            ->getJson(route('student.dashboard.real-time-stats'))
+            ->assertOk()
+            ->json('data.upcoming_tasks');
+
+        $this->assertSame(
+            (int) $hint[1],
+            $realTimeTotal,
+            'The real-time count must match the rendered To-do hint when all upcoming work is quizzes and exams.'
+        );
+    }
+
+    public function test_deadline_and_activity_hints_open_the_full_calendar(): void
+    {
+        foreach (range(1, 6) as $index) {
+            $this->assignmentIn($this->ownClass, "Calendar task $index")
+                ->update(['due_date' => now()->addDays($index)]);
+        }
+
+        $response = $this->actingAs($this->student)->get(route('student.dashboard'));
+        $response->assertOk();
+
+        // The deadline panel shows four of six events; the activity panel
+        // shows five of six. Both hints must open the complete calendar, not a
+        // class or course picker.
+        $response->assertSee('Showing 4 of 6');
+        $response->assertSee('Showing 5 of 6');
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($response->getContent(), 'href="'.route('student.calendar').'"'),
+            'Both upcoming hints should link to the full calendar.'
+        );
+
+        $this->actingAs($this->student)
+            ->get(route('student.calendar'))
+            ->assertOk()
+            ->assertSee('Calendar task 1');
+    }
+
     public function test_panels_do_not_list_rows_from_a_hidden_class(): void
     {
         $this->quizAttempt($this->quizIn($this->ownClass, 'Own Section Quiz'));
@@ -432,5 +700,39 @@ class StudentDashboardScopingTest extends TestCase
         $this->assertStringContainsString('Own Section Course', $html);
         $this->assertStringContainsString('Hidden Block Course', $html);
         $this->assertStringNotContainsString('id="analyticsScopeNote"', $html);
+    }
+
+    /**
+     * Return the "Showing X of Y" hint inside each named dashboard panel.
+     *
+     * @return array<string, array{text: string, href: string}>
+     */
+    private function panelShowingHints(string $html): array
+    {
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+        $dom->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        $xpath = new \DOMXPath($dom);
+        $hints = [];
+
+        foreach ($xpath->query('//section[contains(concat(" ", normalize-space(@class), " "), " dash-panel ")]') as $panel) {
+            $heading = $xpath->query('.//h4', $panel)->item(0);
+            $link = $xpath->query('.//a[contains(concat(" ", normalize-space(@class), " "), " panel-cap-note ")]', $panel)->item(0);
+
+            if (! $heading || ! $link) {
+                continue;
+            }
+
+            $label = preg_replace('/\s+/', ' ', trim($heading->textContent));
+            $hints[$label] = [
+                'text' => trim($link->textContent),
+                'href' => $link->getAttribute('href'),
+            ];
+        }
+
+        return $hints;
     }
 }

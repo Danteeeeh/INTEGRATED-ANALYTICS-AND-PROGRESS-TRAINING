@@ -1,0 +1,521 @@
+/* ─────────────────────────────────────────────────────────────
+   Shared chart system
+   One visual language for every dashboard graph: same card shell,
+   header rhythm, heights, legend chips, KPI tiles and empty state.
+   Colours come from the dashboard tokens so light mode keeps working.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+    --chart-h: 300px;
+    --chart-h-sm: 220px;
+    --chart-radius: 16px;
+    --chart-gap: 18px;
+}
+
+.chart-card,
+.analytics-card {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--id-line, var(--dash-line, rgba(153, 174, 214, .18)));
+    border-radius: var(--chart-radius);
+    background:
+        radial-gradient(120% 100% at 0% 0%, rgba(91, 140, 255, .07), transparent 58%),
+        var(--id-surface-2, var(--dash-surface, #151c2c));
+    box-shadow: 0 10px 28px rgba(3, 8, 20, .14);
+    overflow: hidden;
+}
+
+body.light-mode .chart-card,
+body.light-mode .analytics-card {
+    box-shadow: 0 10px 26px rgba(31, 52, 88, .08);
+}
+
+.chart-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.chart-card-head h5,
+.analytics-card h5,
+.chart-card-title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--id-text, var(--dash-text, #eef4ff));
+}
+
+.chart-card-head h5 i,
+.analytics-card h5 i,
+.chart-card-title i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 8px;
+    background: rgba(91, 140, 255, .14);
+    color: var(--id-brand, var(--bcp-cyan-400, #62c9f5));
+    font-size: 12px;
+}
+
+.chart-card-sub {
+    margin: 5px 0 0;
+    font-size: .74rem;
+    line-height: 1.5;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--id-muted, var(--dash-muted, #98a7c4));
+}
+
+.chart-card-badge {
+    flex: none;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--id-line, rgba(153, 174, 214, .18));
+    background: rgba(91, 140, 255, .08);
+    color: var(--id-muted, #98a7c4);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+.chart-card-body {
+    position: relative;
+    width: 100%;
+}
+
+/* Canvas containers: fixed height, no flex centring so the canvas can
+   actually fill the card instead of collapsing to its intrinsic size. */
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: var(--chart-h);
+    min-height: var(--chart-h-sm);
+    display: block;
+}
+
+/* Tall variant for multi-row bar charts (completion by class). */
+.chart-container.chart-tall {
+    height: 360px;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none;
+}
+
+/* The AA enrollment title and count fit on one row at 390px; only the longer
+   sync/update panel headers need to stack. Override the shared .admin-ui
+   mobile rule that turns every panel header into a column. */
+.dash-panel-head.aa-chart-head {
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap;
+}
+.dash-panel-head.aa-chart-head h4 { min-width: 0; }
+
+/* Empty / loading / error state, centred over the reserved height. */
+.chart-placeholder,
+.chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 18px;
+    text-align: center;
+    color: var(--id-muted, var(--dash-muted, #98a7c4));
+}
+
+.chart-placeholder i,
+.chart-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    margin-bottom: 4px;
+    border-radius: 50%;
+    background: rgba(91, 140, 255, .09);
+    border: 1px solid rgba(91, 140, 255, .16);
+    color: rgba(98, 201, 245, .8);
+    font-size: 18px;
+}
+
+.chart-placeholder p,
+.chart-empty strong {
+    margin: 0;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--id-text, var(--dash-text, #eef4ff));
+}
+
+.chart-empty span:not(.chart-empty-icon) {
+    max-width: 32ch;
+    font-size: .74rem;
+    line-height: 1.55;
+}
+
+/* Legend chips (used when a doughnut legend is rendered as HTML). */
+.chart-legend {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .76rem;
+    color: var(--id-muted, #98a7c4);
+}
+
+.chart-swatch {
+    width: 10px;
+    height: 10px;
+    flex: none;
+    border-radius: 3px;
+}
+
+.chart-legend-item strong {
+    margin-left: auto;
+    color: var(--id-text, #eef4ff);
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-legend-item .chart-legend-pct {
+    min-width: 38px;
+    text-align: right;
+    font-size: .7rem;
+    opacity: .72;
+    font-variant-numeric: tabular-nums;
+}
+
+/* KPI strip under a chart. */
+.chart-kpis,
+.analytics-summary,
+.attendance-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    width: 100%;
+    margin: 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--id-line, var(--dash-line, rgba(153, 174, 214, .18)));
+}
+
+.chart-kpi,
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    background: rgba(91, 140, 255, .055);
+    border: 1px solid transparent;
+}
+
+.chart-kpi-label,
+.summary-label {
+    font-size: .63rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--id-muted, var(--dash-muted, #98a7c4));
+}
+
+.chart-kpi-value,
+.summary-value {
+    font-size: 1.18rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--id-text, var(--dash-text, #eef4ff));
+    font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+    color: var(--id-rose, #fb7185);
+}
+
+body.light-mode .summary-value.warning {
+    color: #be123c;
+}
+
+.average-grade {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 2px;
+    padding-top: 13px;
+    border-top: 1px solid var(--id-line, rgba(153, 174, 214, .18));
+    width: 100%;
+    text-align: center;
+}
+
+.avg-label {
+    font-size: .8rem;
+    font-weight: 750;
+    color: var(--id-text, #eef4ff);
+}
+
+.avg-sub {
+    font-size: .7rem;
+    color: var(--id-muted, #98a7c4);
+}
+
+/* Grid used by the analytics sections. */
+.analytics-grid,
+.chart-grid {
+    display: grid;
+    /* Two wide columns beat three cramped ones: the doughnuts and bars keep
+       their labels, and the 2×2 block reads as one panel. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--chart-gap);
+}
+
+@media (max-width: 900px) {
+    .analytics-grid,
+    .chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Give the filter bar its own row instead of squeezing it beside the
+       panel heading on tablets. */
+    .dash-panel-head:has(.analytics-controls) {
+        flex-wrap: wrap;
+    }
+
+    .dash-panel-head:has(.analytics-controls) .analytics-controls {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
+/* The sidebar remains fixed above 900px, but the content column is still
+   narrow through the 1024px tablet boundary. Keep the filter bar on its own
+   row across that sidebar range instead of squeezing the title beside it. */
+@media (min-width: 901px) and (max-width: 1024px) {
+    .dash-panel-head:has(.analytics-controls) {
+        flex-wrap: wrap;
+    }
+
+    .dash-panel-head:has(.analytics-controls) .analytics-controls {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
+.analytics-card-wide {
+    grid-column: 1 / -1;
+}
+
+/* The engagement panel is a list of metrics, not a canvas. */
+.engagement-metrics {
+    display: grid;
+    gap: 10px;
+}
+
+.metric-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 13px;
+    border-radius: 11px;
+    border: 1px solid var(--id-line, rgba(153, 174, 214, .18));
+    background: rgba(91, 140, 255, .05);
+}
+
+.metric-icon {
+    width: 38px;
+    height: 38px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    background: rgba(91, 140, 255, .14);
+    color: var(--id-brand, #62c9f5);
+    font-size: 15px;
+}
+
+.metric-label {
+    flex: 1;
+    font-size: .8rem;
+    color: var(--id-muted, #98a7c4);
+}
+
+.metric-value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--id-text, #eef4ff);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Section shell shared by the instructor/student analytics blocks. */
+.dash-analytics {
+    margin: 0;
+    padding: 20px;
+    border: 1px solid var(--id-line, var(--dash-line, rgba(153, 174, 214, .18)));
+    border-radius: 18px;
+    background: var(--id-surface, var(--dash-surface, #151c2c));
+    box-shadow: var(--id-shadow, 0 18px 40px rgba(3, 8, 20, .22));
+}
+
+.dash-analytics .dash-panel-head {
+    padding: 0 0 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--id-line, rgba(153, 174, 214, .18));
+}
+
+/* Keep the title on one line when the filter controls sit beside it. */
+.dash-panel-head:has(.analytics-controls) h4 {
+    flex: 0 0 auto;
+}
+
+.analytics-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.analytics-select {
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid var(--id-line, rgba(153, 174, 214, .22));
+    border-radius: 9px;
+    background: var(--id-surface-3, rgba(91, 140, 255, .06));
+    color: var(--id-text, #eef4ff);
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.analytics-btn {
+    min-height: 36px;
+    padding: 8px 16px;
+    border: 1px solid rgba(120, 160, 255, .4);
+    border-radius: 9px;
+    background: linear-gradient(135deg, #3a6af0, #1a3fb5);
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: filter .16s, transform .16s;
+}
+
+.analytics-btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+}
+
+.analytics-btn:disabled {
+    opacity: .68;
+    cursor: default;
+}
+
+.analytics-content {
+    margin-top: 16px;
+}
+
+.analytics-toast {
+    display: none;
+    margin-bottom: 14px;
+    padding: 9px 13px;
+    border: 1px solid rgba(52, 211, 153, .3);
+    border-radius: 10px;
+    background: rgba(52, 211, 153, .12);
+    color: #6ee7b7;
+    font-size: .76rem;
+    font-weight: 650;
+}
+
+.analytics-toast.show {
+    display: block;
+}
+
+body.light-mode .analytics-toast {
+    color: #047857;
+    background: rgba(5, 150, 105, .08);
+    border-color: rgba(5, 150, 105, .26);
+}
+
+body.light-mode .chart-empty-icon,
+body.light-mode .chart-placeholder i {
+    color: #0e7490;
+    background: rgba(14, 116, 144, .08);
+    border-color: rgba(14, 116, 144, .2);
+}
+
+@media (max-width: 640px) {
+    :root {
+        --chart-h: 230px;
+        --chart-gap: 14px;
+    }
+
+    .analytics-card,
+    .chart-card {
+        padding: 14px;
+    }
+
+    .analytics-grid,
+    .chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-kpis,
+    .analytics-summary,
+    .attendance-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .chart-container.chart-tall {
+        height: 300px;
+    }
+
+    /* Filters become a 2-up grid with a full-width Load button instead of
+       four controls competing for 390px. */
+    .analytics-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .analytics-controls .analytics-select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .analytics-controls .analytics-btn {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    .dash-analytics {
+        padding: 15px;
+    }
+}

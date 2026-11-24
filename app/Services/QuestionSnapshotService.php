@@ -27,16 +27,24 @@ class QuestionSnapshotService
      * @param  float|null  $points  The assessment's own weighting for this
      *                              question (quiz_questions.points), which may
      *                              differ from the bank's default_points.
+     * @param  bool  $shuffleChoices  Freeze the choices in a per-attempt order.
+     *                               IDs and correctness stay the same; only the
+     *                               A/B/C keys and display order move.
      * @return array<string, mixed>
      */
-    public function capture(Question $question, ?float $points = null): array
+    public function capture(Question $question, ?float $points = null, bool $shuffleChoices = false): array
     {
         $question->loadMissing('choices');
 
         $choices = $question->choices->values();
 
-        // "A", "B", "C"... follows the stored position, which is what the
-        // instructor sees in the editor and what students are told to pick.
+        if ($shuffleChoices) {
+            $choices = $choices->shuffle();
+        }
+
+        // "A", "B", "C"... follows the resulting display order. When choices
+        // are shuffled, the key a student sees therefore travels with the text
+        // they were shown, not with the bank's original position.
         $lettered = $choices->map(fn ($choice, $index) => [
             'id' => $choice->id,
             'key' => $this->keyFor($index),
@@ -93,16 +101,18 @@ class QuestionSnapshotService
      *
      * @param  iterable<int, Question>  $questions
      * @param  array<int, float|null>  $pointsByQuestionId
+     * @param  bool  $shuffleChoices  Shuffle each question's choices independently.
      * @return array<int, array<string, mixed>>
      */
-    public function captureMany(iterable $questions, array $pointsByQuestionId = []): array
+    public function captureMany(iterable $questions, array $pointsByQuestionId = [], bool $shuffleChoices = false): array
     {
         $snapshots = [];
 
         foreach ($questions as $question) {
             $snapshots[$question->id] = $this->capture(
                 $question,
-                $pointsByQuestionId[$question->id] ?? null
+                $pointsByQuestionId[$question->id] ?? null,
+                $shuffleChoices
             );
         }
 

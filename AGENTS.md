@@ -51,7 +51,7 @@ Canvas 3-zone layout (walang controller change — existing `$stats` ginamit):
 #### Phase 3 — Super Admin "Sync from AA" (direct DB connection)
 
 - `config/database.php` — bagong `aa` connection (`AA_DB_*` env; `.env.example` documented)
-- `config/aa_sync.php` — configurable AA table/column mapping (departments, programs, sections, students, faculty, classes, enrollments) + status maps + sync order + default passwords
+- `config/aa_sync.php` — configurable AA table/column mapping (departments, programs, sections, students, faculty, classes, enrollments) + status maps + sync order + optional explicit passwords
 - `app/Services/AaSyncService.php` — upsert mula AA → LMS: soft-delete aware (withTrashed + restore), keyed by code/email/identifier, per-record try/catch (created/updated/skipped/failed + errors/skips detail), **hindi nagsi-sync ng final_grade** (official grade hawak ng AA), `DB::transaction` per entity (safe rollback, idempotent retry)
 - `database/migrations/2026_10_11_000000_create_aa_sync_logs_table.php` + `app/Models/AaSyncLog.php` — audit trail per sync run (entities, counts, summary JSON)
 - `app/Http/Controllers/Admin/AaSyncController.php` + `resources/views/admin/aa-sync/index.blade.php` — sync center: connection status, entity checkboxes, one-click sync (JS confirm), last sync breakdown (skip/fail details), history table, mapping preview
@@ -62,6 +62,15 @@ Canvas 3-zone layout (walang controller change — existing `$stats` ginamit):
 1. I-set `AA_DB_*` sa `.env`, i-update ang `config/aa_sync.php` mapping sa aktwal na AA schema, `php artisan migrate` (aa_sync_logs)
 2. Super Admin → **Sync from AA** → piliin ang entities → Sync (o auto-check lahat)
 3. AA Staff account: admin → Users → create (role = AA Staff) → mag-la-login → view-only panel
+
+#### AA account activation
+
+Every new AA-synced student/faculty account gets its own unique random password.
+The old `AA_SYNC_DEFAULT_PASSWORD` / `AA_SYNC_FACULTY_PASSWORD` overrides were
+removed, so there is no shared or built-in `Welcome@123` password. Each new
+account is automatically sent a one-time password-set link through `MAIL_*`;
+the link expires after 60 minutes. If it expires, the user can still use
+**Forgot your password?** on the login page.
 
 ### Role Audit vs. Canvas-Style Prompt (final pass)
 
@@ -211,7 +220,7 @@ Nakita sa `route:list` na nawala ang LiveKit room/token/leave routes. Imbestigas
 
 1. **Stale video tile pag camera-off / screen-share stop** — walang `LocalTrackUnpublished` handler, kaya nananatili ang huling frame sa tile. Fix: bagong handler + `removeTile()`; `TrackUnsubscribed` (remote) ay tinatanggal na rin ang empty tile
 2. **Screen share na nakatambak sa camera tile** — screen video ay napupun sa parehong tile ng camera (dalawang video na nakapatong). Fix: `tileKeyFor()`/`tileNameFor()` — sariling tile (`{identity}:screen`, "Name — Screen")
-3. **Participant count off-by-one** — `room.numParticipants + 1` (livekit-client v2 already includes local). Fix: `room.numParticipants`
+3. **Participant count off-by-one** — `room.numParticipants + 1` (livekit-client v2 already includes local). Fix: `1 + room.remoteParticipants.size` — ang `room.numParticipants` ay huling RoomInfo snapshot (0 bago ang una, at huli sa joins/leaves)
 4. **Hindi malinaw ang camera/mic error** — chat system message lang dati. Fix: `setStatus(...)` din sa status bar kapag permission denied / walang device
 
 ### Tests (`tests/Feature/VirtualClassRoomAccessTest.php` — 13 cases)
@@ -227,6 +236,16 @@ Camera/mic toggle, screen picker, chat realtime, reconnection, HTTPS/WebSocket s
 ## Project Information
 
 This is a Laravel-based Learning Management System (LMS) with exactly four roles: Super Admin, AA Staff, Faculty/Instructor, and Student.
+
+### Public registration is gated OFF by default
+
+`/register` (GET and POST) answers 404 unless `LMS_REGISTRATION_ENABLED=true`.
+Student accounts are authoritative in AA and arrive through Sync from AA, so an
+open form would let anyone create an active student account without approval.
+Gate: `config('lms.registration_enabled')` + `LoginController::ensureRegistrationEnabled()`;
+covered by `tests/Feature/RegistrationGateTest.php`. The route-name audits
+(`UserFunctionAuditTest`, `FullAppFunctionAuditTest`, `SystemAuditTest`) enable
+the flag for their own run so the page is still probed.
 
 ## Enhanced Auto-Enrollment Feature
 

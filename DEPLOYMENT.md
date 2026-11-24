@@ -20,7 +20,12 @@ addresses point back to the app container, where MySQL is not running.
    check path as `/up`. Do not set the web port to the database port.
 2. Provision a MySQL or MariaDB database in HostForge and make it reachable
    from the application (prefer the provider's private network).
-3. Add the following environment variables to the application. Use the exact
+3. Attach a persistent volume for uploads and backups and set
+   `LMS_STORAGE_PATH` to its absolute mount path (for example `/data/lms`).
+   The container filesystem is replaceable; `storage/app` alone is not durable.
+   See `HOSTFORGE_DEPLOYMENT_READY.md` section 6 for the copy, marker and
+   restore-rehearsal commands.
+4. Add the following environment variables to the application. Use the exact
    hostname, database name, username, password, and port from the HostForge
    database connection details; do not commit credentials to this repository.
 
@@ -58,15 +63,16 @@ addresses point back to the app container, where MySQL is not running.
    connection details as well: login OTP is enabled, and `MAIL_MAILER=log`
    (the local-development default) does not deliver email. Never commit
    database, app-key, or mail credentials.
-4. Confirm the database accepts connections from the app and the database user
+5. Confirm the database accepts connections from the app and the database user
    can create and alter tables. Keep the HostForge release command set to:
 
    ```sh
    php artisan migrate --force --seed && php artisan route:clear && php artisan config:clear && php artisan cache:clear
    ```
-5. Redeploy. The `/up` health check should pass when the web process is
+6. Redeploy. The `/up` health check should pass when the web process is
    listening on the assigned port. The release command should complete
-   migrations once the database connection is correct.
+   migrations and the storage preflight once the database and volume are
+   correct.
 
 If the deployment still times out at `/up`, check the runtime logs for the
 web-process startup command and confirm it uses the HostForge-assigned `PORT`.

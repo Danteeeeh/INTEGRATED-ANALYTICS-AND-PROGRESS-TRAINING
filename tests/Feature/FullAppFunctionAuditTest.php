@@ -44,6 +44,10 @@ class FullAppFunctionAuditTest extends TestCase
     {
         parent::setUp();
 
+        // Registration is gated off by default; the audit still probes the
+        // page, so enable it for this run only.
+        config(['lms.registration_enabled' => true]);
+
         $this->seed([RoleSeeder::class, PermissionSeeder::class, UserSeeder::class]);
 
         $this->admin = User::where('email', 'admin@lms.local')->firstOrFail();

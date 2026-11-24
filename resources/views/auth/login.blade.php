@@ -41,10 +41,10 @@
                     @csrf
                     <div class="field"><label for="email">Email address</label><div class="input-wrap"><i class="fa-regular fa-envelope" aria-hidden="true"></i><input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="you@example.com" autocomplete="email" required autofocus></div></div>
                     <div class="field"><label for="password">Password</label><div class="input-wrap"><i class="fa-solid fa-lock" aria-hidden="true"></i><input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required><button type="button" class="password-toggle" id="togglePassword" aria-label="Show password"><i class="fa-regular fa-eye"></i></button></div></div>
-                    <div class="form-meta"><span class="form-help" title="Contact your school support team to reset your password"><i class="fa-solid fa-circle-info"></i> Contact support to reset password</span></div>
+                    <div class="form-meta"><a href="{{ route('password.request') }}">Forgot your password?</a></div>
                     <button class="submit-btn" type="submit" id="loginBtn">Sign in <i class="fa-solid fa-arrow-right"></i></button>
                 </form>
-                <aside class="instructions"><strong>Need help signing in?</strong><ul><li>Use your official school email address.</li><li>Keep your password private and secure.</li><li>Contact the school support team if you need assistance.</li></ul></aside>
+                <aside class="instructions"><strong>Need help signing in?</strong><ul><li>Use your official school email address.</li><li>Keep your password private and secure.</li><li>First time signing in, or forgot your password? Use the reset link above.</li></ul></aside>
             </div>
         </section>
     </main>

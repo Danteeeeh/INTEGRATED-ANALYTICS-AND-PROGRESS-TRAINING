@@ -15,11 +15,13 @@ class DatabaseSeeder extends Seeder
             PhaseTwoSeeder::class, // Creates academic periods first
             DepartmentProgramSeeder::class, // Now can reference academic periods
             DemoDataSeeder::class, // Depends on PhaseTwoSeeder
+            StudentDashboardCapSeeder::class, // Six student to-dos + six announcements for capped-hint demos
             // BulkFiftySeeder::class, // Permanently disabled - HostForge deployment sync issues
             // BulkFiftyTwoSeeder::class,
             // FiftyTopUpSeeder::class,
             // FiftyTopUpTwoSeeder::class,
             NotificationSeeder::class,
+            AaSyncLogSeeder::class,
         ]);
     }
 }

@@ -80,4 +80,32 @@ class ExamAnswer extends Model
     {
         return $this->hasMany(ExamAnswerChoice::class);
     }
+
+    /**
+     * The answer key as the student saw the question, never today's bank copy.
+     *
+     * @return list<string>
+     */
+    public function correctAnswerTexts(): array
+    {
+        $snapshot = $this->snapshotArray();
+        $accepted = $snapshot['accepted_answers'] ?? null;
+
+        if (is_array($accepted)) {
+            $texts = array_values(array_filter(array_map(
+                static fn ($answer) => trim((string) $answer),
+                $accepted
+            ), static fn ($answer) => $answer !== ''));
+
+            if ($texts !== []) {
+                return $texts;
+            }
+        }
+
+        return $this->renderedChoices()
+            ->where('is_correct', true)
+            ->pluck('text')
+            ->values()
+            ->all();
+    }
 }

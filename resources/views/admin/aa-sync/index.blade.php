@@ -64,6 +64,13 @@
                 Choose which data to pull from the AA database. <strong>Final grades are not synced</strong> —
                 AA still owns them; the LMS keeps only its own quiz and assignment scores.
             </p>
+            <div style="margin:0 0 16px;padding:11px 14px;border-left:3px solid #0ea5e9;background:#f0f9ff;font-size:.8rem;color:#0c4a6e;">
+                <strong>Account activation:</strong> by default, newly synced students and faculty receive a
+                unique random password; the legacy <code>Welcome@123</code> value is always rejected. A password-set
+                link is emailed automatically to their official AA email. If it expires, they can use
+                <a href="{{ route('password.request') }}" target="_blank" rel="noopener">Forgot your password?</a>
+                on the login page.
+            </div>
             <form method="POST" action="{{ route('admin.aa-sync.run') }}"
                   onsubmit="return confirm('Run the AA sync now? This will upsert records into the LMS (new + existing accounts ay ginagalaw).');">
                 @csrf
@@ -163,39 +170,41 @@
         <div class="crud-header">
             <h3>Sync history</h3>
         </div>
-        <table class="crud-table">
-            <thead>
-                <tr>
-                    <th>When</th>
-                    <th>By</th>
-                    <th style="text-align:center;">Status</th>
-                    <th style="text-align:center;">Created</th>
-                    <th style="text-align:center;">Updated</th>
-                    <th style="text-align:center;">Skipped</th>
-                    <th style="text-align:center;">Failed</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($logs as $log)
+        <div class="table-responsive">
+            <table class="crud-table" style="min-width:720px;">
+                <thead>
                     <tr>
-                        <td>{{ $log->started_at?->format('M j, Y g:i A') ?? '—' }}</td>
-                        <td>{{ $log->performedBy?->name ?? 'system' }}</td>
-                        <td style="text-align:center;">
-                            <span style="padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;
-                                {{ $log->status === 'success' ? 'background:#dcfce7;color:#166534;' : ($log->status === 'failed' ? 'background:#fee2e2;color:#991b1b;' : 'background:#e0e7ff;color:#3730a3;') }}">
-                                {{ ucfirst($log->status) }}
-                            </span>
-                        </td>
-                        <td style="text-align:center;">{{ $log->records_created }}</td>
-                        <td style="text-align:center;">{{ $log->records_updated }}</td>
-                        <td style="text-align:center;">{{ $log->records_skipped }}</td>
-                        <td style="text-align:center;">{{ $log->records_failed }}</td>
+                        <th>When</th>
+                        <th>By</th>
+                        <th style="text-align:center;">Status</th>
+                        <th style="text-align:center;">Created</th>
+                        <th style="text-align:center;">Updated</th>
+                        <th style="text-align:center;">Skipped</th>
+                        <th style="text-align:center;">Failed</th>
                     </tr>
-                @empty
-                    <tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">No sync history yet.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse($logs as $log)
+                        <tr>
+                            <td>{{ $log->started_at?->format('M j, Y g:i A') ?? '—' }}</td>
+                            <td>{{ $log->performedBy?->name ?? 'system' }}</td>
+                            <td style="text-align:center;">
+                                <span style="padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;
+                                    {{ $log->status === 'success' ? 'background:#dcfce7;color:#166534;' : ($log->status === 'failed' ? 'background:#fee2e2;color:#991b1b;' : 'background:#e0e7ff;color:#3730a3;') }}">
+                                    {{ ucfirst($log->status) }}
+                                </span>
+                            </td>
+                            <td style="text-align:center;">{{ $log->records_created }}</td>
+                            <td style="text-align:center;">{{ $log->records_updated }}</td>
+                            <td style="text-align:center;">{{ $log->records_skipped }}</td>
+                            <td style="text-align:center;">{{ $log->records_failed }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">No sync history yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 
     {{-- ═══ MAPPING PREVIEW ═══ --}}

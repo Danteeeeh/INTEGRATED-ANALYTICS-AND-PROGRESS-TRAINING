@@ -12,6 +12,28 @@ use Illuminate\View\View;
 
 class AnnouncementController extends Controller
 {
+    /**
+     * Every announcement this instructor created, across all their courses and
+     * classes. The course-scoped index remains the editing surface.
+     */
+    public function all(): View
+    {
+        $this->authorize('viewAny', Announcement::class);
+
+        $classIds = ClassModel::where('instructor_id', auth()->id())->pluck('id');
+        $courseIds = Course::where('created_by', auth()->id())->pluck('id');
+
+        $announcements = Announcement::where(function ($q) use ($courseIds, $classIds) {
+            $q->whereIn('course_id', $courseIds)->orWhereIn('class_id', $classIds);
+        })
+            ->with(['course', 'class.course', 'attachment', 'views'])
+            ->orderByDesc('is_pinned')
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return view('instructor.announcements.index', compact('announcements'));
+    }
+
     public function index(Course $course): View
     {
         $this->authorize('viewAny', Announcement::class);

@@ -7,17 +7,28 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
+use App\Services\AssessmentAutoSubmitService;
 use App\Services\ContentProgressService;
 use App\Services\ExamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class ExamController extends Controller
 {
+    /**
+     * How long after the duration ends a submission may still arrive and have
+     * its posted answers counted. The page submits itself ~2 seconds after
+     * the clock hits zero; this covers that delay, latency and clock skew
+     * without accepting an hours-late submission.
+     */
+    private const TIMEOUT_GRACE_SECONDS = 120;
+
     public function __construct(
         protected ExamService $examService,
         protected ContentProgressService $contentProgress,
+        protected AssessmentAutoSubmitService $assessmentAutoSubmit,
     ) {}
 
     public function index(Course $course): View
@@ -178,7 +189,7 @@ private function assertHasQuestions(Exam $exam): bool
                 }
             }
 
-            return view('student.exams.attempt', compact('course', 'exam', 'enrollment', 'inProgress'));
+            return $this->attemptView($course, $exam, $enrollment, $inProgress);
         }
 
         $attemptCount = ExamAttempt::ofExam($exam->id)->ofStudent($studentId)->count();
@@ -187,25 +198,53 @@ private function assertHasQuestions(Exam $exam): bool
                 ->with('error', 'You have reached the maximum number of attempts for this exam.');
         }
 
-        $attempt = $this->examService->startAttempt($exam);
-        $inProgress = $attempt;
-
-        return view('student.exams.attempt', compact('course', 'exam', 'enrollment', 'inProgress'));
+        return $this->attemptView($course, $exam, $enrollment, $this->examService->startAttempt($exam));
     }
 
     /**
- * Create the attempt and hand the student to the exam page.
- *
- * The confirm screen's "Start Exam" button is a form, so it POSTs here rather
- * than linking. Previously it POSTed to the attempt path, which is the *submit*
- * handler: that looks for an attempt already in progress, finds none because
- * nothing had started it, and firstOrFail() answered 404 — so every student who
- * used the button hit a dead end.
- *
- * Starts are idempotent (an attempt already in progress is reused) and this
- * redirects to the GET route, so a refresh cannot restart the clock.
- */
-public function beginAttempt(Course $course, Exam $exam): RedirectResponse
+     * The one place the attempt page's data is assembled, so both the resumed
+     * and the freshly-started attempt get the same clock value.
+     */
+    private function attemptView(Course $course, Exam $exam, Enrollment $enrollment, ExamAttempt $attempt): View
+    {
+        return view('student.exams.attempt', [
+            'course' => $course,
+            'exam' => $exam,
+            'enrollment' => $enrollment,
+            'inProgress' => $attempt,
+            'remainingSeconds' => $this->remainingSeconds($exam, $attempt),
+        ]);
+    }
+
+    /**
+     * Seconds left on the attempt, computed from started_at rather than from
+     * the duration alone: reloading or reconnecting must resume the same
+     * clock, not restart a fresh one.
+     */
+    private function remainingSeconds(Exam $exam, ExamAttempt $attempt): int
+    {
+        if (! $exam->duration_minutes || ! $attempt->started_at) {
+            return 0;
+        }
+
+        $elapsed = (int) $attempt->started_at->diffInSeconds(now());
+
+        return max(0, ((int) $exam->duration_minutes * 60) - $elapsed);
+    }
+
+    /**
+     * Create the attempt and hand the student to the exam page.
+     *
+     * The confirm screen's "Start Exam" button is a form, so it POSTs here
+     * rather than linking. Previously it POSTed to the attempt path, which is
+     * the *submit* handler: that looks for an attempt already in progress,
+     * finds none because nothing had started it, and firstOrFail() answered
+     * 404 — so every student who used the button hit a dead end.
+     *
+     * Starts are idempotent (an attempt already in progress is reused) and this
+     * redirects to the GET route, so a refresh cannot restart the clock.
+     */
+    public function beginAttempt(Course $course, Exam $exam): RedirectResponse
     {
         $studentId = auth()->id();
 
@@ -282,9 +321,16 @@ public function beginAttempt(Course $course, Exam $exam): RedirectResponse
                 ->with('error', 'Your attempt is no longer open. Please start it again.');
         }
 
+        // The page posts the answers it still holds when the clock reaches
+        // zero. Auto-submitting straight from the database discarded them:
+        // answers live in localStorage until this request lands, so the rows
+        // were empty and every timed-out exam scored 0. Accept the posted
+        // answers inside a short grace window instead; only a genuinely late
+        // request falls back to the stored rows.
         if ($exam->duration_minutes && $exam->auto_submit_on_timeout) {
             $deadline = $attempt->started_at->addMinutes($exam->duration_minutes);
-            if (now()->gte($deadline)) {
+            if (now()->gte($deadline)
+                && ! now()->lessThanOrEqualTo($deadline->copy()->addSeconds(self::TIMEOUT_GRACE_SECONDS))) {
                 return $this->autoSubmitAttempt($attempt, $course, $exam);
             }
         }
@@ -299,19 +345,67 @@ public function beginAttempt(Course $course, Exam $exam): RedirectResponse
 
     protected function autoSubmitAttempt(ExamAttempt $attempt, Course $course, Exam $exam): RedirectResponse
     {
-        // Get current answers from the attempt
-        $answers = [];
-        foreach ($attempt->answers as $answer) {
-            $answers[$answer->question_id] = [
-                'text' => $answer->answer_text,
-                'data' => $answer->answer_data,
-            ];
-        }
-
-        $attempt = $this->examService->submitAttempt($attempt, $answers);
+        // The same locked finalizer the scheduler uses, so a late browser
+        // request and a scheduled run cannot grade the attempt twice.
+        $this->assessmentAutoSubmit->autoSubmitExamAttempt($attempt);
 
         return redirect()->route('student.courses.exams.attempts.show', [$course, $exam, $attempt])
             ->with('warning', 'Exam time expired. Answers were auto-submitted.');
+    }
+
+    /**
+     * Record a tab-switch or copy/paste event for the current attempt.
+     *
+     * Events are only written when the instructor enabled that detector and
+     * the attempt is still open. A closed attempt accepts the request silently
+     * so a late beacon from the attempt page cannot resurrect a finished exam.
+     */
+    public function recordProctoringEvent(Request $request, Course $course, Exam $exam): Response
+    {
+        if ((int) $exam->class?->course_id !== (int) $course->id) {
+            abort(404);
+        }
+
+        $studentId = auth()->id();
+
+        $enrollment = Enrollment::where('student_id', $studentId)
+            ->whereHas('class', function ($q) use ($course) {
+                $q->where('course_id', $course->id);
+            })
+            ->where('status', 'active')
+            ->first();
+
+        if (! $enrollment) {
+            abort(403);
+        }
+
+        $attempt = ExamAttempt::ofExam($exam->id)
+            ->ofStudent($studentId)
+            ->inProgress()
+            ->first();
+
+        if (! $attempt) {
+            return response()->noContent();
+        }
+
+        $validated = $request->validate([
+            'event' => ['required', 'string', 'in:tab_switch,copy_paste'],
+        ]);
+
+        $event = $validated['event'];
+        $enabled = $event === 'tab_switch'
+            ? (bool) $exam->detect_tab_switch
+            : (bool) $exam->detect_copy_paste;
+
+        if (! $enabled) {
+            return response()->noContent();
+        }
+
+        $this->examService->recordProctoringEvent($attempt, $event, [
+            'source' => 'attempt_page',
+        ]);
+
+        return response()->noContent();
     }
 
     public function showAttempt(Course $course, Exam $exam, ExamAttempt $attempt): View

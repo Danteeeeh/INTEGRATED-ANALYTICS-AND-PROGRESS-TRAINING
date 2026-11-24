@@ -13,7 +13,7 @@ import { BASE_URL, HOST, PORT, phpBinary, projectRoot, serverEnvironment } from 
 
 /** The three widths every dashboard is checked at. */
 const viewports = [
-    { name: 'mobile', viewport: { width: 390, height: 844 } },
+    { name: 'mobile', viewport: { width: 390, height: 844 }, hasTouch: true },
     { name: 'tablet', viewport: { width: 768, height: 1024 } },
     { name: 'desktop', viewport: { width: 1440, height: 900 } },
 ];
@@ -60,9 +60,9 @@ export default defineConfig({
     },
     projects: [
         { name: 'auth', testMatch: /auth\.setup\.mjs/ },
-        ...viewports.map(({ name, viewport }) => ({
+        ...viewports.map(({ name, ...use }) => ({
             name,
-            use: { viewport },
+            use,
             dependencies: ['auth'],
         })),
     ],

@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\MediaFile;
 use App\Models\SubmissionFile;
+use App\Services\FileUploadService;
 use App\Services\ContentProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -179,6 +180,18 @@ class AssignmentController extends Controller
 
         $validated = $request->validate($rules);
 
+        $files = $request->file('files', []);
+        if (! is_array($files)) {
+            $files = [$files];
+        }
+
+        // Scan every attachment before creating the submission, so an unsafe
+        // file cannot leave an empty or half-stored attempt behind.
+        $fileUploadService = app(FileUploadService::class);
+        foreach ($files as $index => $file) {
+            $fileUploadService->assertSafeContent($file, "files.$index");
+        }
+
         $submission = AssignmentSubmission::create([
             'assignment_id' => $assignment->id,
             'student_id' => $studentId,
@@ -189,11 +202,7 @@ class AssignmentController extends Controller
             'status' => AssignmentSubmission::STATUS_SUBMITTED,
         ]);
 
-        if ($request->hasFile('files')) {
-            $files = $request->file('files');
-            if (!is_array($files)) {
-                $files = [$files];
-            }
+        if ($files !== []) {
             foreach ($files as $file) {
                 $originalName = $file->getClientOriginalName();
                 $path = $file->storeAs(

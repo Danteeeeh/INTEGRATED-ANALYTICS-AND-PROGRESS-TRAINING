@@ -11,7 +11,16 @@ return [
     // gradebook and Performance Analytics so both agree on who is at risk.
     'passing_grade' => (int) env('LMS_PASSING_GRADE', 60),
     'registration_default_status' => env('LMS_REGISTRATION_STATUS', 'pending'),
+
+    // Public self-registration is OFF unless explicitly enabled. Student
+    // accounts are meant to arrive from the AA sync; an open /register form
+    // would let anyone create an active student account without approval.
+    'registration_enabled' => (bool) env('LMS_REGISTRATION_ENABLED', false),
     'dev_seed_password' => env('LMS_DEV_SEED_PASSWORD', 'Password123!'),
+
+    // Demo logins use a password published in this repository. Unset means
+    // "seed outside production only".
+    'seed_demo_users' => env('LMS_SEED_DEMO_USERS'),
 
     /**
      * Upload ceilings, in kilobytes, because that is what Laravel's `max:`

@@ -2,17 +2,26 @@
    Dark is the default; toggling `body.light-mode` flips every surface via the
    `--dash-*` variables below, plus a few explicit light overrides for the
    hardcoded literals. */
-:root { --dash-bg:#101625; --dash-surface:#151c2c; --dash-surface-raised:#1b2437; --dash-blue:#2449c6; --dash-blue-light:#4d8ff0; --dash-cyan:#62c9f5; --dash-text:#eef4ff; --dash-muted:#98a7c4; --dash-line:rgba(153,174,214,.18); }
+:root { --dash-bg:#101625; --dash-surface:#151c2c; --dash-surface-raised:#1b2437; --dash-surface-2:#1b2437; --dash-surface-3:#202a42; --dash-blue:#2449c6; --dash-blue-light:#4d8ff0; --dash-accent:#5b9cff; --dash-cyan:#62c9f5; --dash-warning:#fbbf24; --dash-status-active:#6ee7b7; --dash-status-pending:#fcd34d; --dash-status-inactive:#cbd5e1; --dash-status-danger:#fda4af; --dash-status-info:#93c5fd; --dash-text:#eef4ff; --dash-muted:#98a7c4; --dash-line:rgba(153,174,214,.18); }
 
 /* ── Light-mode variable flip (knocks out every var(--dash-*) surface) ── */
 body.light-mode {
     --dash-bg:#eef2f9;
     --dash-surface:#ffffff;
     --dash-surface-raised:#f2f6fc;
+    --dash-surface-2:#f7f9fd;
+    --dash-surface-3:#eef2f9;
     --dash-blue-light:#4d8ff0;
+    --dash-accent:#1d4ed8;
     --dash-cyan:#0e7490;
+    --dash-warning:#92400e;
+    --dash-status-active:#047857;
+    --dash-status-pending:#92400e;
+    --dash-status-inactive:#475569;
+    --dash-status-danger:#b91c1c;
+    --dash-status-info:#1d4ed8;
     --dash-text:#16233c;
-    --dash-muted:#5f708c;
+    --dash-muted:#5a6b8a;
     --dash-line:rgba(31,52,88,.14);
     --bcp-navy-900:#f3f6fb;
     --bcp-navy-850:#ffffff;
@@ -159,7 +168,7 @@ body.light-mode .dash-polish .dash-stat-card:hover { box-shadow:0 14px 30px rgba
    (cyan #62c9f5 at the same alphas as the section links), now one rule. */
 .dash-polish .dash-panel-head .view-all {
     display:inline-flex; align-items:center; gap:6px;
-    color:#62c9f5; font-size:.72rem; font-weight:700; text-decoration:none;
+    color:var(--dash-cyan); font-size:.72rem; font-weight:700; text-decoration:none;
     padding:4px 10px; border:1px solid rgba(98,201,245,.25); border-radius:8px;
     background:rgba(98,201,245,.06); white-space:nowrap;
     transition:background .16s,border-color .16s;
@@ -178,9 +187,9 @@ body.light-mode .dash-polish .dash-stat-card:hover { box-shadow:0 14px 30px rgba
     border-radius:10px;
     font-size:.85rem;
 }
-/* Literal, not var(--dash-cyan): that token flips to #0e7490 under
-   `body.light-mode`, which would change the colour this icon already renders. */
-.dash-polish .dash-note i { color:#62c9f5; }
+/* Use the theme-aware cyan so the icon remains legible when the light theme
+   flips the token to #0e7490. */
+.dash-polish .dash-note i { color:var(--dash-cyan); }
 
 /* ── Keyboard focus uses the palette's existing focus colour ── */
 .dash-polish a:focus-visible,
@@ -190,15 +199,12 @@ body.light-mode .dash-polish .dash-stat-card:hover { box-shadow:0 14px 30px rgba
     border-radius:6px;
 }
 
-/* ── Narrow screens: dashboard panels scroll instead of clipping their tables
-   (`.dash-panel` sets overflow:hidden, which silently cuts a wide table off). ── */
-/* The AA dashboard's tables live in `.crud-card`, which the earlier rule
-   missed — without this their wide columns were silently clipped instead of
-   scrolling on narrow screens. */
+/* ── Narrow screens: the AA dashboard's tables live in `.crud-card`, which
+   `.dash-panel`'s overflow:hidden rule does not cover. Let the card scroll
+   instead of silently clipping wide columns. Dashboard panels themselves keep
+   their header fixed; their tables use a dedicated `.table-responsive` wrapper. ── */
 @media (max-width:900px) {
-    .dash-polish .dash-panel,
     .dash-polish .crud-card { overflow-x:auto; }
-    .dash-polish .dash-panel > .crud-table,
     .dash-polish .crud-card > .crud-table { min-width:640px; }
 }
 
