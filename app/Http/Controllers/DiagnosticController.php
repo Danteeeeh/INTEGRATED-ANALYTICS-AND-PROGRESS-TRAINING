@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use App\Models\User;
-use App\Models\Role;
 
 class DiagnosticController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $secret = $request->query('secret');
-        if (config('app.env') === 'production' && $secret !== config('app.key')) {
-            return response('Unauthorized - Add ?secret=<APP_KEY> to URL', 401);
-        }
+        // Keep full connection details available while developing locally.
+        // Redact everywhere else so production, staging, and unexpected
+        // APP_ENV values cannot expose connection details or raw errors.
+        $redactSensitive = ! in_array(config('app.env'), ['local', 'testing'], true);
 
         $diagnostics = [
             'database_connection' => [
@@ -24,15 +22,17 @@ class DiagnosticController extends Controller
             ],
             'tables' => [],
             'users' => ['total' => null, 'active' => null],
-            'user_list' => [],
-            'seeded_accounts' => [],
             'environment' => [
                 'app_env' => config('app.env'),
                 'app_debug' => config('app.debug'),
                 'app_url' => config('app.url'),
                 'db_connection' => config('database.default'),
-                'db_host' => config('database.connections.' . config('database.default') . '.host'),
-                'db_database' => config('database.connections.' . config('database.default') . '.database'),
+                'db_host' => $redactSensitive
+                    ? '[redacted]'
+                    : config('database.connections.' . config('database.default') . '.host'),
+                'db_database' => $redactSensitive
+                    ? '[redacted]'
+                    : config('database.connections.' . config('database.default') . '.database'),
                 'session_driver' => config('session.driver'),
                 'cache_default' => config('cache.default'),
             ],
@@ -42,13 +42,13 @@ class DiagnosticController extends Controller
             DB::connection()->getPdo();
             $diagnostics['database_connection'] = [
                 'status' => 'success',
-                'database' => DB::connection()->getDatabaseName(),
+                'database' => $redactSensitive ? '[redacted]' : DB::connection()->getDatabaseName(),
                 'connection' => DB::connection()->getName(),
             ];
         } catch (\Throwable $e) {
             $diagnostics['database_connection'] = [
                 'status' => 'failed',
-                'error' => $e->getMessage(),
+                'error' => $this->errorMessage($e, $redactSensitive),
             ];
             $diagnostics['tables'] = [
                 'users' => null,
@@ -57,17 +57,13 @@ class DiagnosticController extends Controller
                 'role_permissions' => null,
                 'note' => 'Skipped — DB unreachable',
             ];
-            $diagnostics['seeded_accounts'] = [
-                'note' => 'Skipped — DB unreachable',
-            ];
             $diagnostics['users'] = [
                 'total' => null,
                 'active' => null,
                 'note' => 'Skipped — DB unreachable',
             ];
-            $diagnostics['user_list'] = [];
 
-            return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT);
+            return $this->diagnosticResponse($diagnostics);
         }
 
         try {
@@ -79,7 +75,7 @@ class DiagnosticController extends Controller
             ];
         } catch (\Throwable $e) {
             $diagnostics['tables'] = [
-                'error' => $e->getMessage(),
+                'error' => $this->errorMessage($e, $redactSensitive),
             ];
         }
 
@@ -92,43 +88,21 @@ class DiagnosticController extends Controller
             $diagnostics['users'] = [
                 'total' => null,
                 'active' => null,
-                'error' => $e->getMessage(),
+                'error' => $this->errorMessage($e, $redactSensitive),
             ];
         }
 
-        try {
-            $diagnostics['user_list'] = User::with('role')->limit(20)->get()->map(function ($user) {
-                return [
-                    'email' => $user->email,
-                    'name' => $user->first_name . ' ' . $user->last_name,
-                    'role' => $user->role?->slug,
-                    'status' => $user->status,
-                    'password_hash_length' => strlen($user->password),
-                ];
-            });
-        } catch (\Throwable $e) {
-            $diagnostics['user_list'] = ['error' => $e->getMessage()];
-        }
+        return $this->diagnosticResponse($diagnostics);
+    }
 
-        $seededEmails = [
-            'admin@lms.local',
-            'instructor@lms.local',
-            'student@lms.local',
-            'johncedrickdayandante6@gmail.com',
-        ];
+    private function errorMessage(\Throwable $e, bool $redactSensitive): string
+    {
+        return $redactSensitive ? 'Diagnostic failed.' : $e->getMessage();
+    }
 
-        try {
-            foreach ($seededEmails as $email) {
-                $user = User::where('email', $email)->first();
-                $diagnostics['seeded_accounts'][$email] = [
-                    'exists' => $user !== null,
-                    'password_valid' => $user ? \Illuminate\Support\Facades\Hash::check('Password123!', $user->password) : false,
-                ];
-            }
-        } catch (\Throwable $e) {
-            $diagnostics['seeded_accounts']['error'] = $e->getMessage();
-        }
-
-        return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT);
+    private function diagnosticResponse(array $diagnostics)
+    {
+        return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT)
+            ->header('Cache-Control', 'no-store, private');
     }
 }

@@ -88,6 +88,8 @@ Options -Indexes
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
-    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # Permissions-Policy is owned by app/Http/Middleware/SecurityHeaders.php.
+    # Setting it here too would send a second header, and the browser applies
+    # the strictest one — a stale "camera=()" blocked the virtual classroom.
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{REQUEST_SCHEME} == 'https' || %{HTTP:X-Forwarded-Proto} == 'https'"
 </IfModule>

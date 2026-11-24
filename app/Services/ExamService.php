@@ -517,7 +517,8 @@ class ExamService
         // lookup stays O(1) whatever order the student meets the questions in.
         $snapshots = app(QuestionSnapshotService::class)->captureMany(
             $questions,
-            $exam->pointsByQuestionId()
+            $exam->pointsByQuestionId(),
+            (bool) $exam->shuffle_choices
         );
 
         if ($exam->shuffle_questions) {
@@ -659,6 +660,14 @@ class ExamService
         float $possible,
         float $scorePercent
     ): void {
+        // show_score is a student-facing privacy setting. Releasing the
+        // gradebook item unconditionally leaked the same percentage through
+        // My Grades even when the exam result page hid it. Keep the marked
+        // grade for the instructor, but only release it automatically when the
+        // exam allows students to see their score. An instructor can still
+        // release it manually from the gradebook.
+        $release = (bool) $exam->show_score;
+
         $gradeItem = GradeItem::firstOrCreate([
             'related_type' => Exam::class,
             'related_id' => $exam->id,
@@ -667,8 +676,8 @@ class ExamService
             'title' => $exam->title,
             'max_points' => $possible,
             'item_type' => GradeItem::TYPE_EXAM,
-            'is_released' => true,
-            'released_at' => now(),
+            'is_released' => $release,
+            'released_at' => $release ? now() : null,
         ]);
 
         Grade::updateOrCreate(
@@ -763,6 +772,18 @@ class ExamService
 
             $fresh = $exam->fresh();
 
+            // show_score also controls whether an already-recorded exam mark is
+            // released to My Grades. Keep both surfaces in sync when the setting
+            // changes, instead of leaving an old released grade visible.
+            if (array_key_exists('show_score', $attributes)) {
+                GradeItem::where('related_type', Exam::class)
+                    ->where('related_id', $exam->id)
+                    ->update([
+                        'is_released' => (bool) $fresh->show_score,
+                        'released_at' => $fresh->show_score ? now() : null,
+                    ]);
+            }
+
             AuditLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'update',
@@ -813,18 +834,40 @@ class ExamService
         return $exam->fresh();
     }
 
-    public function recordProctoringEvent(ExamAttempt $attempt, string $eventType, array $data = []): void
+    /**
+     * Append one browser proctoring event and keep its counter in sync.
+     *
+     * The row is locked so a burst of tab-switch and copy/paste reports cannot
+     * lose log entries or counters. A closed attempt ignores late reports.
+     */
+    public function recordProctoringEvent(ExamAttempt $attempt, string $eventType, array $data = []): ?ExamAttempt
     {
-        $log = $attempt->proctoring_log ?? [];
-        $log[] = [
-            'event' => $eventType,
-            'timestamp' => now()->toISOString(),
-            'data' => $data,
-        ];
+        return DB::transaction(function () use ($attempt, $eventType, $data) {
+            $locked = ExamAttempt::query()->lockForUpdate()->find($attempt->id);
 
-        $attempt->update([
-            'proctoring_log' => $log,
-        ]);
+            if (! $locked || $locked->status !== ExamAttempt::STATUS_IN_PROGRESS) {
+                return null;
+            }
+
+            $log = $locked->proctoring_log ?? [];
+            $log[] = [
+                'event' => $eventType,
+                'timestamp' => now()->toISOString(),
+                'data' => $data,
+            ];
+
+            $updates = ['proctoring_log' => $log];
+
+            if ($eventType === 'tab_switch') {
+                $updates['tab_switch_count'] = (int) $locked->tab_switch_count + 1;
+            } elseif ($eventType === 'copy_paste') {
+                $updates['suspicious_activity_count'] = (int) $locked->suspicious_activity_count + 1;
+            }
+
+            $locked->update($updates);
+
+            return $locked->fresh();
+        });
     }
 
     /** Generate an Exam from the Test Bank with configurable quotas.

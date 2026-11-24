@@ -18,6 +18,10 @@ class UserFunctionAuditTest extends TestCase
 
     public function test_probe_all_user_function_routes(): void
     {
+        // The registration form is closed by default; open it here so the
+        // audit still covers the page instead of recording an intended 404.
+        config(['lms.registration_enabled' => true]);
+
         $admin = $this->makeUser(Role::ADMIN);
         $instructor = $this->makeUser(Role::INSTRUCTOR);
         $student = $this->makeUser(Role::STUDENT);

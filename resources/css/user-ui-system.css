@@ -1,16 +1,19 @@
 /* Shared role UI system: one shell, distinct workflows. */
 :root {
-    --user-accent: var(--dash-blue-light, #4d8ff0);
+    --user-accent: var(--dash-accent, var(--dash-blue-light, #4d8ff0));
     --user-accent-strong: var(--dash-blue, #2449c6);
     --user-accent-soft: rgba(77, 143, 240, .14);
-    --user-success: #34d399;
-    --user-warning: #fbbf24;
-    --user-danger: #fb7185;
+    --user-success: var(--dash-status-active, #34d399);
+    --user-warning: var(--dash-warning, #fbbf24);
+    --user-danger: var(--dash-status-danger, #fb7185);
     --user-radius: 16px;
 }
 body.role-admin { --user-accent: #62c9f5; --user-accent-strong: #2449c6; --user-accent-soft: rgba(77,143,240,.16); }
 body.role-instructor { --user-accent: #c4b5fd; --user-accent-strong: #7c3aed; --user-accent-soft: rgba(139,92,246,.16); }
 body.role-student { --user-accent: #6ee7b7; --user-accent-strong: #059669; --user-accent-soft: rgba(16,185,129,.16); }
+body.light-mode.role-admin { --user-accent: #0e7490; }
+body.light-mode.role-instructor { --user-accent: #6d28d9; }
+body.light-mode.role-student { --user-accent: #047857; }
 
 .user-page { display: grid; gap: 18px; }
 .user-hero {
@@ -28,6 +31,14 @@ body.role-student { --user-accent: #6ee7b7; --user-accent-strong: #059669; --use
 .user-hero-meta .live-dot { width:7px; height:7px; border-radius:50%; background:var(--user-success); box-shadow:0 0 0 4px rgba(52,211,153,.13); }
 .user-hero-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; flex:0 0 auto; }
 .user-hero-actions .btn, .user-hero-actions a { border-color:rgba(219,234,254,.25); box-shadow:0 7px 18px rgba(3,8,20,.18); }
+
+/* Tablet: keep the hero copy readable instead of letting the fixed-width
+   action row squeeze it into a one-word column. */
+@media (max-width:1100px) {
+    .user-hero { flex-direction:column; align-items:stretch; gap:18px; }
+    .user-hero-copy { width:100%; }
+    .user-hero-actions { justify-content:flex-start; }
+}
 
 /* Keep page actions reachable after a long page scrolls past its hero. */
 body.user-hero-scrolled .user-hero-actions {
@@ -96,16 +107,16 @@ body.user-hero-scrolled .user-hero-actions a {
 .user-empty h3 { margin:0 0 5px; color:var(--dash-text); font-size:.95rem; }
 .user-empty p { max-width:420px; margin:0 0 14px; font-size:.75rem; }
 .user-status { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px; font-size:.64rem; font-weight:800; }
-.user-status.active, .user-status.published, .user-status.completed { color:#6ee7b7; background:rgba(16,185,129,.13); }
-.user-status.pending, .user-status.draft { color:#fcd34d; background:rgba(251,191,36,.13); }
-.user-status.inactive, .user-status.archived, .user-status.dropped { color:#cbd5e1; background:rgba(148,163,184,.14); }
-.user-status.suspended, .user-status.rejected { color:#fda4af; background:rgba(244,63,94,.13); }
-.user-status.scheduled, .user-status.ongoing, .user-status.upcoming { color:#93c5fd; background:rgba(59,130,246,.13); }
-.user-status.cancelled { color:#fda4af; background:rgba(244,63,94,.13); }
-.user-focus:focus-visible, .user-hero a:focus-visible, .user-hero button:focus-visible, .user-actions a:focus-visible, .user-actions button:focus-visible { outline:3px solid var(--user-accent); outline-offset:2px; }
+.user-status.active, .user-status.published, .user-status.completed { color:var(--dash-status-active, #6ee7b7); background:rgba(16,185,129,.13); }
+.user-status.pending, .user-status.draft { color:var(--dash-status-pending, #fcd34d); background:rgba(251,191,36,.13); }
+.user-status.inactive, .user-status.archived, .user-status.dropped { color:var(--dash-status-inactive, #cbd5e1); background:rgba(148,163,184,.14); }
+.user-status.suspended, .user-status.rejected { color:var(--dash-status-danger, #fda4af); background:rgba(244,63,94,.13); }
+.user-status.scheduled, .user-status.ongoing, .user-status.upcoming { color:var(--dash-status-info, #93c5fd); background:rgba(59,130,246,.13); }
+.user-status.cancelled { color:var(--dash-status-danger, #fda4af); background:rgba(244,63,94,.13); }
+.user-focus:focus-visible, .user-hero a:focus-visible, .user-hero button:focus-visible, .user-actions a:focus-visible, .user-actions button:focus-visible { outline:3px solid var(--bcp-focus, var(--user-accent)); outline-offset:2px; }
 
 /* Sidebar: shared spacing, visible focus, and an explicit current-page marker. */
-.sidebar-nav .nav-link:focus-visible { outline:3px solid var(--user-accent); outline-offset:2px; border-radius:10px; }
+.sidebar-nav .nav-link:focus-visible { outline:3px solid var(--bcp-focus, var(--user-accent)); outline-offset:2px; border-radius:10px; }
 .sidebar-nav .nav-link[aria-current="page"] { position:relative; }
 .sidebar-nav .nav-link[aria-current="page"]::before { content:""; position:absolute; left:0; top:50%; width:3px; height:60%; transform:translateY(-50%); border-radius:0 3px 3px 0; background:var(--user-accent); }
 
@@ -118,6 +129,20 @@ body.light-mode .user-hero { box-shadow:0 18px 42px rgba(31,52,88,.18); }
 body.light-mode .user-hero p { color:rgba(238,244,255,.86); }
 body.light-mode .user-hero-meta { color:rgba(219,234,254,.9); }
 body.light-mode .user-hero-meta .live-dot { box-shadow:0 0 0 4px rgba(52,211,153,.22); }
+/* The hero stays a dark accent surface in light mode, so secondary actions
+   must keep light text instead of inheriting the page's dark ink. */
+body.light-mode .user-hero-actions .btn-secondary,
+body.light-mode .user-hero-actions a:not(.btn-primary) {
+    color:#eef4ff !important;
+    background:rgba(255,255,255,.10) !important;
+    border-color:rgba(255,255,255,.28) !important;
+}
+body.light-mode .user-hero-actions .btn-secondary:hover,
+body.light-mode .user-hero-actions a:not(.btn-primary):hover {
+    color:#ffffff !important;
+    background:rgba(255,255,255,.18) !important;
+    border-color:rgba(255,255,255,.42) !important;
+}
 body.light-mode .user-stat-label,
 body.light-mode .user-stat-foot,
 body.light-mode .user-empty,
@@ -126,12 +151,12 @@ body.light-mode .learning-next-action span { color:#5f708c; }
 body.light-mode .user-toolbar { background:rgba(36,73,198,.04); }
 body.light-mode .learning-progress { background:rgba(31,52,88,.10); }
 body.light-mode .learning-next-action { background:rgba(5,150,105,.07); border-color:rgba(5,150,105,.22); }
-body.light-mode .user-status.active, body.light-mode .user-status.published, body.light-mode .user-status.completed { color:#047857; background:rgba(5,150,105,.12); }
-body.light-mode .user-status.pending, body.light-mode .user-status.draft { color:#a16207; background:rgba(217,119,6,.13); }
-body.light-mode .user-status.inactive, body.light-mode .user-status.archived, body.light-mode .user-status.dropped { color:#475569; background:rgba(100,116,139,.13); }
-body.light-mode .user-status.suspended, body.light-mode .user-status.rejected { color:#b91c1c; background:rgba(220,38,38,.11); }
-body.light-mode .user-status.scheduled, body.light-mode .user-status.ongoing, body.light-mode .user-status.upcoming { color:#1d4ed8; background:rgba(37,99,235,.11); }
-body.light-mode .user-status.cancelled { color:#b91c1c; background:rgba(220,38,38,.11); }
+body.light-mode .user-status.active, body.light-mode .user-status.published, body.light-mode .user-status.completed { color:var(--dash-status-active); background:rgba(5,150,105,.12); }
+body.light-mode .user-status.pending, body.light-mode .user-status.draft { color:var(--dash-status-pending); background:rgba(217,119,6,.13); }
+body.light-mode .user-status.inactive, body.light-mode .user-status.archived, body.light-mode .user-status.dropped { color:var(--dash-status-inactive); background:rgba(100,116,139,.13); }
+body.light-mode .user-status.suspended, body.light-mode .user-status.rejected { color:var(--dash-status-danger); background:rgba(220,38,38,.11); }
+body.light-mode .user-status.scheduled, body.light-mode .user-status.ongoing, body.light-mode .user-status.upcoming { color:var(--dash-status-info); background:rgba(37,99,235,.11); }
+body.light-mode .user-status.cancelled { color:var(--dash-status-danger); background:rgba(220,38,38,.11); }
 body.light-mode .user-stat-trend { color:var(--user-accent-strong); }
 
 /* Student is intentionally a learning surface rather than an admin table. */
@@ -149,5 +174,5 @@ body.light-mode .user-stat-trend { color:var(--user-accent-strong); }
 
 @media (max-width:1100px) { .user-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .learning-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:760px) { .user-hero { align-items:flex-start; flex-direction:column; padding:20px; } .user-hero-actions { width:100%; justify-content:flex-start; } .user-hero-actions .btn, .user-hero-actions a { flex:1 1 auto; } .user-stat-grid, .learning-grid { grid-template-columns:1fr; } .user-toolbar { align-items:stretch; flex-direction:column; } .user-toolbar > * { width:100%; } }
-@media (max-width:480px) { .user-hero h1 { font-size:1.35rem; } .user-hero-actions .btn, .user-hero-actions a { width:100%; } .user-stat-grid { gap:9px; } .user-stat-card { padding:13px; } }
+@media (max-width:480px) { .user-hero h1 { font-size:1.35rem; } .user-hero-actions .btn, .user-hero-actions a { width:100%; } .user-hero-actions > div { width:100%; } .user-hero-actions > div > .dash-action-btn { width:100%; justify-content:center; } .user-stat-grid { gap:9px; } .user-stat-card { padding:13px; } }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.001ms !important; transition-duration:.001ms !important; } }

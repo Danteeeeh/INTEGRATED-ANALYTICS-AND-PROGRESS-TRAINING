@@ -193,6 +193,7 @@
                             <input type="checkbox" name="requires_proctoring" value="1" @checked(old('requires_proctoring'))>
                             <span>This exam is proctored</span>
                         </label>
+                        <small style="color:var(--dash-muted); display:block;">Shows the notice and instructions; tab/copy detection is controlled below.</small>
                     </div>
 
                     <div class="form-field">
@@ -211,10 +212,6 @@
                     </div>
 
                     <div class="form-field full">
-                        <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;">
-                            <input type="checkbox" name="record_session" value="1" @checked(old('record_session'))>
-                            <span>Record the session</span>
-                        </label>
                         <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;">
                             <input type="checkbox" name="detect_tab_switch" value="1" @checked(old('detect_tab_switch'))>
                             <span>Detect tab switching</span>

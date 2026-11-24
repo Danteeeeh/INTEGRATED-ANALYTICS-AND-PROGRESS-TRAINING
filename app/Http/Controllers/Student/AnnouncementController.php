@@ -11,6 +11,38 @@ use Illuminate\View\View;
 
 class AnnouncementController extends Controller
 {
+    /**
+     * Every published announcement visible to this student, across all their
+     * enrolled courses and classes.
+     */
+    public function all(): View
+    {
+        $studentId = auth()->id();
+        $classIds = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->pluck('class_id');
+        $courseIds = Enrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->with('class:id,course_id')
+            ->get()
+            ->pluck('class.course_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $announcements = Announcement::where(function ($q) use ($courseIds, $classIds) {
+            $q->whereIn('course_id', $courseIds)->orWhereIn('class_id', $classIds);
+        })
+            ->where('publish_at', '<=', now())
+            ->with(['creator', 'attachment', 'course', 'class.course'])
+            ->orderBy('is_pinned', 'desc')
+            ->orderBy('publish_at', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return view('student.announcements.all', compact('announcements'));
+    }
+
     public function index(Course $course): View
     {
         $studentId = auth()->id();

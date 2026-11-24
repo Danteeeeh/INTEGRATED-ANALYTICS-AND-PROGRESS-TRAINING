@@ -47,7 +47,7 @@ class FileUploadService
      */
     protected array $suspiciousPatterns = [
         '/<\?php/i',
-        '/<\?=php/i',
+        '/<\?=/',
         '/<script[^>]*\bsrc\s*=\s*["\']?(?:https?:)?\/\//i',
         '/eval\s*\(\s*(?:base64_decode|gzinflate|str_rot13)\s*\(/i',
         '/powershell[^\r\n]*-enc(?:odedcommand)?\b/i',
@@ -164,34 +164,91 @@ class FileUploadService
         $this->checkForExecutableFile($file);
     }
 
-    protected function checkForExecutableFile(UploadedFile $file): void
+    /**
+     * Scan an upload that is stored by a feature with its own naming or
+     * placement rules, so it still gets the same executable/content checks.
+     */
+    public function assertSafeContent(UploadedFile $file, string $attribute = 'file'): void
     {
-        $extension = strtolower($file->getClientOriginalExtension());
-        $dangerousExtensions = ['exe', 'bat', 'sh', 'php', 'js', 'jar', 'com', 'scr', 'pif'];
+        $this->checkForExecutableFile($file, $attribute);
+    }
 
-        if (in_array($extension, $dangerousExtensions)) {
+    protected function checkForExecutableFile(UploadedFile $file, string $attribute = 'file'): void
+    {
+        $dangerousExtensions = [
+            'exe', 'bat', 'cmd', 'com', 'scr', 'pif', 'sh', 'bash', 'zsh',
+            'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'pht', 'phtm', 'phps', 'phar',
+            'inc', 'cgi', 'pl', 'shtml', 'asp', 'aspx', 'jsp', 'jspx', 'htaccess',
+            'js', 'jse', 'jar', 'war', 'ps1', 'psm1', 'vbs', 'vbe',
+        ];
+
+        $segments = preg_split(
+            '/[.\/]+/',
+            strtolower(str_replace('\\', '/', $file->getClientOriginalName())),
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        ) ?: [];
+
+        if (array_intersect($segments, $dangerousExtensions) !== []) {
             throw ValidationException::withMessages([
-                'file' => 'Executable files are not allowed for security reasons.',
+                $attribute => 'Executable files are not allowed for security reasons.',
             ]);
         }
 
         // Read only the first 64KB to check for suspicious patterns,
         // not the entire file, to keep upload of large files fast.
         $pathname = $file->getPathname();
-        $handle = fopen($pathname, 'rb');
+
+        // Fail closed: a file that cannot be scanned must not be stored. The
+        // old code returned here, which let an unreadable upload bypass the
+        // scanner entirely. Suppress the fopen warning because the failure is
+        // handled by the explicit validation exception below.
+        $handle = @fopen($pathname, 'rb');
         if ($handle === false) {
-            return;
-        }
-        $content = fread($handle, 65536);
-        fclose($handle);
-        if ($content === false) {
-            return;
+            throw ValidationException::withMessages([
+                $attribute => 'The file could not be scanned for unsafe content.',
+            ]);
         }
 
-        foreach ($this->suspiciousPatterns as $pattern) {
-            if (preg_match($pattern, $content)) {
+        $content = '';
+
+        // fread() is allowed to return fewer bytes than requested. Keep
+        // filling the 64KB window so a short read cannot hide a later pattern.
+        while (strlen($content) < 65536 && ! feof($handle)) {
+            $chunk = fread($handle, 65536 - strlen($content));
+
+            if ($chunk === false) {
+                fclose($handle);
+
                 throw ValidationException::withMessages([
-                    'file' => 'The file contains suspicious content and cannot be uploaded.',
+                    $attribute => 'The file could not be scanned for unsafe content.',
+                ]);
+            }
+
+            if ($chunk === '') {
+                break;
+            }
+
+            $content .= $chunk;
+        }
+
+        fclose($handle);
+
+        foreach ($this->suspiciousPatterns as $pattern) {
+            // preg_match() returns false when PCRE itself fails (for example,
+            // an invalid pattern or a resource limit). Treat that as a scanner
+            // failure rather than a clean result.
+            $result = @preg_match($pattern, $content);
+
+            if ($result === false) {
+                throw ValidationException::withMessages([
+                    $attribute => 'The file could not be scanned for unsafe content.',
+                ]);
+            }
+
+            if ($result === 1) {
+                throw ValidationException::withMessages([
+                    $attribute => 'The file contains suspicious content and cannot be uploaded.',
                 ]);
             }
         }

@@ -5,17 +5,13 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-$healthzRequestUri = $_SERVER['REQUEST_URI'] ?? '';
-$healthzPath = parse_url($healthzRequestUri, PHP_URL_PATH) ?: $healthzRequestUri;
-if ($healthzPath === '/up' || $healthzPath === '/healthz' || $healthzPath === '/health' || $healthzPath === '/ping') {
-    header('HTTP/1.1 204 No Content', true, 204);
-    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-    header('X-Healthz-Probe: standalone-v1');
-    header('X-Content-Type-Options: nosniff');
-    if (function_exists('fastcgi_finish_request') && PHP_SAPI === 'fpm-fcgi') {
-        fastcgi_finish_request();
-    }
-    exit(0);
+// Hosting health check (HostForge points at /up). It answers before the
+// framework boots, so the probe stays meaningful even when the app is in
+// maintenance or cannot reach its database.
+if (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) === '/up') {
+    http_response_code(204);
+    header('Cache-Control: no-store');
+    exit;
 }
 
 // Determine if the application is in maintenance mode...

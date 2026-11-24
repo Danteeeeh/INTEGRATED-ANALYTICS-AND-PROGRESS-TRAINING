@@ -11,7 +11,7 @@
     <div class="page-title-bar">
         <h2 class="page-title">
             <i class="fa-solid fa-file-lines"></i>
-            {{ $course->title }} <span style="opacity:.6;font-weight:400;">({{ $course->code }}) — LMS Assessment Report</span>
+            {{ $course->title }} <span style="color:var(--dash-muted);font-weight:400;">({{ $course->code }}) — LMS Assessment Report</span>
         </h2>
     </div>
 @endsection
@@ -50,7 +50,7 @@
                         <td style="text-align:center;">{{ $row['completed_at'] ?: '—' }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b;">Walang enrollment pa ang course na ito.</td></tr>
+                    <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--dash-muted);">Walang enrollment pa ang course na ito.</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Services\ContentProgressService;
 use App\Services\QuestionGrader;
 use App\Services\QuestionSnapshotService;
+use App\Services\QuizService;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
@@ -22,7 +23,19 @@ use Illuminate\View\View;
 
 class QuizController extends Controller
 {
-    public function __construct(private ContentProgressService $contentProgress) {}
+    /**
+     * How long after the time limit a submission may still arrive and have
+     * its posted answers counted. The page submits itself ~2 seconds after
+     * the clock hits zero; this window covers that delay, network latency and
+     * clock skew between the browser and the server without leaving the door
+     * open for an hours-late submission.
+     */
+    private const TIMEOUT_GRACE_SECONDS = 120;
+
+    public function __construct(
+        private ContentProgressService $contentProgress,
+        private QuizService $quizService,
+    ) {}
 
     public function index(Course $course): View
     {
@@ -160,7 +173,7 @@ class QuizController extends Controller
                 // attempt_number) unique slot and make the next insert collide.
                 $inProgress->forceDelete();
             } else {
-                return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+                return $this->attemptView($course, $quiz, $enrollment, $inProgress);
             }
         }
 
@@ -194,7 +207,38 @@ class QuizController extends Controller
         $inProgress = $this->openAttempt($quiz, $studentId, $questions)
             ->load('answers.question.choices');
 
-        return view('student.quizzes.attempt', compact('course', 'quiz', 'enrollment', 'inProgress'));
+        return $this->attemptView($course, $quiz, $enrollment, $inProgress);
+    }
+
+    /**
+     * The one place the attempt page's data is assembled, so a resumed attempt
+     * and a freshly-started one get the same server-computed clock value.
+     */
+    private function attemptView(Course $course, Quiz $quiz, Enrollment $enrollment, QuizAttempt $attempt): View
+    {
+        return view('student.quizzes.attempt', [
+            'course' => $course,
+            'quiz' => $quiz,
+            'enrollment' => $enrollment,
+            'inProgress' => $attempt,
+            'remainingSeconds' => $this->remainingSeconds($quiz, $attempt),
+        ]);
+    }
+
+    /**
+     * Seconds left on the attempt, computed from started_at rather than from
+     * the time limit alone: a reload or reconnect must resume the same clock,
+     * not restart a fresh one.
+     */
+    private function remainingSeconds(Quiz $quiz, QuizAttempt $attempt): int
+    {
+        if (! $quiz->time_limit_minutes || ! $attempt->started_at) {
+            return 0;
+        }
+
+        $elapsed = (int) $attempt->started_at->diffInSeconds(now());
+
+        return max(0, ((int) $quiz->time_limit_minutes * 60) - $elapsed);
     }
 
     /**
@@ -334,12 +378,42 @@ class QuizController extends Controller
             ->ofStudent($studentId)
             ->inProgress()
             ->with(['answers.question', 'answers.selectedChoices'])
-            ->firstOrFail();
+            ->first();
+
+        // A double click, a second tab, or a resubmit after the first request
+        // already closed the attempt used to answer 404 — a dead end for the
+        // student. Send them to the result they already have, or back to the
+        // quiz when nothing was submitted at all.
+        if (! $attempt) {
+            $submitted = QuizAttempt::ofQuiz($quiz->id)
+                ->ofStudent($studentId)
+                ->latest('id')
+                ->first();
+
+            return $submitted
+                ? redirect()->route('student.courses.quizzes.attempts.show', [$course, $quiz, $submitted])
+                    ->with('status', 'This quiz has already been submitted.')
+                : redirect()->route('student.courses.quizzes.show', [$course, $quiz])
+                    ->with('error', 'Your attempt is no longer open. Please start it again.');
+        }
+
+        // The page posts the answers it still holds when the clock reaches
+        // zero. Grading that request from the database scored every timed-out
+        // attempt as 0: answers are mirrored to localStorage, not to the
+        // server, so the rows are empty until this submission lands. Accept
+        // the posted answers inside a short grace window and mark the attempt
+        // auto-submitted; after that window fall back to the stored rows.
+        $timedOut = false;
+        $deadline = null;
 
         if ($quiz->time_limit_minutes && $quiz->auto_submit_on_timeout) {
             $deadline = $attempt->started_at->addMinutes($quiz->time_limit_minutes);
             if (now()->gte($deadline)) {
-                return $this->autoSubmitAttempt($attempt, $course, $quiz);
+                if (now()->lessThanOrEqualTo($deadline->copy()->addSeconds(self::TIMEOUT_GRACE_SECONDS))) {
+                    $timedOut = true;
+                } else {
+                    return $this->autoSubmitAttempt($attempt, $course, $quiz);
+                }
             }
         }
 
@@ -415,17 +489,19 @@ class QuizController extends Controller
         }
 
         $attempt->update([
-            'ended_at' => now(),
+            'ended_at' => $timedOut && $deadline ? $deadline : now(),
             'submitted_at' => now(),
-            'time_spent_seconds' => $timeSpent,
+            'time_spent_seconds' => $timedOut ? $quiz->time_limit_minutes * 60 : $timeSpent,
             'score' => $totalScore,
             'score_percent' => round($scorePercent, 2),
             'is_passed' => $isPassed,
-            'status' => QuizAttempt::STATUS_SUBMITTED,
+            'status' => $timedOut ? QuizAttempt::STATUS_AUTO_SUBMITTED : QuizAttempt::STATUS_SUBMITTED,
         ]);
 
         return redirect()->route('student.courses.quizzes.attempts.show', [$course, $quiz, $attempt])
-            ->with('status', 'Quiz submitted successfully!');
+            ->with('status', $timedOut
+                ? 'Quiz time expired. Your answers were auto-submitted.'
+                : 'Quiz submitted successfully!');
     }
 
     /**
@@ -483,77 +559,7 @@ class QuizController extends Controller
 
     protected function autoSubmitAttempt(QuizAttempt $attempt, Course $course, Quiz $quiz): RedirectResponse
     {
-        // Ensure answers and questions are loaded for grading
-        $attempt->loadMissing('answers.question', 'answers.selectedChoices');
-        
-        $totalScore = 0;
-        $totalPoints = 0;
-        $grader = app(QuestionGrader::class);
-
-        foreach ($attempt->answers as $quizAnswer) {
-            $question = $quizAnswer->question;
-            $snapshot = $quizAnswer->snapshotArray();
-
-            $pivotPoints = $question?->quizzes->find($quiz->id)?->pivot->points
-                ?? $snapshot['points']
-                ?? $question?->default_points
-                ?? 1;
-
-            // Stored submissions are scalar for one-answer types and JSON for
-            // multiple answer; undo that before grading.
-            $submitted = $quizAnswer->answer_text;
-
-            if (is_string($submitted) && str_starts_with(ltrim($submitted), '[')) {
-                $decoded = json_decode($submitted, true);
-
-                if (is_array($decoded)) {
-                    $submitted = $decoded;
-                }
-            }
-
-            $result = $grader->grade($submitted, $snapshot, $question, (float) $pivotPoints);
-
-            if ($result['manual']) {
-                $quizAnswer->is_correct = null;
-                $quizAnswer->points_awarded = null;
-                $quizAnswer->save();
-
-                continue;
-            }
-
-            $quizAnswer->is_correct = $result['is_correct'];
-            $quizAnswer->points_awarded = $result['points'];
-            $quizAnswer->save();
-
-            // Persist which choices the student selected for multiple-choice questions
-            // so they are visible in the instructor's review screen (§14).
-            $this->syncSelectedChoices($quizAnswer, $submitted, $question);
-
-            $totalScore += $result['points'];
-            $totalPoints += $pivotPoints;
-        }
-
-        $scorePercent = $totalPoints > 0 ? ($totalScore / $totalPoints) * 100 : 0;
-        $hasPendingGrades = $this->hasPendingGrades($attempt);
-        $isPassed = $totalPoints > 0 && ! $hasPendingGrades
-            ? $scorePercent >= $quiz->passing_score_percent
-            : null;
-        $timeSpent = $quiz->time_limit_minutes * 60;
-
-        // Ensure time_spent_seconds is never negative
-        if ($timeSpent < 0) {
-            $timeSpent = 0;
-        }
-
-        $attempt->update([
-            'ended_at' => $attempt->started_at->addMinutes($quiz->time_limit_minutes),
-            'submitted_at' => now(),
-            'time_spent_seconds' => $timeSpent,
-            'score' => $totalScore,
-            'score_percent' => round($scorePercent, 2),
-            'is_passed' => $isPassed,
-            'status' => QuizAttempt::STATUS_AUTO_SUBMITTED,
-        ]);
+        $this->quizService->autoSubmitAttempt($attempt);
 
         return redirect()->route('student.courses.quizzes.attempts.show', [$course, $quiz, $attempt])
             ->with('status', 'Quiz time expired. Answers were auto-submitted.');

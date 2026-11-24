@@ -103,6 +103,12 @@
                                         Teams
                                     </span>
                                     @break
+                                @case(\App\Models\VirtualClass::PROVIDER_LIVEKIT)
+                                    <span style="display:inline-flex;align-items:center;gap:5px;">
+                                        <i class="fa-solid fa-video" style="color:#0ea5e9;"></i>
+                                        {{ $vc->providerLabel() }}
+                                    </span>
+                                    @break
                                 @case(\App\Models\VirtualClass::PROVIDER_OTHER)
                                     <span style="display:inline-flex;align-items:center;gap:5px;">
                                         <i class="fa-solid fa-link" style="color:#64748b;"></i>
@@ -110,7 +116,7 @@
                                     </span>
                                     @break
                                 @default
-                                    <span style="color:#94a3b8;">N/A</span>
+                                    <span style="color:#94a3b8;">{{ $vc->providerLabel() }}</span>
                             @endswitch
                         </td>
                         <td>
@@ -184,10 +190,12 @@
                             @if($canJoin)
                                 <form action="{{ route('student.classes.virtual_classes.join', [$class, $vc]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Join this virtual class? Your attendance will be recorded.');">
                                     @csrf
-                                    <button type="submit" class="btn-icon" title="Join Meeting" style="background:#16a34a;color:white;border:none;padding:6px 9px;border-radius:6px;cursor:pointer;">
-                                        <i class="fa-solid fa-right-to-bracket"></i>
+                                    <button type="submit" class="btn-icon" title="Join now" style="background:#16a34a;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700;">
+                                        <i class="fa-solid fa-right-to-bracket"></i> Join now
                                     </button>
                                 </form>
+                            @elseif($reason = $vc->joinUnavailableReason())
+                                <span style="display:inline-block;max-width:190px;font-size:.72rem;color:#94a3b8;">{{ $reason }}</span>
                             @endif
                         </td>
                     </tr>

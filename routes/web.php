@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\TermsOfServiceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VirtualClassController as AdminVirtualClassController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DiagnosticController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\NotificationController;
@@ -106,7 +107,12 @@ Route::get('/', fn () => redirect()->route('login'));
 
 Route::get('/refresh-csrf', fn () => response()->json(['token' => csrf_token()]))->name('refresh-csrf');
 
-Route::get('/diagnostic', [DiagnosticController::class, 'index'])->name('diagnostic');
+// Operational diagnostic page. It is not public: only an authenticated
+// administrator may open it, and the token-in-the-query-string scheme was
+// removed so APP_KEY never appears in a URL, proxy log or browser history.
+Route::middleware(['auth', 'role:'.Role::ADMIN, 'throttle:10,1'])
+    ->get('/diagnostic', [DiagnosticController::class, 'index'])
+    ->name('diagnostic');
 
 Route::get('/files/{mediaFile}', [FileController::class, 'download'])
     ->name('files.download')
@@ -118,6 +124,14 @@ Route::middleware('guest')->group(function () {
     Route::get('/login/verify', [LoginController::class, 'showOtpForm'])->name('login.verify');
     Route::post('/login/verify', [LoginController::class, 'verifyOtp'])->name('login.verify.submit')->middleware('throttle:10,1');
     Route::post('/login/resend', [LoginController::class, 'resendOtp'])->name('login.resend')->middleware('throttle:3,1');
+
+    // Self-service password setup/reset — also the activation path for new
+    // AA-synced accounts, which no longer receive a shared default password.
+    Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1')->name('password.update');
+
     Route::get('/register', [LoginController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [LoginController::class, 'register'])->middleware('throttle:10,1'); // 10 attempts per minute
 });
@@ -430,6 +444,16 @@ Route::middleware(['auth', 'activity'])->group(function () {
         Route::get('/dashboard/real-time-stats', [InstructorDashboard::class, 'getRealTimeStats'])->name('dashboard.real-time-stats');
         Route::get('/dashboard/search', [InstructorDashboard::class, 'search'])->name('dashboard.search');
         Route::get('/dashboard/analytics', [InstructorDashboard::class, 'getAnalytics'])->name('dashboard.analytics');
+        Route::get('/dashboard/at-risk', [InstructorDashboard::class, 'atRisk'])->name('dashboard.at-risk');
+        Route::get('/dashboard/to-check', [InstructorDashboard::class, 'toCheck'])->name('dashboard.to-check');
+        Route::get('/dashboard/activities', [InstructorDashboard::class, 'activities'])->name('dashboard.activities');
+        Route::get('/dashboard/performance', [InstructorDashboard::class, 'performance'])->name('dashboard.performance');
+
+        // Aggregate list pages behind the dashboard cap hints. The class-scoped
+        // indexes stay available for opening one class, but these show every
+        // announcement/virtual class across the instructor's classes.
+        Route::get('/virtual-classes', [InstructorVirtualClassController::class, 'all'])->name('virtual-classes.index');
+        Route::get('/announcements', [InstructorAnnouncementController::class, 'all'])->name('announcements.index');
 
         // LMS Reports — exportable assessment/grade-reference reports (Section 5).
         Route::get('/reports', [InstructorReportController::class, 'index'])->name('reports.index');
@@ -648,6 +672,9 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 Route::post('/{virtualClass}/token', [VirtualClassRoomController::class, 'instructorToken'])->name('token')->middleware('throttle:20,1');
                 Route::post('/{virtualClass}/leave', [VirtualClassRoomController::class, 'instructorLeave'])->name('leave');
 
+                // Dashboard poll: live headcount, roster and session trend.
+                Route::get('/{virtualClass}/live-count', [InstructorVirtualClassController::class, 'liveCount'])->name('live-count');
+
                 Route::post('/{virtualClass}/start', [InstructorVirtualClassController::class, 'start'])->name('start');
                 Route::post('/{virtualClass}/end', [InstructorVirtualClassController::class, 'end'])->name('end');
                 Route::post('/{virtualClass}/mute-all', [InstructorVirtualClassController::class, 'muteAll'])->name('mute-all');
@@ -805,6 +832,7 @@ Route::middleware(['auth', 'activity'])->group(function () {
                     // what it posts to. It creates the attempt, then redirects
                     // to the GET route above.
                     Route::post('/{exam}/attempt/begin', [StudentExamController::class, 'beginAttempt'])->name('attempt.begin');
+                    Route::post('/{exam}/attempt/proctor', [StudentExamController::class, 'recordProctoringEvent'])->name('attempt.proctor');
                     Route::post('/{exam}/attempt', [StudentExamController::class, 'storeAttempt'])->name('attempt.store');
                     Route::get('/{exam}/attempts/{attempt}', [StudentExamController::class, 'showAttempt'])->name('attempts.show');
                 });
@@ -815,6 +843,10 @@ Route::middleware(['auth', 'activity'])->group(function () {
                 });
             });
         });
+
+        // Aggregate list pages behind the dashboard cap hints.
+        Route::get('/virtual-classes', [StudentVirtualClassController::class, 'all'])->name('virtual-classes.index');
+        Route::get('/announcements', [StudentAnnouncementController::class, 'all'])->name('announcements.index');
 
         Route::prefix('classes')->name('classes.')->group(function () {
             Route::get('/', [StudentClassController::class, 'index'])->name('index');

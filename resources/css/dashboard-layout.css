@@ -39,6 +39,7 @@
     transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .course-card:hover { transform:translateY(-2px); border-color:rgba(91,140,255,.45); box-shadow:0 10px 26px rgba(2,6,18,.35); }
+body.light-mode .course-card:hover { box-shadow:0 10px 26px rgba(31,52,88,.14); }
 .course-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .course-card-code { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--bcp-cyan-400, #62c9f5); }
 .course-card-title { margin:0; font-size:15px; font-weight:700; color:var(--dash-text, #eef4ff); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:40px; }
@@ -48,9 +49,54 @@
 .course-card-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--dash-line, rgba(140,163,210,.14)); }
 .course-card-count { display:inline-flex; align-items:center; gap:6px; font-size:.7rem; font-weight:700; color:var(--dash-muted, #98a7c4); }
 .course-card-count i { color:var(--bcp-cyan-400, #62c9f5); }
+.course-card-count { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.course-card-foot .btn { flex-shrink:0; white-space:nowrap; }
 .course-card-grid .empty-state { grid-column:1 / -1; }
 @media (max-width:640px) { .course-card-grid { grid-template-columns:1fr; } }
 
+/* Header action cluster: count, cap hint and optional view-all link. */
+.panel-cap-actions {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-left:auto;
+}
+
+/* Compact cap hint sitting beside a dashboard panel count. */
+.panel-cap-note {
+    flex:0 0 auto;
+    color:var(--dash-muted, #98a7c4);
+    font-size:.66rem;
+    font-weight:600;
+    line-height:1.2;
+    text-decoration:none;
+    white-space:nowrap;
+}
+.panel-cap-note:hover { color:var(--dash-text, #e8eefc); text-decoration:underline; }
+.panel-cap-note:focus-visible { outline:2px solid var(--bcp-focus, var(--chart-blue, #4d8ff0)); outline-offset:2px; border-radius:2px; }
+@media (max-width:700px) {
+    .dash-panel-head, .overdue-head { flex-wrap:wrap; }
+    /* Keep the compact two-line header, but give the hint a real 44px touch
+       target. The negative block margins keep its layout footprint at the
+       original 22px so the panel header does not grow. */
+    .panel-cap-note {
+        display:inline-flex;
+        align-items:center;
+        min-height:44px;
+        margin-top:-11px;
+        margin-bottom:-11px;
+    }
+    /* The faculty dashboard's wider panel content can push right-aligned cap
+       actions outside a 390px viewport. Put them on their own left-aligned
+       row instead of clipping the hint. */
+    .dash-scope .panel-cap-actions {
+        flex:1 1 100%;
+        justify-content:flex-start;
+        margin-left:0;
+    }
+}
 /* ── Quick-access link list (Admin / AA dashboards) ── */
 .dash-link-list { list-style:none; margin:0; padding:8px; display:grid; gap:4px; }
 .dash-link-list a {
@@ -90,9 +136,9 @@
     color:var(--dash-text);
 }
 .dash-outcome i { font-size:.78rem; }
-.dash-outcome.d-ok i { color:#34d399; }
-.dash-outcome.d-warn i { color:#fbbf24; }
-.dash-outcome.d-err i { color:#fb7185; }
+.dash-outcome.d-ok i { color:var(--dash-status-active); }
+.dash-outcome.d-warn i { color:var(--dash-warning); }
+.dash-outcome.d-err i { color:var(--dash-status-danger); }
 
 /* ── Compact calendar strip (Student dashboard) ──
    Upcoming virtual classes, quizzes and assignment deadlines grouped by day. */

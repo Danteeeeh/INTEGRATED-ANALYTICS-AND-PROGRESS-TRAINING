@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserPreference;
+use App\Services\FileUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,10 +41,13 @@ class ProfileController extends Controller
             $validated['profile_photo_path'] = null;
         }
         if ($request->hasFile('profile_photo')) {
+            $photo = $request->file('profile_photo');
+            app(FileUploadService::class)->assertSafeContent($photo, 'profile_photo');
+
             if ($user->profile_photo_path) {
                 Storage::disk('public')->delete($user->profile_photo_path);
             }
-            $validated['profile_photo_path'] = $request->file('profile_photo')->store('profile-photos', 'public');
+            $validated['profile_photo_path'] = $photo->store('profile-photos', 'public');
         }
         unset($validated['profile_photo'], $validated['remove_photo']);
         $user->update($validated);

@@ -7,6 +7,14 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                // Built-in virtual classroom (LiveKit): bundled so the room does
+                // not depend on a CDN and keeps working under a strict CSP.
+                'resources/css/virtual-classroom.css',
+                'resources/js/virtual-classroom.js',
+                // Shared dashboard charts: bundled Chart.js + the design system
+                // every graph on the instructor/student/admin dashboards uses.
+                'resources/css/charts.css',
+                'resources/js/charts.js',
                 'resources/css/sms-template.css',
                 'resources/css/admin-ui.css',
                 'resources/css/compact-ui.css',

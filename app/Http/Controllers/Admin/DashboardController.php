@@ -140,6 +140,7 @@ class DashboardController extends Controller
             'aa_last_sync_failed' => $lastSync?->records_failed ?? 0,
             'aa_last_sync_by' => $lastSync?->performedBy?->name,
             'aa_sync_recent' => AaSyncLog::latest('id')->limit(5)->get(),
+            'aa_sync_total' => AaSyncLog::count(),
             'aa_sync_failed_count' => AaSyncLog::where('status', AaSyncLog::STATUS_FAILED)->count(),
 
             // Grade submission monitoring (Section 2: Super Admin dashboard).
@@ -273,11 +274,15 @@ private function enrollmentStatusBreakdown(): array
                         'admins' => User::whereHas('role', fn ($q) => $q->where('slug', Role::ADMIN))->count(),
                         'instructors' => User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))->count(),
                         'students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
+                        // AA Staff is a real role now; leaving it out made the
+                        // ring under-count the people who can sign in.
+                        'aa_staff' => User::whereHas('role', fn ($q) => $q->where('slug', Role::AA_STAFF))->count(),
                     ],
                     'attendance' => [
                         'present' => AttendanceRecord::where('attendance_records.status', 'present')->count(),
-                        'absent' => AttendanceRecord::where('attendance_records.status', 'absent')->count(),
                         'late' => AttendanceRecord::where('attendance_records.status', 'late')->count(),
+                        'absent' => AttendanceRecord::where('attendance_records.status', 'absent')->count(),
+                        'excused' => AttendanceRecord::where('attendance_records.status', 'excused')->count(),
                     ],
                     'activity' => AuditLog::selectRaw('DATE(created_at) as date, count(*) as total')
                         ->where('created_at', '>=', now()->subDays(14))
@@ -787,8 +792,17 @@ private function enrollmentStatusBreakdown(): array
     protected function getStorageUsage(): array
     {
         try {
-            $totalSpace = disk_total_space(storage_path());
-            $freeSpace = disk_free_space(storage_path());
+            // Report the disk that actually holds uploads, not the release
+            // directory. On HostForge the local disk root can be a mounted
+            // persistent volume (LMS_STORAGE_PATH).
+            $storageRoot = (string) config('filesystems.disks.local.root', storage_path('app'));
+            $totalSpace = @disk_total_space($storageRoot);
+            $freeSpace = @disk_free_space($storageRoot);
+
+            if ($totalSpace === false || $freeSpace === false || $totalSpace <= 0) {
+                throw new \RuntimeException('Storage size is not readable.');
+            }
+
             $usedSpace = $totalSpace - $freeSpace;
             $usagePercentage = ($usedSpace / $totalSpace) * 100;
 
@@ -817,43 +831,5 @@ private function enrollmentStatusBreakdown(): array
         $bytes /= pow(1024, $pow);
 
         return round($bytes, $precision).' '.$units[$pow];
-    }
-
-    public function sms(): View
-    {
-        $currentPeriod = AcademicPeriod::where('is_current', true)->first();
-
-        $enrollment = $this->enrollmentStatusBreakdown();
-
-        $stats = [
-            // User Statistics
-            'total_students' => User::whereHas('role', fn ($q) => $q->where('slug', Role::STUDENT))->count(),
-            'total_instructors' => User::whereHas('role', fn ($q) => $q->where('slug', Role::INSTRUCTOR))->count(),
-            'total_admins' => User::whereHas('role', fn ($q) => $q->where('slug', Role::ADMIN))->count(),
-            'active_users' => User::where('users.status', 'active')->count(),
-
-            // Academic Statistics
-            'total_courses' => Course::count(),
-            'published_courses' => Course::where('courses.status', 'published')->count(),
-            'total_classes' => ClassModel::count(),
-            'active_classes' => ClassModel::where('classes.status', 'active')->count(),
-
-            // Enrollment Statistics - one grouped query, with an explicit total
-            // so the figures can be checked against each other.
-            'active_enrollments' => $enrollment['active'],
-            'pending_enrollments' => $enrollment['pending'],
-            'completed_enrollments' => $enrollment['completed'],
-            'dropped_enrollments' => $enrollment['dropped'],
-            'total_enrollments' => $enrollment['total'],
-
-            // Academic Period
-            'current_period' => $currentPeriod,
-
-            // Recent Activity
-            'recent_users' => User::with('role')->orderBy('created_at', 'desc')->limit(5)->get(),
-            'recent_courses' => Course::orderBy('created_at', 'desc')->limit(5)->get(),
-        ];
-
-        return view('admin.dashboard-sms', compact('stats'));
     }
 }

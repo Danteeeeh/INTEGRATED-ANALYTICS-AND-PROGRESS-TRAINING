@@ -188,7 +188,7 @@
                 @if($exam->duration_minutes)
                     <div style="text-align: center; min-width: 140px;">
                         <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Time Remaining</div>
-                        <div class="timer-circle normal" id="timerCircle">{{ $exam->duration_minutes }}:00</div>
+                        <div class="timer-circle normal" id="timerCircle">{{ sprintf('%02d:%02d', intdiv($remainingSeconds, 60), $remainingSeconds % 60) }}</div>
                         <div class="timer-progress-bar">
                             <div class="timer-progress-fill" id="timerProgress" style="width: 100%;"></div>
                         </div>
@@ -210,6 +210,33 @@
             </div>
         </div>
 
+    @if($exam->requires_proctoring || $exam->proctoring_method || $exam->proctoring_instructions || $exam->detect_tab_switch || $exam->detect_copy_paste)
+        <div class="form-card" style="margin-bottom: 28px; background: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid #f97316; border-radius: 16px; padding: 22px 24px;">
+            <h3 style="margin: 0 0 10px; color: #9a3412; font-size: 1.05rem; font-weight: 800;">
+                <i class="fa-solid fa-shield-halved" style="margin-right: 8px;"></i> Proctored exam
+            </h3>
+            @if($exam->proctoringMethodLabel())
+                <div style="font-size: 0.9rem; color: #9a3412; margin-bottom: 8px; font-weight: 700;">
+                    Method: {{ $exam->proctoringMethodLabel() }}
+                </div>
+            @endif
+            @if($exam->proctoring_instructions)
+                <p style="margin: 0 0 10px; color: #7c2d12; font-size: 0.92rem; line-height: 1.6; white-space: pre-wrap;">{{ $exam->proctoring_instructions }}</p>
+            @endif
+            @if($exam->detect_tab_switch || $exam->detect_copy_paste)
+                <ul style="margin: 0; padding-left: 20px; color: #7c2d12; font-size: 0.88rem; line-height: 1.7;">
+                    @if($exam->detect_tab_switch)
+                        <li>Leaving this page or switching tabs is recorded.</li>
+                    @endif
+                    @if($exam->detect_copy_paste)
+                        <li>Copying, cutting and pasting inside this exam is recorded.</li>
+                    @endif
+                </ul>
+            @endif
+        </div>
+    @endif
+
+    @if($exam->allow_navigation)
     <!-- Question Navigation -->
     <div class="form-card" style="margin-bottom: 28px; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 28px; border: 1px solid #e2e8f0;">
         <h3 style="margin: 0 0 20px 0; color: #1e293b; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center;">
@@ -242,6 +269,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Exam Form -->
     <form action="{{ route('student.courses.exams.attempt.store', [$course, $exam]) }}"
@@ -302,7 +330,6 @@
                                            name="answers[{{ $qid }}]"
                                            value="{{ $choice['id'] }}"
                                            {{ old('answers.'.$qid) == $choice['id'] ? 'checked' : '' }}
-                                           onchange="markAnswered({{ $index }})"
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
                                     <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;"><strong>{{ $choice['key'] }}.</strong> {!! $choice['text'] !!}</span>
                                 </label>
@@ -318,7 +345,6 @@
                                            name="answers[{{ $qid }}][]"
                                            value="{{ $choice['id'] }}"
                                            {{ in_array($choice['id'], old('answers.'.$qid, [])) ? 'checked' : '' }}
-                                           onchange="markAnswered({{ $index }})"
                                            style="width: 24px; height: 24px; margin-right: 16px; accent-color: #3b82f6; cursor: pointer;">
                                     <span style="flex: 1; font-size: 1.05rem; color: #334155; line-height: 1.6;"><strong>{{ $choice['key'] }}.</strong> {!! $choice['text'] !!}</span>
                                 </label>
@@ -333,7 +359,6 @@
                             <textarea name="answers[{{ $qid }}]"
                                       rows="{{ $qtype === 'essay' ? '12' : '6' }}"
                                       placeholder="{{ $qtype === 'identification' ? 'Type your answer...' : 'Enter your answer here...' }}"
-                                      oninput="markAnswered({{ $index }})"
                                       style="width: 100%; padding: 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; font-size: 1.05rem; resize: vertical; transition: all 0.2s; line-height: 1.7; background: #f8fafc;">{{ old('answers.'.$qid) }}</textarea>
                         </div>
                     @endif
@@ -343,10 +368,12 @@
 
         <!-- Navigation Buttons -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 36px; gap: 20px;">
-            <button type="button" id="prevBtn" onclick="prevQuestion()"
-                    style="flex: 1; padding: 16px 32px; border-radius: 14px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 700; font-size: 1.05rem; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Previous
-            </button>
+            @if($exam->allow_navigation)
+                <button type="button" id="prevBtn" onclick="prevQuestion()"
+                        style="flex: 1; padding: 16px 32px; border-radius: 14px; cursor: pointer; background: #f1f5f9; color: #64748b; border: 2px solid #e2e8f0; font-weight: 700; font-size: 1.05rem; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Previous
+                </button>
+            @endif
 
             <button type="button" id="nextBtn" onclick="nextQuestion()"
                     style="flex: 1; padding: 16px 32px; border-radius: 14px; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; font-weight: 700; font-size: 1.05rem; transition: all 0.2s; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35); display: flex; align-items: center; justify-content: center;">
@@ -373,23 +400,38 @@
     </div>
 
     <script>
+        const attemptId = {{ $inProgress->id }};
+        const storageKey = 'examAnswers_' + attemptId;
         let currentQuestion = 0;
         let totalQuestions = {{ $inProgress->answers->count() }};
+        const allowNavigation = {{ $exam->allow_navigation ? 'true' : 'false' }};
         let answeredQuestions = new Set();
-        let timeRemaining = {{ $exam->duration_minutes ? $exam->duration_minutes * 60 : 0 }};
+        // Server-computed from started_at + duration, so a refresh, reconnect
+        // or phone lock resumes the same clock instead of a fresh full one.
+        let timeRemaining = {{ $remainingSeconds }};
+        // Absolute deadline: background tabs throttle timers, so decrementing
+        // a counter would drift and submit late after the laptop wakes.
+        const deadline = Date.now() + timeRemaining * 1000;
         let timerInterval;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            updateNavigation();
-            startTimer();
             loadSavedAnswers();
+            syncAnsweredQuestions();
+            startTimer();
 
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
         });
 
         function goToQuestion(index) {
+            // With navigation locked, the only legal move is the next question.
+            // Hiding the buttons is not enough: keyboard and console calls also
+            // go through this function.
+            if (!allowNavigation && index !== currentQuestion && index !== currentQuestion + 1) {
+                return;
+            }
+
             // Hide current question
             document.getElementById('question-' + currentQuestion).style.display = 'none';
 
@@ -408,15 +450,29 @@
         }
 
         function prevQuestion() {
+            if (!allowNavigation) {
+                return;
+            }
+
             if (currentQuestion > 0) {
                 goToQuestion(currentQuestion - 1);
             }
         }
 
-        function markAnswered(index) {
-            answeredQuestions.add(index);
+        // Rebuild the answered set from what is actually on screen. Restored
+        // answers (localStorage, or server-side old() input) are set
+        // programmatically, so they never fire an input event; without this
+        // scan the counter, the green nav buttons and the submit warning all
+        // read them as unanswered.
+        function syncAnsweredQuestions() {
+            answeredQuestions.clear();
+            document.querySelectorAll('.question-card').forEach((card, index) => {
+                const answered = [...card.querySelectorAll('input, textarea')].some(input =>
+                    (input.type === 'radio' || input.type === 'checkbox') ? input.checked : input.value.trim() !== ''
+                );
+                if (answered) answeredQuestions.add(index);
+            });
             updateNavigation();
-            autoSave();
         }
 
         function updateNavigation() {
@@ -424,11 +480,15 @@
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
 
-            prevBtn.disabled = currentQuestion === 0;
-            prevBtn.style.opacity = currentQuestion === 0 ? '0.5' : '1';
-            prevBtn.style.cursor = currentQuestion === 0 ? 'not-allowed' : 'pointer';
+            if (prevBtn) {
+                prevBtn.disabled = currentQuestion === 0;
+                prevBtn.style.opacity = currentQuestion === 0 ? '0.5' : '1';
+                prevBtn.style.cursor = currentQuestion === 0 ? 'not-allowed' : 'pointer';
+            }
 
-            nextBtn.style.display = currentQuestion === totalQuestions - 1 ? 'none' : 'flex';
+            if (nextBtn) {
+                nextBtn.style.display = currentQuestion === totalQuestions - 1 ? 'none' : 'flex';
+            }
 
             // Update question navigation buttons
             for (let i = 0; i < totalQuestions; i++) {
@@ -465,59 +525,74 @@
         function startTimer() {
             @if($exam->duration_minutes)
                 const totalTime = {{ $exam->duration_minutes * 60 }};
+                let expiredHandled = false;
+
+                function tick() {
+                    timeRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+
+                    const minutes = Math.floor(timeRemaining / 60);
+                    const seconds = timeRemaining % 60;
+                    const timerCircle = document.getElementById('timerCircle');
+                    const timerProgress = document.getElementById('timerProgress');
+
+                    timerCircle.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+
+                    // Update progress bar (clamped: an extension can outlive the
+                    // nominal duration, and a bar over 100% looks broken).
+                    const progressPercent = Math.max(0, Math.min(100, (timeRemaining / totalTime) * 100));
+                    timerProgress.style.width = progressPercent + '%';
+
+                    // Timer color states
+                    timerCircle.classList.remove('normal', 'warning', 'danger');
+                    timerProgress.classList.remove('warning', 'danger');
+
+                    if (timeRemaining <= 60) {
+                        timerCircle.classList.add('danger');
+                        timerProgress.classList.add('danger');
+                    } else if (timeRemaining <= 300) {
+                        timerCircle.classList.add('warning');
+                        timerProgress.classList.add('warning');
+                    } else {
+                        timerCircle.classList.add('normal');
+                    }
+
+                    // Warning when 5 minutes remaining
+                    if (timeRemaining === 300) {
+                        showNotification('⚠️ You have 5 minutes remaining!', 'warning');
+                    }
+
+                    // Warning when 1 minute remaining
+                    if (timeRemaining === 60) {
+                        showNotification('⚠️ You have 1 minute remaining!', 'danger');
+                    }
+
+                    // Warning when 30 seconds remaining
+                    if (timeRemaining === 30) {
+                        showNotification('⚠️ Only 30 seconds left!', 'danger');
+                    }
+
+                    // Auto-submit when time expires
+                    if (timeRemaining <= 0 && !expiredHandled) {
+                        expiredHandled = true;
+                        clearInterval(timerInterval);
+                        showNotification('⏰ Time has expired! Your answers will be auto-submitted.', 'danger');
+                        setTimeout(() => {
+                            document.getElementById('examForm').requestSubmit();
+                        }, 2000);
+                    }
+                }
+
                 if (timeRemaining > 0) {
-                    timerInterval = setInterval(function() {
-                        timeRemaining--;
+                    // Paint at once so the progress bar matches the server-rendered
+                    // clock before the first interval fires.
+                    tick();
+                    timerInterval = setInterval(tick, 1000);
 
-                        const minutes = Math.floor(timeRemaining / 60);
-                        const seconds = timeRemaining % 60;
-                        const timerCircle = document.getElementById('timerCircle');
-                        const timerProgress = document.getElementById('timerProgress');
-
-                        timerCircle.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-
-                        // Update progress bar
-                        const progressPercent = (timeRemaining / totalTime) * 100;
-                        timerProgress.style.width = progressPercent + '%';
-
-                        // Timer color states
-                        timerCircle.classList.remove('normal', 'warning', 'danger');
-                        timerProgress.classList.remove('warning', 'danger');
-
-                        if (timeRemaining <= 60) {
-                            timerCircle.classList.add('danger');
-                            timerProgress.classList.add('danger');
-                        } else if (timeRemaining <= 300) {
-                            timerCircle.classList.add('warning');
-                            timerProgress.classList.add('warning');
-                        } else {
-                            timerCircle.classList.add('normal');
-                        }
-
-                        // Warning when 5 minutes remaining
-                        if (timeRemaining === 300) {
-                            showNotification('⚠️ You have 5 minutes remaining!', 'warning');
-                        }
-
-                        // Warning when 1 minute remaining
-                        if (timeRemaining === 60) {
-                            showNotification('⚠️ You have 1 minute remaining!', 'danger');
-                        }
-
-                        // Warning when 30 seconds remaining
-                        if (timeRemaining === 30) {
-                            showNotification('⚠️ Only 30 seconds left!', 'danger');
-                        }
-
-                        // Auto-submit when time expires
-                        if (timeRemaining <= 0) {
-                            clearInterval(timerInterval);
-                            showNotification('⏰ Time has expired! Your answers will be auto-submitted.', 'danger');
-                            setTimeout(() => {
-                                document.getElementById('examForm').submit();
-                            }, 2000);
-                        }
-                    }, 1000);
+                    // A tab that wakes up after being throttled must resync its
+                    // clock immediately, not wait for the next interval.
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'visible') tick();
+                    });
                 }
             @endif
         }
@@ -558,12 +633,26 @@
             }
         }
 
+        let autoSaveTimer;
+
+        // Typing an essay must not write localStorage on every keystroke; the
+        // 30s interval started on page load is the safety net if the tab closes
+        // before the debounce fires.
+        function scheduleAutoSave() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSave, 800);
+        }
+
         function autoSave() {
             const formData = new FormData(document.getElementById('examForm'));
             const answers = {};
 
-            // Convert FormData to proper object handling arrays
             for (const [key, value] of formData.entries()) {
+                // Only answers belong in the safety copy. Persisting _token would
+                // restore a stale CSRF token after a session rotation and make
+                // the real submit fail with 419.
+                if (!key.startsWith('answers')) continue;
+
                 if (key.endsWith('[]')) {
                     const cleanKey = key.slice(0, -2);
                     if (!answers[cleanKey]) {
@@ -575,7 +664,12 @@
                 }
             }
 
-            localStorage.setItem('examAnswers_' + {{ $inProgress->id }}, JSON.stringify(answers));
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(answers));
+            } catch (e) {
+                // Private mode or a full quota: the form still submits normally.
+                return;
+            }
 
             // Show auto-save notification
             const warning = document.getElementById('autoSaveWarning');
@@ -586,44 +680,75 @@
         }
 
         function loadSavedAnswers() {
-            const saved = localStorage.getItem('examAnswers_' + {{ $inProgress->id }});
-            if (saved) {
-                const answers = JSON.parse(saved);
-                for (const [key, value] of Object.entries(answers)) {
-                    const elements = document.querySelectorAll(`[name="${key}"]`);
-                    elements.forEach(el => {
-                        if (el.type === 'radio') {
-                            el.checked = el.value == value;
-                        } else if (el.type === 'checkbox') {
-                            el.checked = Array.isArray(value) ? value.includes(el.value) : el.value == value;
-                        } else {
-                            el.value = value;
-                        }
-                    });
-                }
+            let answers;
+            try {
+                answers = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            } catch (e) {
+                // Corrupt or blocked storage must not stop the timer/navigation.
+                return;
+            }
+
+            for (const [key, value] of Object.entries(answers || {})) {
+                // Older saves included _token; never write that back.
+                if (!key.startsWith('answers')) continue;
+
+                const elements = document.querySelectorAll(`[name="${key}"]`);
+                elements.forEach(el => {
+                    if (el.type === 'radio') {
+                        el.checked = el.value == value;
+                    } else if (el.type === 'checkbox') {
+                        el.checked = Array.isArray(value) ? value.includes(el.value) : el.value == value;
+                    } else {
+                        el.value = value;
+                    }
+                });
             }
         }
 
         function confirmSubmit() {
             const unanswered = totalQuestions - answeredQuestions.size;
-            if (unanswered > 0) {
-                return confirm(`You have ${unanswered} unanswered question(s). Are you sure you want to submit?`);
-            }
-            return confirm('Are you sure you want to submit your exam? This action cannot be undone.');
+            const message = unanswered > 0
+                ? `You have ${unanswered} unanswered question(s). Are you sure you want to submit?`
+                : 'Are you sure you want to submit your exam? This action cannot be undone.';
+
+            // Opening the browser confirm dialog can fire window.blur. That is
+            // the student submitting, not switching tabs, so it must not be
+            // recorded as a proctoring event.
+            confirmDialogOpen = true;
+            const confirmed = confirm(message);
+            confirmDialogOpen = false;
+
+            // Only the server knows whether the submission was accepted, so
+            // nothing is cleared here: the results page removes the safety
+            // copy once the attempt is stored. Cancelling loses nothing.
+            return confirmed;
         }
 
-        // Prevent auto-save from interfering with form submission
-        document.getElementById('examForm').addEventListener('submit', function(e) {
-            // Remove localStorage before submitting to avoid conflicts
-            localStorage.removeItem('examAnswers_' + {{ $inProgress->id }});
+        // One delegated listener owns the answered state: restored answers,
+        // radios, checkboxes and textareas all take the same path.
+        document.getElementById('examForm').addEventListener('input', function () {
+            syncAnsweredQuestions();
+            scheduleAutoSave();
         });
+
+        document.getElementById('examForm').addEventListener('submit', function () {
+            examSubmitting = true;
+        });
+
+        // A background tab never fires the 30s interval, and a sleeping laptop
+        // may unload the page without warning. Flush the debounce so the last
+        // answers are in the safety copy the server falls back to.
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') autoSave();
+        });
+        window.addEventListener('pagehide', autoSave);
 
         // Keyboard navigation
         document.addEventListener('keydown', function(e) {
             if (e.key === 'ArrowRight' && !e.ctrlKey) {
                 e.preventDefault();
                 nextQuestion();
-            } else if (e.key === 'ArrowLeft' && !e.ctrlKey) {
+            } else if (allowNavigation && e.key === 'ArrowLeft' && !e.ctrlKey) {
                 e.preventDefault();
                 prevQuestion();
             }
@@ -666,5 +791,63 @@
                 }
             });
         });
+
+        // Proctoring beacons: only enabled detectors send anything.
+        const proctoringUrl = '{{ route('student.courses.exams.attempt.proctor', [$course, $exam]) }}';
+        const proctoringToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const proctoringLastSent = {};
+        let confirmDialogOpen = false;
+        let examSubmitting = false;
+
+        function reportProctoringEvent(event) {
+            if (confirmDialogOpen || examSubmitting) {
+                return;
+            }
+
+            const now = Date.now();
+
+            // visibilitychange and blur can both fire for one tab switch, and
+            // copy/cut/paste can overlap. One report per event per two seconds
+            // keeps the counters meaningful.
+            if (proctoringLastSent[event] && now - proctoringLastSent[event] < 2000) {
+                return;
+            }
+
+            proctoringLastSent[event] = now;
+
+            try {
+                fetch(proctoringUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': proctoringToken,
+                    },
+                    body: JSON.stringify({ event: event }),
+                    keepalive: true,
+                }).catch(() => {});
+            } catch (e) {
+                // A blocked beacon must never interrupt the exam itself.
+            }
+        }
+
+        @if($exam->detect_tab_switch)
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'hidden') {
+                    reportProctoringEvent('tab_switch');
+                }
+            });
+            window.addEventListener('blur', function () {
+                reportProctoringEvent('tab_switch');
+            });
+        @endif
+
+        @if($exam->detect_copy_paste)
+            ['copy', 'cut', 'paste'].forEach(function (type) {
+                document.addEventListener(type, function () {
+                    reportProctoringEvent('copy_paste');
+                });
+            });
+        @endif
     </script>
 @endsection

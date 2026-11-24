@@ -128,6 +128,26 @@ class StudentExamAttemptFlowTest extends TestCase
             ->assertSee(route('student.courses.exams.confirm', [$this->course, $this->exam]), false);
     }
 
+    public function test_exam_questions_are_read_through_the_pivot_order_column(): void
+    {
+        $this->assertStringContainsString(
+            'order by "exam_questions"."order" asc',
+            $this->exam->questions()->toSql(),
+            'The exam relation must order by the real pivot column, not a missing pivot_order alias.'
+        );
+
+        $questionId = (int) $this->exam->questions()->firstOrFail()->id;
+
+        $this->assertSame(
+            [$questionId],
+            $this->exam->fresh()->questions->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            'The exam relation must order questions by the exam_questions.order column.'
+        );
+
+        $this->get(route('student.courses.exams.show', [$this->course, $this->exam]))->assertOk();
+        $this->get(route('student.courses.exams.attempt.start', [$this->course, $this->exam]))->assertOk();
+    }
+
     public function test_the_confirm_page_opens(): void
     {
         $this->get(route('student.courses.exams.confirm', [$this->course, $this->exam]))
@@ -155,6 +175,22 @@ class StudentExamAttemptFlowTest extends TestCase
                 ->count(),
             'Starting an attempt must record it.'
         );
+    }
+
+    public function test_reopening_an_attempt_resumes_the_same_clock(): void
+    {
+        $this->get(route('student.courses.exams.attempt.start', [$this->course, $this->exam]))->assertOk();
+
+        $attempt = ExamAttempt::where('exam_id', $this->exam->id)->firstOrFail();
+        $attempt->forceFill(['started_at' => now()->subMinutes(10)])->save();
+
+        $response = $this->get(route('student.courses.exams.attempt.start', [$this->course, $this->exam]));
+
+        $response->assertOk();
+        // 60-minute exam, 10 of them already spent: the page must not restart
+        // the clock at 3600 seconds or the client-side auto-submit fires late.
+        $response->assertSee('let timeRemaining = 3000;', false);
+        $response->assertDontSee('let timeRemaining = 3600;', false);
     }
 
     public function test_re_entering_while_in_progress_does_not_404(): void

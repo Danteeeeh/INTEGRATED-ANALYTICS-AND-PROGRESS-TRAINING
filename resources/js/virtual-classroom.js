@@ -114,6 +114,22 @@ import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
         }
         return tile;
     }
+    // Someone who joins with the camera off publishes no video track, so
+    // there was no tile at all on the stage. Give every participant a tile as
+    // soon as they join; attachTrack() swaps the avatar for video later.
+    function ensureStageTile(p) {
+        if (!p) return;
+        getTile(p.identity, p.name || p.identity);
+    }
+    // Camera off is a mute, not an unpublish, so the tile keeps a black video
+    // element. Show the avatar over it while the camera is muted.
+    function syncTileCamera(p) {
+        const tile = tiles.get(p.identity); if (!tile) return;
+        const video = tile.querySelector('.vc-tile-video');
+        const hasVideo = p.isCameraEnabled !== false && video.childElementCount > 0;
+        video.hidden = !hasVideo;
+        tile.querySelector('.vc-tile-avatar').hidden = hasVideo;
+    }
     function attachTrack(track, p) {
         if (!track || !p) return;
         const key = tileKeyFor(track, p); const tile = getTile(key, tileNameFor(track, p));
@@ -146,7 +162,12 @@ import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
             </div>`);
         };
         push(room.localParticipant, true); room.remoteParticipants.forEach(p => push(p, false));
-        el.peopleList.innerHTML = rows.join(''); el.peopleCount.textContent = String(room.numParticipants); el.count.textContent = String(room.numParticipants);
+        // `room.numParticipants` is the server's last RoomInfo snapshot: 0 until
+        // the first one arrives, and a round-trip behind joins/leaves. Derive
+        // the count from the client's own map — this connected client plus
+        // every remote — so the header matches the tiles immediately.
+        const total = room.remoteParticipants.size + 1;
+        el.peopleList.innerHTML = rows.join(''); el.peopleCount.textContent = String(total); el.count.textContent = String(total);
         renderTileBadges();
     }
     function renderTileBadges() {
@@ -200,6 +221,7 @@ import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
     async function join() {
         if (connecting || leaving) return; connecting = true; el.join.disabled = true;
         if (room) { failQuietly = true; try { await room.disconnect(); } catch (_) { } room = null; }
+        tiles.forEach(t => t.remove()); tiles.clear(); spotlightKey = null; el.videoGrid.classList.remove('single');
         stopLobbyPreview(); setStatus('Requesting access token…');
         let data;
         try {
@@ -213,17 +235,21 @@ import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
             setStatus('Connected as ' + (data.name || currentName) + '.');
             el.lobby.hidden = true; el.videoGrid.hidden = false; el.controls.hidden = false;
             [el.mic, el.camera, el.screen, el.hand, el.react].forEach(b => b.disabled = false);
-            el.chatInput.disabled = false; el.chatSend.disabled = false; syncDeviceButtons(); renderParticipants();
+            el.chatInput.disabled = false; el.chatSend.disabled = false; syncDeviceButtons();
+            [room.localParticipant, ...room.remoteParticipants.values()].forEach(ensureStageTile);
+            renderParticipants();
             room.remoteParticipants.forEach(p => p.trackPublications.forEach(pub => { if (pub.track && pub.track.isSubscribed) attachTrack(pub.track, p); }));
             if (lobbyMicOn) void enableMicrophone(); if (lobbyCamOn) void enableCamera();
         });
         room.on(RoomEvent.Reconnecting, () => setStatus('Reconnecting…'));
         room.on(RoomEvent.Reconnected, () => setStatus('Reconnected.'));
         room.on(RoomEvent.ConnectionQualityChanged, (q, p) => { if (!p || p.isLocal) updateQuality(Number(q)); });
-        room.on(RoomEvent.ParticipantConnected, (p) => { renderParticipants(); addChatMessage('System', p.name || p.identity + ' joined.', Date.now(), { system: true }); });
+        room.on(RoomEvent.ParticipantConnected, (p) => { ensureStageTile(p); renderParticipants(); addChatMessage('System', p.name || p.identity + ' joined.', Date.now(), { system: true }); });
         room.on(RoomEvent.ParticipantDisconnected, (p) => { removeTile(p.identity); removeTile(p.identity + ':screen'); raisedHands.delete(p.identity); renderParticipants(); addChatMessage('System', p.name || p.identity + ' left.', Date.now(), { system: true }); });
         room.on(RoomEvent.TrackSubscribed, (t, pub, p) => attachTrack(t, p));
         room.on(RoomEvent.TrackUnsubscribed, (t, pub, p) => detachTrack(t, p));
+        room.on(RoomEvent.TrackMuted, (pub, p) => { if (pub.source === Track.Source.Camera) syncTileCamera(p); });
+        room.on(RoomEvent.TrackUnmuted, (pub, p) => { if (pub.source === Track.Source.Camera) syncTileCamera(p); });
         room.on(RoomEvent.LocalTrackPublished, (pub) => { if (pub.track) attachTrack(pub.track, room.localParticipant); });
         room.on(RoomEvent.LocalTrackUnpublished, (pub) => { if (pub?.track) detachTrack(pub.track, room.localParticipant); syncDeviceButtons(); });
         room.on(RoomEvent.ActiveSpeakersChanged, () => renderTileBadges());

@@ -13,6 +13,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -103,6 +105,29 @@ class AssignmentSubmissionRulesTest extends TestCase
             'is_late' => false,
             'status' => AssignmentSubmission::STATUS_SUBMITTED,
         ]);
+    }
+
+    public function test_a_file_submission_with_embedded_php_is_rejected_before_a_submission_is_created(): void
+    {
+        Storage::fake('local');
+
+        $this->assignment->update(['submission_type' => Assignment::TYPE_FILE]);
+
+        $file = UploadedFile::fake()->createWithContent(
+            'notes.pdf',
+            "harmless header\n<?php echo 'safe'; ?>\n"
+        );
+
+        $response = $this->actingAs($this->student)->post($this->submitUrl(), [
+            'files' => [$file],
+        ]);
+
+        $response->assertSessionHasErrors([
+            'files.0' => 'The file contains suspicious content and cannot be uploaded.',
+        ]);
+
+        $this->assertDatabaseCount('assignment_submissions', 0);
+        $this->assertDatabaseCount('media_files', 0);
     }
 
     public function test_overdue_submission_is_refused_even_when_the_legacy_late_flag_is_on(): void

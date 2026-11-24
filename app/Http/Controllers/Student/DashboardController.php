@@ -74,19 +74,15 @@ class DashboardController extends Controller
         // classes. Both pages read the shared helper so they cannot drift apart.
         $gradeClassIds = $this->contentProgress->sectionScopedGradeClassIds($studentId, $classIds);
 
-        // Calculate week from now for upcoming items
+        // Calculate week from now for upcoming virtual classes.
         $weekFromNow = now()->addDays(7);
 
-        // Upcoming assignments (due within the next 7 days, not yet submitted)
-        $upcomingAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
-            ->whereDoesntHave('submissions', function ($query) use ($studentId) {
-                $query->where('student_id', $studentId);
-            })
-            ->where('due_date', '>', now())
-            ->where('due_date', '<=', $weekFromNow)
-            ->orderBy('due_date')
-            ->limit(5)
-            ->get();
+        // One shared upcoming-work query for the rendered To-do panel and the
+        // real-time endpoint, so their totals cannot drift apart.
+        $upcomingTasks = $this->upcomingTasksFor($studentId, $classIds, $courseIds);
+        $upcomingAssignments = $upcomingTasks['assignments'];
+        $upcomingQuizzes = $upcomingTasks['quizzes'];
+        $upcomingExams = $upcomingTasks['exams'];
 
         // Overdue assignments (considering extensions)
         $allAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
@@ -99,7 +95,9 @@ class DashboardController extends Controller
         $overdueAssignments = $allAssignments->filter(function ($assignment) use ($studentId) {
             $effectiveDeadline = $assignment->getEffectiveDeadlineForStudent($studentId);
             return $effectiveDeadline && $effectiveDeadline->isPast();
-        })->take(5);
+        });
+        $overdueAssignmentsTotal = $overdueAssignments->count();
+        $overdueAssignments = $overdueAssignments->take(5);
 
         // Overdue quizzes (considering extensions)
         $allQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
@@ -112,7 +110,9 @@ class DashboardController extends Controller
         $overdueQuizzes = $allQuizzes->filter(function ($quiz) use ($studentId) {
             $effectiveDeadline = $quiz->getEffectiveDeadlineForStudent($studentId);
             return $effectiveDeadline && $effectiveDeadline->isPast();
-        })->take(5);
+        });
+        $overdueQuizzesTotal = $overdueQuizzes->count();
+        $overdueQuizzes = $overdueQuizzes->take(5);
 
         // Overdue exams (considering extensions). Section-scoped like the
         // Incomplete Work page: the course-wide query also matches on
@@ -128,29 +128,9 @@ class DashboardController extends Controller
         $overdueExams = $allExams->filter(function ($exam) use ($studentId) {
             $effectiveDeadline = $exam->getEffectiveDeadlineForStudent($studentId);
             return $effectiveDeadline && $effectiveDeadline->isPast();
-        })->take(5);
-
-        // Upcoming quizzes (available now, opening soon, or due within the next 7 days)
-        $upcomingQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
-            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
-                $query->where('student_id', $studentId);
-            })
-            ->where(function ($query) use ($weekFromNow) {
-                // Quizzes currently available (opened and not expired)
-                $query->where('availability_from', '<=', now())
-                    ->where(function ($q) {
-                        $q->whereNull('availability_until')
-                            ->orWhere('availability_until', '>', now());
-                    });
-                // Quizzes opening within the next 7 days
-                $query->orWhere(function ($q) use ($weekFromNow) {
-                    $q->where('availability_from', '>', now())
-                        ->where('availability_from', '<=', $weekFromNow);
-                });
-            })
-            ->orderBy('availability_from')
-            ->limit(5)
-            ->get();
+        });
+        $overdueExamsTotal = $overdueExams->count();
+        $overdueExams = $overdueExams->take(5);
 
         // Recent quiz attempts — the same scoped quiz set the tiles count, so
         // an attempt logged against another block's class does not list here.
@@ -158,28 +138,6 @@ class DashboardController extends Controller
             ->whereIn('quiz_id', $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)->pluck('quizzes.id'))
             ->with(['quiz.class', 'quiz.module.course', 'quiz.lesson.module.course'])
             ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Upcoming exams (available now, starting soon, or ending within the next 7 days)
-        $upcomingExams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
-            ->whereDoesntHave('attempts', function ($query) use ($studentId) {
-                $query->where('student_id', $studentId);
-            })
-            ->where(function ($query) use ($weekFromNow) {
-                // Exams currently available (started and not ended)
-                $query->where('starts_at', '<=', now())
-                    ->where(function ($q) {
-                        $q->whereNull('ends_at')
-                            ->orWhere('ends_at', '>', now());
-                    });
-                // Exams starting within the next 7 days
-                $query->orWhere(function ($q) use ($weekFromNow) {
-                    $q->where('starts_at', '>', now())
-                        ->where('starts_at', '<=', $weekFromNow);
-                });
-            })
-            ->orderBy('starts_at')
             ->limit(5)
             ->get();
 
@@ -192,28 +150,36 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Upcoming virtual classes (within the next 7 days)
-        $upcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
-            // Keep the calendar window explicit before the same-day time
-            // branch below. That makes the dashboard follow the same bounded
-            // date query as the student virtual-class surfaces and prevents a
-            // future OR branch from admitting an old meeting accidentally.
+        // Upcoming virtual classes (within the next 7 days, plus a session
+        // that is live right now). The old same-day branch required
+        // start_time > now(), so a class that had just started — the one with a
+        // Join button — disappeared from the dashboard.
+        $allUpcomingVirtualClasses = VirtualClass::whereIn('class_id', $classIds)
             ->whereDate('meeting_date', '>=', today())
             ->whereDate('meeting_date', '<=', $weekFromNow)
-            ->where(function ($query) {
-                // Future dates in the seven-day window are all upcoming.
-                $query->whereDate('meeting_date', '>', today());
-                // Today's meeting must still be ahead of its start time.
-                $query->orWhere(function ($sameDay) {
-                    $sameDay->whereDate('meeting_date', today())
-                        ->whereTime('start_time', '>', now()->format('H:i:s'));
-                });
-            })
+            ->whereIn('status', [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING])
             ->with('class.course')
             ->orderBy('meeting_date')
             ->orderBy('start_time')
-            ->limit(5)
-            ->get();
+            ->get()
+            ->each->syncStatus()
+            ->filter(function (VirtualClass $virtualClass) {
+                if ($virtualClass->hasEnded()
+                    || ! in_array($virtualClass->status, [VirtualClass::STATUS_SCHEDULED, VirtualClass::STATUS_ONGOING], true)) {
+                    return false;
+                }
+
+                // Today's session is shown while it is live or still ahead.
+                if ($virtualClass->meeting_date->isToday()) {
+                    return $virtualClass->isLiveNow()
+                        || ($virtualClass->startsAt() !== null && $virtualClass->startsAt()->isFuture());
+                }
+
+                return true;
+            })
+            ->values();
+
+        $upcomingVirtualClasses = $allUpcomingVirtualClasses->take(5)->values();
 
         // Recent grades — only for classes in the student's own section
         $recentGrades = Grade::where('student_id', $studentId)
@@ -309,7 +275,7 @@ class DashboardController extends Controller
                 'url' => $exam->class_id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#',
             ]);
         }
-        foreach ($upcomingVirtualClasses as $virtualClass) {
+        foreach ($allUpcomingVirtualClasses as $virtualClass) {
             $upcomingActivities->push([
                 'title' => $virtualClass->title,
                 'type' => 'Virtual Class',
@@ -321,7 +287,9 @@ class DashboardController extends Controller
         $upcomingActivities = $upcomingActivities->sortBy('date_obj')->map(function ($item) {
             unset($item['date_obj']);
             return $item;
-        })->take(5);
+        });
+        $upcomingActivitiesTotal = $upcomingActivities->count();
+        $upcomingActivities = $upcomingActivities->take(5);
 
         // Learning streak (consecutive days with activity)
         $learningStreak = $this->calculateLearningStreak($studentId);
@@ -401,26 +369,29 @@ class DashboardController extends Controller
             // Assignments
             'upcoming_assignments' => $upcomingAssignments,
             'overdue_assignments' => $overdueAssignments,
+            'overdue_assignments_total' => $overdueAssignmentsTotal,
             'total_assignments' => $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)->count(),
 
             // Quizzes
             'upcoming_quizzes' => $upcomingQuizzes,
             'overdue_quizzes' => $overdueQuizzes,
+            'overdue_quizzes_total' => $overdueQuizzesTotal,
             'recent_quiz_attempts' => $recentQuizAttempts,
             'total_quizzes' => $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)->count(),
 
             // Exams
             'upcoming_exams' => $upcomingExams,
             'overdue_exams' => $overdueExams,
+            'overdue_exams_total' => $overdueExamsTotal,
             'recent_exam_attempts' => $recentExamAttempts,
             'total_exams' => $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)->count(),
 
             // Virtual Classes
             'upcoming_virtual_classes' => $upcomingVirtualClasses,
-            'total_virtual_classes' => VirtualClass::whereIn('class_id', $classIds)
-                ->where('status', 'published')
-                ->whereDate('meeting_date', '>=', today())
-                ->count(),
+            // virtual_classes.status has no 'published' value (scheduled /
+            // ongoing / completed / cancelled), so the old filter always
+            // counted zero. This is the same set the panel lists.
+            'total_virtual_classes' => $allUpcomingVirtualClasses->count(),
 
             // Grades and Feedback
             'recent_grades' => $recentGrades,
@@ -444,6 +415,8 @@ class DashboardController extends Controller
 
             // Upcoming Activities (combined)
             'upcoming_activities' => $upcomingActivities,
+            'upcoming_activities_total' => $upcomingActivitiesTotal,
+            'upcoming_tasks_total' => $upcomingTasks['total'],
 
             // Recent Activity
             'recent_enrollments' => $enrollments->take(5),
@@ -541,8 +514,8 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'upcoming_tasks' => $stats['upcoming_assignments']->count() + $stats['upcoming_quizzes']->count(),
-                    'overdue_count' => $stats['overdue_assignments']->count(),
+                    'upcoming_tasks' => $stats['upcoming_tasks_total'],
+                    'overdue_count' => $stats['overdue_assignments_total'],
                     'learning_streak' => $stats['learning_streak'],
                     'recent_grades_count' => $stats['recent_grades']->count(),
                     'my_courses' => $stats['my_courses'],
@@ -910,7 +883,7 @@ class DashboardController extends Controller
                             ExamAttempt::STATUS_GRADED,
                             ExamAttempt::STATUS_REVIEWED,
                         ])
-                        ->whereHas('exam', fn ($q) => $q->whereIn('class_id', $classIds))
+                        ->whereHas('exam', fn ($q) => $q->whereIn('class_id', $classIds)->where('show_score', true))
                         ->with('exam.class.course')
                         ->orderBy('submitted_at')
                         ->get()
@@ -1001,6 +974,73 @@ class DashboardController extends Controller
     }
 
     /**
+     * Upcoming assignments, quizzes and exams shown in the student To-do panel.
+     *
+     * The rendered dashboard and the real-time endpoint both call this method,
+     * so the displayed hint and the polled count are built from one definition
+     * and one seven-day window.
+     *
+     * @return array{assignments: \Illuminate\Support\Collection, quizzes: \Illuminate\Support\Collection, exams: \Illuminate\Support\Collection, total: int}
+     */
+    private function upcomingTasksFor(int $studentId, $classIds, $courseIds): array
+    {
+        $now = now();
+        $weekFromNow = $now->copy()->addDays(7);
+
+        $assignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
+            ->whereDoesntHave('submissions', fn ($query) => $query->where('student_id', $studentId))
+            ->where('due_date', '>', $now)
+            ->where('due_date', '<=', $weekFromNow)
+            ->orderBy('due_date')
+            ->get();
+
+        $quizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', fn ($query) => $query->where('student_id', $studentId))
+            ->where(function ($query) use ($now, $weekFromNow) {
+                // Quizzes currently available (opened and not expired).
+                $query->where('availability_from', '<=', $now)
+                    ->where(function ($q) use ($now) {
+                        $q->whereNull('availability_until')
+                            ->orWhere('availability_until', '>', $now);
+                    });
+
+                // Quizzes opening within the next 7 days.
+                $query->orWhere(function ($q) use ($now, $weekFromNow) {
+                    $q->where('availability_from', '>', $now)
+                        ->where('availability_from', '<=', $weekFromNow);
+                });
+            })
+            ->orderBy('availability_from')
+            ->get();
+
+        $exams = $this->contentProgress->sectionScopedExamsQuery($classIds, $courseIds)
+            ->whereDoesntHave('attempts', fn ($query) => $query->where('student_id', $studentId))
+            ->where(function ($query) use ($now, $weekFromNow) {
+                // Exams currently available (started and not ended).
+                $query->where('starts_at', '<=', $now)
+                    ->where(function ($q) use ($now) {
+                        $q->whereNull('ends_at')
+                            ->orWhere('ends_at', '>', $now);
+                    });
+
+                // Exams starting within the next 7 days.
+                $query->orWhere(function ($q) use ($now, $weekFromNow) {
+                    $q->where('starts_at', '>', $now)
+                        ->where('starts_at', '<=', $weekFromNow);
+                });
+            })
+            ->orderBy('starts_at')
+            ->get();
+
+        return [
+            'assignments' => $assignments,
+            'quizzes' => $quizzes,
+            'exams' => $exams,
+            'total' => $assignments->count() + $quizzes->count() + $exams->count(),
+        ];
+    }
+
+    /**
      * Lightweight stats for real-time endpoint (avoids full dashboard render)
      */
     private function calculateStats(): array
@@ -1020,13 +1060,12 @@ class DashboardController extends Controller
         $courseIds = ClassModel::whereIn('id', $classIds)->pluck('course_id')->filter();
         $activeEnrollments = $activeEnrollments->whereIn('class_id', $classIds)->values();
 
-        $upcomingAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
-            ->where('due_date', '>', now())
-            ->orderBy('due_date')->limit(5)->get();
-
-        $upcomingQuizzes = $this->contentProgress->sectionScopedQuizzesQuery($classIds, $courseIds)
-            ->where('availability_from', '>', now())
-            ->orderBy('availability_from')->limit(5)->get();
+        // Same shared helper as the rendered dashboard: the auto-refresh must
+        // report exactly the totals behind the To-do hint.
+        $upcomingTasks = $this->upcomingTasksFor($studentId, $classIds, $courseIds);
+        $upcomingAssignments = $upcomingTasks['assignments'];
+        $upcomingQuizzes = $upcomingTasks['quizzes'];
+        $upcomingExams = $upcomingTasks['exams'];
 
         // The section-scoped query, matching the rendered dashboard: work in
         // another section's module of the same course is not overdue *for this
@@ -1034,7 +1073,9 @@ class DashboardController extends Controller
         $overdueAssignments = $this->contentProgress->sectionScopedAssignmentsQuery($classIds, $courseIds)
             ->where('due_date', '<', now())
             ->whereDoesntHave('submissions', fn ($q) => $q->where('student_id', $studentId))
-            ->orderBy('due_date', 'desc')->limit(5)->get();
+            ->orderBy('due_date', 'desc')->get();
+        $overdueAssignmentsTotal = $overdueAssignments->count();
+        $overdueAssignments = $overdueAssignments->take(5);
 
         $recentGrades = Grade::where('student_id', $studentId)
             ->with('item.class.course')
@@ -1067,8 +1108,14 @@ class DashboardController extends Controller
         return [
             'my_courses' => $activeEnrollments->count(),
             'upcoming_assignments' => $upcomingAssignments,
+            'upcoming_assignments_total' => $upcomingAssignments->count(),
             'upcoming_quizzes' => $upcomingQuizzes,
+            'upcoming_quizzes_total' => $upcomingQuizzes->count(),
+            'upcoming_exams' => $upcomingExams,
+            'upcoming_exams_total' => $upcomingExams->count(),
+            'upcoming_tasks_total' => $upcomingTasks['total'],
             'overdue_assignments' => $overdueAssignments,
+            'overdue_assignments_total' => $overdueAssignmentsTotal,
             'recent_grades' => $recentGrades,
             'learning_streak' => $this->calculateLearningStreak($studentId),
             'performance_assessment' => $assessment,

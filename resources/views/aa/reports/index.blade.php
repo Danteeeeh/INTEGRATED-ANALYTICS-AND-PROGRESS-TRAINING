@@ -52,7 +52,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b;">Walang course pa.</td></tr>
+                    <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--dash-muted);">Walang course pa.</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\VirtualClass;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Creates short-lived LiveKit participant JWTs without requiring a separate
@@ -147,6 +149,147 @@ class LiveKitTokenService
         $this->assertTokenIsWellFormed($token, $apiKey, $apiSecret);
 
         return $token;
+    }
+
+    /**
+     * Who is connected to a room right now, straight from LiveKit's
+     * RoomService. Returns null when LiveKit is unconfigured, unreachable or
+     * answers with an error, so callers can fall back to attendance rows.
+     *
+     * @return array<int, array{identity: string, name: string, joined_at: ?string}>|null
+     */
+    public function liveParticipants(string $roomName): ?array
+    {
+        if ($roomName === '' || $this->diagnose() !== null) {
+            return null;
+        }
+
+        $token = $this->createServerToken($roomName);
+
+        if ($token === null) {
+            return null;
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->acceptJson()
+                ->timeout(4)
+                ->post($this->twirpUrl('ListParticipants'), ['room' => $roomName]);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            // state 3 = DISCONNECTED: LiveKit still lists the participant for a
+            // short while, but they are not in the room.
+            return collect($response->json('participants') ?? [])
+                ->filter(fn ($participant) => is_array($participant)
+                    && (int) ($participant['state'] ?? 0) !== 3
+                    && (string) ($participant['identity'] ?? '') !== '')
+                ->map(fn (array $participant) => [
+                    'identity' => (string) $participant['identity'],
+                    'name' => (string) ($participant['name'] ?? ''),
+                    'joined_at' => $participant['joinedAt'] ?? null,
+                ])
+                ->values()
+                ->all();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /**
+     * Delete a room on the server. Every participant is disconnected, which is
+     * the only reliable way to close a class for people who never press Leave.
+     */
+    public function deleteRoom(string $roomName): bool
+    {
+        if ($roomName === '' || $this->diagnose() !== null) {
+            return false;
+        }
+
+        $token = $this->createServerToken($roomName);
+
+        if ($token === null) {
+            return false;
+        }
+
+        try {
+            return Http::withToken($token)
+                ->acceptJson()
+                ->timeout(4)
+                ->post($this->twirpUrl('DeleteRoom'), ['room' => $roomName])
+                ->successful();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
+    }
+
+    /**
+     * Short-lived room-admin token for RoomService calls. It never reaches the
+     * browser; it only authorises ListParticipants / DeleteRoom.
+     */
+    public function createServerToken(string $roomName): ?string
+    {
+        $apiKey = (string) config('services.livekit.api_key');
+        $apiSecret = (string) config('services.livekit.api_secret');
+
+        if ($apiKey === '' || $apiSecret === '' || $roomName === '') {
+            return null;
+        }
+
+        $now = time();
+
+        return $this->sign([
+            'iss' => $apiKey,
+            'sub' => 'lms-server',
+            'nbf' => $now - 60,
+            'iat' => $now,
+            'exp' => $now + 60,
+            'jti' => bin2hex(random_bytes(8)),
+            'video' => [
+                // One token serves both RoomService calls, and LiveKit checks a
+                // different grant for each: ListParticipants needs roomAdmin
+                // (plus room), DeleteRoom needs roomCreate. Without roomCreate
+                // DeleteRoom answers 401 and the room outlives the ended class.
+                'roomAdmin' => true,
+                'room' => $roomName,
+                'roomCreate' => true,
+            ],
+        ], $apiSecret);
+    }
+
+    /**
+     * RoomService lives on the Twirp surface of the same server. LiveKit's
+     * WebSocket URL maps to https (wss) or http (ws).
+     */
+    protected function twirpUrl(string $method): string
+    {
+        $url = (string) config('services.livekit.url');
+        $base = preg_replace('#^wss://#i', 'https://', $url);
+        $base = preg_replace('#^ws://#i', 'http://', $base);
+
+        return rtrim((string) $base, '/').'/twirp/livekit.RoomService/'.$method;
+    }
+
+    /**
+     * HS256 JWT with a compact header, shared by the join and server tokens.
+     */
+    protected function sign(array $payload, string $secret): string
+    {
+        $header = ['typ' => 'JWT', 'alg' => 'HS256'];
+        $segments = [
+            $this->base64UrlEncode(json_encode($header, JSON_THROW_ON_ERROR)),
+            $this->base64UrlEncode(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)),
+        ];
+        $signingInput = implode('.', $segments);
+        $signature = hash_hmac('sha256', $signingInput, $secret, true);
+
+        return $signingInput.'.'.$this->base64UrlEncode($signature);
     }
 
     /**

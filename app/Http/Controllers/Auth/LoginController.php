@@ -29,11 +29,15 @@ class LoginController extends Controller
 
     public function showRegistrationForm()
     {
+        $this->ensureRegistrationEnabled();
+
         return view('auth.register');
     }
 
     public function register(Request $request): RedirectResponse
     {
+        $this->ensureRegistrationEnabled();
+
         $min = (int) config('lms.password_min_length', 8);
 
         $validated = $request->validate([
@@ -58,6 +62,16 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         return redirect()->route('student.dashboard');
+    }
+
+    /**
+     * Student accounts are expected to come from the AA sync. Registration is
+     * therefore closed by default (LMS_REGISTRATION_ENABLED=false) and answers
+     * 404 rather than advertising that the feature exists.
+     */
+    private function ensureRegistrationEnabled(): void
+    {
+        abort_unless(config('lms.registration_enabled', false), 404);
     }
 
     public function store(LoginRequest $request): RedirectResponse

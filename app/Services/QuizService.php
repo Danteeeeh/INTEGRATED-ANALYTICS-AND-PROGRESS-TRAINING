@@ -295,6 +295,192 @@ class QuizService
         });
     }
 
+    /**
+     * Close an expired quiz attempt from the answers already on the server.
+     *
+     * Used by the browser-timeout path and by the scheduled command. The
+     * attempt is re-read under a row lock so two workers (or a student's late
+     * request and a worker) cannot grade and close the same attempt twice.
+     *
+     * Returns null when the attempt was already closed, which makes repeated
+     * scheduler runs harmless.
+     */
+    public function autoSubmitAttempt(QuizAttempt $attempt): ?QuizAttempt
+    {
+        return DB::transaction(function () use ($attempt) {
+            $locked = QuizAttempt::query()
+                ->with('quiz')
+                ->lockForUpdate()
+                ->find($attempt->id);
+
+            if (! $locked || $locked->status !== QuizAttempt::STATUS_IN_PROGRESS) {
+                return null;
+            }
+
+            $quiz = $locked->quiz;
+
+            if (! $quiz) {
+                return null;
+            }
+
+            $locked->loadMissing('answers.question', 'answers.selectedChoices');
+
+            $totalScore = 0.0;
+            $totalPoints = 0.0;
+            $pointsByQuestion = $quiz->pointsByQuestionId();
+            $grader = app(QuestionGrader::class);
+
+            foreach ($locked->answers as $quizAnswer) {
+                $question = $quizAnswer->question;
+                $snapshot = $quizAnswer->snapshotArray();
+                $submitted = $this->decodeStoredAnswer($quizAnswer->answer_text);
+
+                $pivotPoints = $pointsByQuestion[$quizAnswer->question_id]
+                    ?? $snapshot['points']
+                    ?? $question?->default_points
+                    ?? 1;
+
+                $result = $grader->grade($submitted, $snapshot, $question, (float) $pivotPoints);
+
+                if ($result['manual']) {
+                    // Essays and unkeyed answers wait for the instructor. They
+                    // are excluded from the denominator so an unmarked answer
+                    // is not reported as a confident zero.
+                    $quizAnswer->update([
+                        'is_correct' => null,
+                        'points_awarded' => null,
+                    ]);
+
+                    continue;
+                }
+
+                $quizAnswer->update([
+                    'is_correct' => $result['is_correct'],
+                    'points_awarded' => $result['points'],
+                ]);
+
+                $this->syncSelectedChoices($quizAnswer, $submitted, $question);
+
+                $totalScore += $result['points'];
+                $totalPoints += $pivotPoints;
+            }
+
+            $scorePercent = $totalPoints > 0 ? ($totalScore / $totalPoints) * 100 : 0;
+            $hasPendingGrades = $this->hasPendingGrades($locked);
+            $isPassed = $totalPoints > 0 && ! $hasPendingGrades
+                ? $scorePercent >= $quiz->passing_score_percent
+                : null;
+            $limitMinutes = (int) ($quiz->time_limit_minutes ?? 0);
+            $timerDeadline = $limitMinutes > 0 && $locked->started_at
+                ? $locked->started_at->copy()->addMinutes($limitMinutes)
+                : null;
+
+            // Normally the attempt ends at its own timer. When the scheduler
+            // closes it because the assessment deadline passed first, the timer
+            // may still be in the future, so end it now and charge only the
+            // time actually spent.
+            $endedAt = $timerDeadline && $timerDeadline->isPast()
+                ? $timerDeadline
+                : now();
+
+            $timeSpent = $locked->started_at
+                ? max(0, (int) $locked->started_at->diffInSeconds($endedAt))
+                : 0;
+
+            $locked->update([
+                'ended_at' => $endedAt,
+                'submitted_at' => now(),
+                'time_spent_seconds' => $timeSpent,
+                'score' => $totalScore,
+                'score_percent' => round($scorePercent, 2),
+                'is_passed' => $isPassed,
+                'status' => QuizAttempt::STATUS_AUTO_SUBMITTED,
+            ]);
+
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'auto_submit',
+                'resource_type' => QuizAttempt::class,
+                'resource_id' => $locked->id,
+                'new_values' => [
+                    'quiz_id' => $locked->quiz_id,
+                    'score_percent' => $locked->score_percent,
+                    'reason' => $timerDeadline && $timerDeadline->isPast()
+                        ? 'time_expired'
+                        : 'deadline_passed',
+                ],
+            ]);
+
+            return $locked->fresh();
+        });
+    }
+
+    /**
+     * Stored answers are scalars for single-answer questions and JSON lists for
+     * multiple-answer ones. The grader wants the original shape back.
+     */
+    private function decodeStoredAnswer(mixed $stored): mixed
+    {
+        if (! is_string($stored)) {
+            return $stored;
+        }
+
+        $trimmed = trim($stored);
+
+        if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
+            $decoded = json_decode($trimmed, true);
+
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Persist the student's chosen choices to the quiz_answer_choices pivot.
+     *
+     * @param  mixed  $answerData  Stored scalar, list of choice IDs, or null
+     */
+    private function syncSelectedChoices(QuizAnswer $quizAnswer, mixed $answerData, ?Question $question): void
+    {
+        $snapshot = $quizAnswer->snapshotArray();
+        $qtype = $question?->question_type ?? $snapshot['question_type'] ?? null;
+
+        if (! $qtype || ! in_array($qtype, [Question::TYPE_MULTIPLE_CHOICE, Question::TYPE_MULTIPLE_ANSWER, Question::TYPE_TRUE_FALSE], true)) {
+            return;
+        }
+
+        $selected = [];
+
+        if (is_array($answerData)) {
+            foreach ($answerData as $choiceId) {
+                if (is_numeric($choiceId)) {
+                    $selected[] = (int) $choiceId;
+                }
+            }
+        } elseif (is_numeric($answerData)) {
+            $selected[] = (int) $answerData;
+        }
+
+        if ($selected !== []) {
+            $quizAnswer->selectedChoices()->sync($selected);
+        }
+    }
+
+    /**
+     * Has the instructor still got work to do on this attempt?
+     */
+    private function hasPendingGrades(QuizAttempt $attempt): bool
+    {
+        return $attempt->answers()
+            ->whereNull('is_correct')
+            ->whereNotNull('answer_text')
+            ->where('answer_text', '!=', '')
+            ->exists();
+    }
+
     protected function checkAnswer(Question $question, array $answerData): bool
     {
         switch ($question->type) {

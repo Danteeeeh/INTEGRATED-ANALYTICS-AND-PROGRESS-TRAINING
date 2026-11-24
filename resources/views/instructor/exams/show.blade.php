@@ -212,6 +212,7 @@
                             <tr>
                                 <th>Student</th>
                                 <th>Status</th>
+                                <th>Proctoring</th>
                                 <th>Score</th>
                                 <th>Result</th>
                                 <th>Started</th>
@@ -226,6 +227,15 @@
                                         <div class="user-email">{{ $attempt->student?->email ?? '' }}</div>
                                     </td>
                                     <td><x-user-status-badge status="{{ $attempt->status }}" /></td>
+                                    <td>
+                                        @if($attempt->tab_switch_count || $attempt->suspicious_activity_count)
+                                            <span class="user-status danger" title="Tab switches and clipboard events recorded during the attempt">
+                                                {{ $attempt->tab_switch_count }} tab switch(es) · {{ $attempt->suspicious_activity_count }} clipboard event(s)
+                                            </span>
+                                        @else
+                                            <span style="color:var(--dash-muted);">—</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($attempt->score_percent !== null)
                                             {{ number_format((float) $attempt->score_percent, 1) }}%

@@ -101,7 +101,10 @@ class ExamAttempt extends Model
 
     public function answers(): HasMany
     {
-        return $this->hasMany(ExamAnswer::class);
+        // Attempt rows are inserted in the student's question order. Ordering by
+        // id keeps that order explicit after shuffle_questions, instead of
+        // relying on a database's incidental row order.
+        return $this->hasMany(ExamAnswer::class)->orderBy('id');
     }
 
     public function allStudentGrades(): HasMany

@@ -9,7 +9,12 @@
     $continue = $stats['continue_learning'] ?? null;
     $progressData = $stats['course_progress'] ?? [];
     $firstClassId = $stats['my_enrollments']?->first()?->class_id;
-    $overdueCount = ($stats['overdue_assignments'] ?? collect())->count() + ($stats['overdue_quizzes'] ?? collect())->count() + ($stats['overdue_exams'] ?? collect())->count();
+    $overdueCount = ($stats['overdue_assignments_total'] ?? ($stats['overdue_assignments'] ?? collect())->count())
+        + ($stats['overdue_quizzes_total'] ?? ($stats['overdue_quizzes'] ?? collect())->count())
+        + ($stats['overdue_exams_total'] ?? ($stats['overdue_exams'] ?? collect())->count());
+    $overdueShown = min(count($stats['overdue_assignments'] ?? []), 2) + min(count($stats['overdue_quizzes'] ?? []), 2) + min(count($stats['overdue_exams'] ?? []), 2);
+    $todoShown = min(count($stats['upcoming_assignments'] ?? []), 2) + min(count($stats['upcoming_quizzes'] ?? []), 2) + min(count($stats['upcoming_exams'] ?? []), 2);
+    $todoTotal = $stats['upcoming_tasks_total'] ?? (count($stats['upcoming_assignments'] ?? []) + count($stats['upcoming_quizzes'] ?? []) + count($stats['upcoming_exams'] ?? []));
     // Plain array for the progress chart — Eloquent models are not JSON-serialised directly.
     // Courses with nothing published yet are left out: a 0% bar would read as
     // a failing student when there is simply no content to complete.
@@ -149,9 +154,9 @@
     {{-- ═══ STAT TILES ═══ --}}
     @php
         $overall = (float)($stats['overall_progress'] ?? 0);
-        $upcomingTasksCount = ($stats['upcoming_assignments'] ?? collect())->count()
+        $upcomingTasksCount = $stats['upcoming_tasks_total'] ?? (($stats['upcoming_assignments'] ?? collect())->count()
             + ($stats['upcoming_quizzes'] ?? collect())->count()
-            + ($stats['upcoming_exams'] ?? collect())->count();
+            + ($stats['upcoming_exams'] ?? collect())->count());
     @endphp
     <div class="dash-cards-grid">
         <x-user-stat-card
@@ -190,7 +195,7 @@
             icon="fa-chart-line"
             trend="Live"
         >
-            <x-slot name="footer"><i class="fa-solid fa-fire" style="color:#fbbf24"></i> <span id="stat-streak-value">{{ $stats['learning_streak'] ?? 0 }}</span>-day streak</x-slot>
+            <x-slot name="footer"><i class="fa-solid fa-fire" style="color:var(--dash-warning)"></i> <span id="stat-streak-value">{{ $stats['learning_streak'] ?? 0 }}</span>-day streak</x-slot>
         </x-user-stat-card>
         <x-user-stat-card
             label="Average Grade"
@@ -207,7 +212,7 @@
             icon="fa-bell"
             trend="{{ $overdueCount > 0 ? 'Due soon' : 'On track' }}"
         >
-            <x-slot name="footer"><i class="fa-solid fa-triangle-exclamation" style="color:#fb7185"></i> <span id="stat-overdue-value">{{ $overdueCount }}</span> overdue</x-slot>
+            <x-slot name="footer"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dash-status-danger)"></i> <span id="stat-overdue-value">{{ $overdueCount }}</span> overdue</x-slot>
         </x-user-stat-card>
     </div>
 
@@ -218,10 +223,17 @@
     <section class="dash-panel">
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-book-open"></i> My courses</h4>
-            <span class="panel-count">{{ count($stats['my_enrollments'] ?? []) }}</span>
+            @include('partials.dashboard-panel-cap', [
+                'count' => count($stats['my_enrollments'] ?? []),
+                'shown' => 4,
+                'total' => count($stats['my_enrollments'] ?? []),
+                'href' => route('student.courses.index'),
+                'viewAllUrl' => route('student.courses.index'),
+                'viewAllOnlyWhenCapped' => true,
+            ])
         </div>
         <div class="course-card-grid">
-            @forelse(($stats['my_enrollments'] ?? []) as $enrollment)
+            @forelse(collect($stats['my_enrollments'] ?? [])->take(4) as $enrollment)
                 @php
                     $course = $enrollment->class?->course;
                     $courseProgress = $progressLookup[$course->id ?? 0] ?? 0;
@@ -254,7 +266,7 @@
                         @endif
                     </div>
                     <div class="course-card-foot">
-                        <span class="course-card-count"><i class="fa-solid fa-chalkboard-user"></i> {{ $enrollment->class?->instructor?->name ?? 'Instructor TBA' }}</span>
+                        <span class="course-card-count"><i class="fa-solid fa-layer-group"></i> {{ $enrollment->class?->code ?? 'Class section' }}</span>
                         <span class="btn btn-secondary btn-sm">Open Course <i class="fa-solid fa-arrow-right"></i></span>
                     </div>
                 </a>
@@ -356,9 +368,15 @@
                     <h4>{{ $overdueCount }} overdue item{{ $overdueCount > 1 ? 's' : '' }}</h4>
                     <p>Complete these to avoid grade penalties.</p>
                 </div>
+                @include('partials.dashboard-panel-cap', [
+                    'shown' => $overdueShown,
+                    'total' => $overdueCount,
+                    'href' => route('student.incomplete'),
+                    'hintClass' => 'overdue-cap-note',
+                ])
             </div>
             <ul class="overdue-list">
-                @foreach(($stats['overdue_assignments'] ?? []) as $assignment)
+                @foreach(collect($stats['overdue_assignments'] ?? [])->take(2) as $assignment)
                     <li>
                         <a href="{{ $assignment->class?->id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#' }}">
                             <span class="od-name">{{ $assignment->title }}</span>
@@ -366,7 +384,7 @@
                         </a>
                     </li>
                 @endforeach
-                @foreach(($stats['overdue_quizzes'] ?? []) as $quiz)
+                @foreach(collect($stats['overdue_quizzes'] ?? [])->take(2) as $quiz)
                     <li>
                         <a href="{{ $quiz->class?->id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#' }}">
                             <span class="od-name">{{ $quiz->title }}</span>
@@ -374,7 +392,7 @@
                         </a>
                     </li>
                 @endforeach
-                @foreach(($stats['overdue_exams'] ?? []) as $exam)
+                @foreach(collect($stats['overdue_exams'] ?? [])->take(2) as $exam)
                     <li>
                         <a href="{{ $exam->class?->id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#' }}">
                             <span class="od-name">{{ $exam->title }}</span>
@@ -411,7 +429,7 @@
                     <span class="panel-count">{{ round($overall) }}% overall</span>
                 </div>
                 <div style="padding:14px">
-                    <div id="progressChart" class="chart-container" style="height:280px"></div>
+                    <div id="progressChart" class="chart-container" data-chart-label="Completion percentage per course"></div>
                     <p style="margin:12px 0 0;font-size:.78rem;color:var(--dash-muted,#98a7c4);">
                         <i class="fa-solid fa-circle-info"></i>
                         <strong>Paano kino-compute:</strong> ang progress ay batay sa aktwal mong aktibidad sa LMS — natapos na lessons, modules, quizzes, at assignments sa bawat course. LMS activity lang ito; ang official grade ay hawak ng AA.
@@ -425,10 +443,16 @@
             <section class="dash-panel">
             <div class="dash-panel-head">
                 <h4><i class="fa-solid fa-list-check"></i> To-do list</h4>
-                <span class="panel-count">{{ ($stats['upcoming_assignments'] ?? collect())->count() + ($stats['upcoming_quizzes'] ?? collect())->count() + ($stats['upcoming_exams'] ?? collect())->count() }}</span>
+                @include('partials.dashboard-panel-cap', [
+                    'count' => $todoTotal,
+                    'shown' => $todoShown,
+                    'total' => $todoTotal,
+                    'href' => route('student.incomplete'),
+                    'viewAllUrl' => route('student.incomplete'),
+                ])
             </div>
             <ul class="dash-list">
-                @forelse(($stats['upcoming_assignments'] ?? []) as $assignment)
+                @forelse(collect($stats['upcoming_assignments'] ?? [])->take(2) as $assignment)
                     <li class="dash-list-item">
                         <a class="dash-list-link" href="{{ $assignment->class_id ? route('student.courses.assignments.show', [$assignment->class->course, $assignment]) : '#' }}">
                             <span class="dash-list-icon"><i class="fa-solid fa-tasks"></i></span>
@@ -445,7 +469,7 @@
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming assignments</li>
                 @endforelse
-                @forelse(($stats['upcoming_quizzes'] ?? []) as $quiz)
+                @forelse(collect($stats['upcoming_quizzes'] ?? [])->take(2) as $quiz)
                     <li class="dash-list-item">
                         <a class="dash-list-link" href="{{ $quiz->class_id ? route('student.courses.quizzes.show', [$quiz->class->course, $quiz]) : '#' }}">
                             <span class="dash-list-icon i-violet"><i class="fa-solid fa-question-circle"></i></span>
@@ -469,7 +493,7 @@
                 @empty
                     <li class="dash-list-empty"><i class="fa-solid fa-calendar-check"></i> No upcoming quizzes</li>
                 @endforelse
-                @forelse(($stats['upcoming_exams'] ?? []) as $exam)
+                @forelse(collect($stats['upcoming_exams'] ?? [])->take(2) as $exam)
                     <li class="dash-list-item">
                         <a class="dash-list-link" href="{{ $exam->class_id ? route('student.courses.exams.show', [$exam->class->course, $exam]) : '#' }}">
                             <span class="dash-list-icon i-rose"><i class="fa-solid fa-graduation-cap"></i></span>
@@ -503,10 +527,16 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-calendar-days"></i> Upcoming deadlines</h4>
-                    <a href="{{ route('student.calendar') }}" class="view-all">Calendar</a>
+                    @include('partials.dashboard-panel-cap', [
+                        'shown' => 4,
+                        'total' => count($calendarItems),
+                        'href' => route('student.calendar'),
+                        'viewAllUrl' => route('student.calendar'),
+                        'viewAllLabel' => 'Calendar',
+                    ])
                 </div>
                 <ul class="dash-cal">
-                    @forelse($calendarItems as $item)
+                    @forelse(collect($calendarItems)->take(4) as $item)
                         <li>
                             <a href="{{ $item['url'] }}">
                                 <span class="dash-cal-date">
@@ -529,15 +559,25 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-video"></i> Upcoming virtual classes</h4>
-                    <span class="panel-count">{{ $stats['total_virtual_classes'] ?? 0 }}</span>
+                    @include('partials.dashboard-panel-cap', [
+                        'count' => $stats['total_virtual_classes'] ?? 0,
+                        'shown' => 3,
+                        'total' => count($stats['upcoming_virtual_classes'] ?? []),
+                        'href' => route('student.virtual-classes.index'),
+                    ])
                 </div>
                 <ul class="dash-list">
-                    @forelse(($stats['upcoming_virtual_classes'] ?? []) as $vc)
+                    @forelse(collect($stats['upcoming_virtual_classes'] ?? [])->take(3) as $vc)
                         <li class="dash-list-item">
                             <a class="dash-list-link" href="{{ $vc->class_id ? route('student.classes.virtual_classes.show', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) : '#' }}">
                                 <span class="dash-list-icon i-violet"><i class="fa-solid fa-video"></i></span>
                                 <div class="dash-list-body">
-                                    <p class="dash-list-title">{{ $vc->title }}</p>
+                                    <p class="dash-list-title">
+                                        {{ $vc->title }}
+                                        @if($vc->isLiveNow())
+                                            <span class="dash-meta-chip m-green">Live now</span>
+                                        @endif
+                                    </p>
                                     <p class="dash-list-sub">{{ $vc->class?->course?->title ?? '' }}</p>
                                 </div>
                                 <div class="dash-list-meta">
@@ -545,6 +585,12 @@
                                     <span class="dash-list-date">{{ \Carbon\Carbon::parse($vc->meeting_date->format('Y-m-d').' '.$vc->start_time)->diffForHumans() }}</span>
                                 </div>
                             </a>
+                            @if($vc->canStudentJoin())
+                                <form method="POST" action="{{ route('student.classes.virtual_classes.join', ['class' => $vc->class_id, 'virtualClass' => $vc->id]) }}" style="display:inline;margin-left:8px">
+                                    @csrf
+                                    <button type="submit" class="dash-join-btn" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#16a34a;color:#fff;border:0;font-size:.72rem;font-weight:800;cursor:pointer"><i class="fa-solid fa-right-to-bracket"></i> Join now</button>
+                                </form>
+                            @endif
                         </li>
                     @empty
                         <li class="dash-list-empty"><i class="fa-solid fa-video"></i> No upcoming virtual classes</li>
@@ -556,10 +602,15 @@
             <section class="dash-panel">
                 <div class="dash-panel-head">
                     <h4><i class="fa-solid fa-bullhorn"></i> Announcements</h4>
-                    <span class="panel-count">{{ $stats['total_announcements'] ?? 0 }}</span>
+                    @include('partials.dashboard-panel-cap', [
+                        'count' => $stats['total_announcements'] ?? 0,
+                        'shown' => 3,
+                        'total' => $stats['total_announcements'] ?? 0,
+                        'href' => route('student.announcements.index'),
+                    ])
                 </div>
                 <ul class="announce-feed">
-                    @forelse(($stats['announcements'] ?? []) as $announcement)
+                    @forelse(collect($stats['announcements'] ?? [])->take(3) as $announcement)
                         <li class="announce-item">
                             <div class="announce-date">
                                 <span class="ad-day">{{ $announcement->publish_at?->format('j') }}</span>
@@ -582,12 +633,19 @@
     <section class="dash-panel">
         <div class="dash-panel-head">
             <h4><i class="fa-solid fa-calendar-days"></i> Upcoming activities</h4>
-            <span class="panel-count">{{ ($stats['upcoming_activities'] ?? collect())->count() }}</span>
+            @include('partials.dashboard-panel-cap', [
+                'count' => $stats['upcoming_activities_total'] ?? ($stats['upcoming_activities'] ?? collect())->count(),
+                'shown' => 5,
+                'total' => $stats['upcoming_activities_total'] ?? 0,
+                'href' => route('student.calendar'),
+                'viewAllUrl' => route('student.calendar'),
+                'viewAllLabel' => 'Calendar',
+            ])
         </div>
         <div style="padding:14px">
             @if(isset($stats['upcoming_activities']) && $stats['upcoming_activities']->isNotEmpty())
                 <div class="activity-list">
-                    @foreach($stats['upcoming_activities'] as $activity)
+                    @foreach(collect($stats['upcoming_activities'])->take(5) as $activity)
                         <div class="activity-item">
                             <i class="fa-solid {{ $activity['type'] === 'Assignment' ? 'fa-file-pen' : ($activity['type'] === 'Quiz' ? 'fa-circle-question' : ($activity['type'] === 'Exam' ? 'fa-graduation-cap' : 'fa-video')) }}" aria-hidden="true"></i>
                             <div class="activity-copy"><strong>{{ $activity['title'] }}</strong><small>{{ $activity['type'] }} · {{ $activity['date'] }}</small></div>
@@ -732,7 +790,7 @@
                                 <p class="dash-list-sub">{{ $examCourse?->title ?? '' }} · Attempt {{ $attempt->attempt_number ?? 1 }}</p>
                             </div>
                             <div class="dash-list-meta">
-                                @if(isset($attempt->is_passed))
+                                @if($attempt->exam?->show_score && isset($attempt->is_passed))
                                     <span class="dash-meta-chip {{ $attempt->is_passed ? 'm-green' : 'm-rose' }}">{{ $attempt->is_passed ? 'Passed' : 'Retake' }}</span>
                                 @endif
                                 <span class="dash-list-date">{{ $attempt->created_at?->diffForHumans() }}</span>
@@ -818,8 +876,13 @@
             <div id="analytics-toast" class="analytics-toast"></div>
             <div class="analytics-grid">
                 <div class="analytics-card analytics-card-wide">
-                    <h5><i class="fa-solid fa-chart-line"></i> <span id="analyticsTitle">Grade Trend</span></h5>
-                    <div id="analyticsChart" class="chart-container">
+                    <div class="chart-card-head">
+                        <div>
+                            <h5><i class="fa-solid fa-chart-line"></i> <span id="analyticsTitle">Grade Trend</span></h5>
+                            <p class="chart-card-sub" id="analyticsSubtitle">Released scores over time · LMS only, official grade stays with AA</p>
+                        </div>
+                    </div>
+                    <div id="analyticsChart" class="chart-container" data-chart-label="Selected learning analytics">
                         <div class="chart-placeholder"><i class="fa-solid fa-chart-bar"></i><p>Loading analytics…</p></div>
                     </div>
                 </div>
@@ -834,7 +897,7 @@
     </section>
 
     {{-- ═══ STUDENT FUNCTIONALITY ═══ --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @vite('resources/js/charts.js')
     <script>
         // Palette-safe chart text colours. These are the exact values the
         // --dash-* tokens already hold for each theme (dark default / light
@@ -844,10 +907,11 @@
         const CHART_TICK = isLightTheme ? '#5f708c' : '#98a7c4';
         const CHART_TEXT = isLightTheme ? '#16233c' : '#c7d4ec';
         const CHART_GRID = isLightTheme ? 'rgba(31,52,88,.12)' : 'rgba(153,174,214,.12)';
+        function chartPalette() { return LMSCharts.palette(); }
 
         // My Progress chart — per-course completion bars (Canvas zone 2).
         // Server-rendered data; no extra request needed to draw it.
-        (function renderProgressChart() {
+        document.addEventListener('DOMContentLoaded', function () {
             const container = document.getElementById('progressChart');
             if (!container || typeof Chart === 'undefined') return;
 
@@ -857,6 +921,7 @@
                 return;
             }
 
+            const palette = chartPalette();
             container.innerHTML = '<canvas id="progressChartCanvas"></canvas>';
             new Chart(document.getElementById('progressChartCanvas'), {
                 type: 'bar',
@@ -866,9 +931,9 @@
                         label: 'Completion',
                         data: progressData.map(d => d.progress),
                         backgroundColor: progressData.map(d =>
-                            d.progress >= 75 ? 'rgba(52, 211, 153, .85)'
-                            : d.progress >= 40 ? 'rgba(251, 191, 36, .85)'
-                            : 'rgba(91, 140, 255, .7)'),
+                            d.progress >= 75 ? LMSCharts.alpha(palette.green, .85)
+                            : d.progress >= 40 ? LMSCharts.alpha(palette.amber, .85)
+                            : LMSCharts.alpha(palette.brand, .7)),
                         borderRadius: 6,
                     }],
                 },
@@ -901,7 +966,7 @@
                     },
                 },
             });
-        })();
+        });
 
         // Real-time dashboard refresh
         async function refreshDashboard() {
@@ -1131,10 +1196,23 @@
             const title = document.getElementById('analyticsTitle');
             const container = document.getElementById('analyticsChart');
             const summary = document.getElementById('analyticsSummary');
+            const palette = chartPalette();
             destroyChart('analyticsChart');
 
             const hasData = analyticsHasData(type, data);
             const emptyMessage = hasData ? null : analyticsEmptyMessage(type, notice);
+
+            // The card header must describe the metric that is actually on
+            // screen; a stale "released scores" subtitle under a quiz chart
+            // reads as a data error.
+            const SUBTITLES = {
+                grades: 'Released scores over time · LMS only, official grade stays with AA',
+                quizzes: 'Submitted quiz attempts · percentage score, LMS only',
+                exams: 'Submitted exams · percentage score, LMS only',
+                progress: 'Average completion across published course content',
+            };
+            const subtitle = document.getElementById('analyticsSubtitle');
+            if (subtitle) subtitle.textContent = SUBTITLES[type] || 'Learning analytics from your LMS activity';
 
             if (type === 'grades') {
                 title.textContent = 'Grade Trend';
@@ -1144,12 +1222,15 @@
                 chartInstances['analyticsChart'] = hasData ? new Chart(document.getElementById('analyticsCanvas'), {
                     type: 'bar',
                     data: {
-                        labels: data.labels,
+                        // Grade Trend is a time series: plot it against the
+                        // date it was released, not the (possibly repeated)
+                        // grade-item name. The name stays in the tooltip.
+                        labels: (data.dates && data.dates.length === data.scores.length) ? data.dates : data.labels,
                         datasets: [{
                             label: 'Score %',
                             data: data.scores,
-                            backgroundColor: 'rgba(52, 211, 153, 0.6)',
-                            borderColor: '#34d399',
+                            backgroundColor: LMSCharts.alpha(palette.green, 0.6),
+                            borderColor: palette.green,
                             borderWidth: 1.5,
                             borderRadius: 6,
                             maxBarThickness: 46
@@ -1159,11 +1240,21 @@
                         responsive: true, maintainAspectRatio: false,
                         plugins: {
                             legend: { display: false },
-                            tooltip: { callbacks: { label: (c) => ` ${c.parsed.y}%` } }
+                            tooltip: { callbacks: { label: (c) => ` ${data.labels[c.dataIndex]} — ${c.parsed.y}%` } }
                         },
                         scales: {
                             y: { beginAtZero: true, max: 100, ticks: { color: CHART_TICK, callback: (v) => v + '%' }, grid: { color: CHART_GRID } },
-                            x: { grid: { display: false }, ticks: { color: CHART_TEXT, maxRotation: 30 } }
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: CHART_TEXT,
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    // Many grades can share one release date; keep the bars but
+                                    // show only a handful of date labels so the axis stays legible.
+                                    maxTicksLimit: 8,
+                                },
+                            }
                         }
                     }
                 }) : null;
@@ -1183,8 +1274,8 @@
                         datasets: [{
                             label: 'Score %',
                             data: data.scores,
-                            backgroundColor: 'rgba(139, 92, 246, 0.55)',
-                            borderColor: '#8b5cf6',
+                            backgroundColor: LMSCharts.alpha(palette.purple, 0.55),
+                            borderColor: palette.purple,
                             borderWidth: 1.5,
                             borderRadius: 6,
                             maxBarThickness: 46
@@ -1218,8 +1309,8 @@
                         datasets: [{
                             label: 'Score %',
                             data: data.scores,
-                            backgroundColor: 'rgba(219, 39, 119, 0.55)',
-                            borderColor: '#db2777',
+                            backgroundColor: LMSCharts.alpha(palette.magenta, 0.55),
+                            borderColor: palette.magenta,
                             borderWidth: 1.5,
                             borderRadius: 6,
                             maxBarThickness: 46
@@ -1253,8 +1344,8 @@
                         datasets: [{
                             label: 'Progress %',
                             data: data.progress,
-                            backgroundColor: 'rgba(98, 201, 245, 0.55)',
-                            borderColor: '#62c9f5',
+                            backgroundColor: LMSCharts.alpha(palette.cyan, 0.55),
+                            borderColor: palette.cyan,
                             borderWidth: 1.5,
                             borderRadius: 6,
                             maxBarThickness: 46
@@ -1273,8 +1364,8 @@
                     }
                 }) : null;
                 summary.innerHTML = `
-                    <div class="summary-item"><span class="summary-label">Overall</span><span class="summary-value">${data.overall}%</span></div>
-                    <div class="summary-item"><span class="summary-label">Courses</span><span class="summary-value">${data.total_courses}</span></div>
+                    <div class="summary-item"><span class="summary-label">Average progress</span><span class="summary-value">${data.overall}%</span></div>
+                    <div class="summary-item"><span class="summary-label">Courses counted</span><span class="summary-value">${data.total_courses}</span></div>
                 `;
             }
         }
@@ -1300,9 +1391,9 @@
         .dash-quick { margin-bottom: 0; }
         .qa-card { position: relative; overflow: hidden; }
         .qa-card::after { content:""; position:absolute; right:-18px; bottom:-24px; width:64px; height:64px; border-radius:50%; background:radial-gradient(circle,rgba(98,201,245,.16),transparent 70%); pointer-events:none; }
-        .qa-card:nth-child(2) i { color:#6ee7b7; background:rgba(16,185,129,.13); }
-        .qa-card:nth-child(3) i { color:#fcd34d; background:rgba(251,191,36,.13); }
-        .qa-card:nth-child(4) i { color:#fda4af; background:rgba(244,63,94,.13); }
+        .qa-card:nth-child(2) i { color:var(--dash-status-active); background:rgba(16,185,129,.13); }
+        .qa-card:nth-child(3) i { color:var(--dash-status-pending); background:rgba(251,191,36,.13); }
+        .qa-card:nth-child(4) i { color:var(--dash-status-danger); background:rgba(244,63,94,.13); }
 
         /* Stat tiles are rendered by x-user-stat-card (`.user-stat-card`) and the
            hero by x-user-page-header (`.user-hero`) — both fully styled by
@@ -1325,13 +1416,13 @@
         /* Earned badges list */
         .earned-badges { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(153,174,214,.1); }
         .earned-badges-title { display: flex; align-items: center; gap: 6px; color: var(--dash-muted, #98a7c4); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-        .earned-badges-title i { color: #fcd34d; }
+        .earned-badges-title i { color: var(--dash-warning); }
         .earned-badges-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .earned-badge {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 5px 11px; border-radius: 999px;
             background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.22);
-            color: #c4b5fd; font-size: .7rem; font-weight: 700;
+            color: var(--dash-accent); font-size: .7rem; font-weight: 700;
         }
         .earned-badge i { font-size: .72rem; }
 
@@ -1377,10 +1468,10 @@
             display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px;
             font-size: 11px; font-weight: 750; letter-spacing: .03em; margin-left: 8px; vertical-align: middle;
         }
-        .type-badge.type-course { background: rgba(59,130,246,.14); color: #93c5fd; }
-        .type-badge.type-assignment { background: rgba(251,191,36,.13); color: #fcd34d; }
-        .type-badge.type-quiz { background: rgba(139,92,246,.14); color: #c4b5fd; }
-        .type-badge.type-exam { background: rgba(244,63,94,.13); color: #fda4af; }
+        .type-badge.type-course { background: rgba(59,130,246,.14); color: var(--dash-status-info); }
+        .type-badge.type-assignment { background: rgba(251,191,36,.13); color: var(--dash-status-pending); }
+        .type-badge.type-quiz { background: rgba(139,92,246,.14); color: var(--dash-accent); }
+        .type-badge.type-exam { background: rgba(244,63,94,.13); color: var(--dash-status-danger); }
 
         /* Clickable dash-list items */
         .dash-list-link {
@@ -1399,9 +1490,9 @@
         .overdue-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .overdue-icon {
             width: 40px; height: 40px; display: grid; place-items: center;
-            background: rgba(244,63,94,.15); color: #fb7185; border-radius: 10px; font-size: 18px;
+            background: rgba(244,63,94,.15); color: var(--dash-status-danger); border-radius: 10px; font-size: 18px;
         }
-        .overdue-head h4 { margin: 0; color: #fda4af; font-size: .9rem; font-weight: 800; }
+        .overdue-head h4 { margin: 0; color: var(--dash-status-danger); font-size: .9rem; font-weight: 800; }
         .overdue-head p { margin: 2px 0 0; color: var(--dash-muted, #98a7c4); font-size: .78rem; }
         .overdue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
         .overdue-list a {
@@ -1410,8 +1501,8 @@
             text-decoration: none; color: inherit; transition: background .16s;
         }
         .overdue-list a:hover { background: rgba(244,63,94,.12); }
-        .od-name { font-size: .82rem; font-weight: 700; color: #eef4ff; }
-        .od-meta { font-size: .72rem; color: #fb7185; font-weight: 600; }
+        .od-name { font-size: .82rem; font-weight: 700; color: var(--dash-text, #eef4ff); }
+        .od-meta { font-size: .72rem; color: var(--dash-status-danger); font-weight: 600; }
 
         /* AI-assisted performance assessment */
         .student-assessment {
@@ -1422,9 +1513,9 @@
             background: var(--dash-surface, #151c2c);
             box-shadow: 0 14px 34px rgba(3,8,20,.16);
         }
-        .student-assessment-on_track { --assessment-accent:#34d399; --assessment-soft:rgba(52,211,153,.12); --assessment-border:rgba(52,211,153,.28); }
-        .student-assessment-at_risk { --assessment-accent:#fbbf24; --assessment-soft:rgba(251,191,36,.12); --assessment-border:rgba(251,191,36,.30); }
-        .student-assessment-insufficient_data { --assessment-accent:#62c9f5; --assessment-soft:rgba(98,201,245,.12); --assessment-border:rgba(98,201,245,.28); }
+        .student-assessment-on_track { --assessment-accent:var(--dash-status-active); --assessment-soft:rgba(52,211,153,.12); --assessment-border:rgba(52,211,153,.28); }
+        .student-assessment-at_risk { --assessment-accent:var(--dash-warning); --assessment-soft:rgba(251,191,36,.12); --assessment-border:rgba(251,191,36,.30); }
+        .student-assessment-insufficient_data { --assessment-accent:var(--dash-cyan); --assessment-soft:rgba(98,201,245,.12); --assessment-border:rgba(98,201,245,.28); }
         .student-assessment-header {
             display:flex; align-items:flex-start; justify-content:space-between; gap:18px;
             padding:20px 22px; border-bottom:1px solid var(--assessment-border);
@@ -1457,11 +1548,11 @@
         .student-assessment-signals { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:9px; margin-top:14px; }
         .student-signal { display:flex; align-items:flex-start; gap:8px; min-width:0; padding:11px; border:1px solid var(--dash-line,rgba(153,174,214,.18)); border-radius:11px; background:rgba(77,143,240,.035); }
         .student-signal-dot { flex:0 0 auto; width:7px; height:7px; margin-top:4px; border-radius:50%; background:var(--dash-muted,#98a7c4); box-shadow:0 0 0 3px rgba(153,174,214,.10); }
-        .student-signal-good .student-signal-dot { background:#34d399; box-shadow:0 0 0 3px rgba(52,211,153,.14); }
-        .student-signal-watch .student-signal-dot { background:#fbbf24; box-shadow:0 0 0 3px rgba(251,191,36,.14); }
-        .student-signal-risk .student-signal-dot { background:#fb7185; box-shadow:0 0 0 3px rgba(251,113,133,.14); }
+        .student-signal-good .student-signal-dot { background:var(--dash-status-active); box-shadow:0 0 0 3px rgba(52,211,153,.14); }
+        .student-signal-watch .student-signal-dot { background:var(--dash-warning); box-shadow:0 0 0 3px rgba(251,191,36,.14); }
+        .student-signal-risk .student-signal-dot { background:var(--dash-status-danger); box-shadow:0 0 0 3px rgba(251,113,133,.14); }
         .student-signal div { display:flex; min-width:0; flex-direction:column; gap:3px; }
-        .student-signal strong { overflow:hidden; color:var(--dash-muted,#98a7c4); font-size:.61rem; text-overflow:ellipsis; white-space:nowrap; text-transform:uppercase; letter-spacing:.04em; }
+        .student-signal strong { color:var(--dash-muted,#98a7c4); font-size:.61rem; line-height:1.25; text-transform:uppercase; letter-spacing:.04em; }
         .student-signal span { color:var(--dash-text,#eef4ff); font-size:.83rem; font-weight:800; }
         .student-signal small { color:var(--dash-muted,#98a7c4); font-size:.61rem; line-height:1.3; }
         .student-assessment-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:18px; }
@@ -1480,15 +1571,7 @@
         body.light-mode .student-signal,.light-mode .student-recommendation { background:rgba(36,73,198,.035); }
         .student-assessment:focus-within { border-color:var(--assessment-accent); }
 
-        /* Analytics */
-        .dash-analytics { margin: 0; padding: 20px; background: var(--dash-surface, #151c2c); border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 16px; box-shadow: var(--bcp-shadow, 0 18px 40px rgba(3,8,20,.3)); }
-        .dash-analytics .dash-panel-head { padding: 0 0 16px; border-bottom: 1px solid var(--dash-line, rgba(153,174,214,.18)); margin-bottom: 20px; }
-        .analytics-toast {
-            display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
-            background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; font-size: .8rem; font-weight: 650;
-        }
-        .analytics-toast.show { display: block; animation: fadeInOut 3s ease; }
-        @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-4px); } 10%, 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+        /* Analytics shell, cards, charts and KPI tiles live in resources/css/charts.css. */
         .analytics-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
         .analytics-scope-note {
             display: flex; align-items: flex-start; gap: 9px; margin: 0 0 4px;
@@ -1498,37 +1581,7 @@
         }
         .analytics-scope-note i { color: var(--bcp-cyan-400, #62c9f5); margin-top: 3px; }
         .analytics-scope-note strong { color: var(--dash-text, #eef4ff); }
-        .analytics-select {
-            padding: 8px 12px; border: 1px solid var(--dash-line, rgba(153,174,214,.18)); border-radius: 8px;
-            background: var(--dash-bg, #101625); color: var(--dash-text, #eef4ff); cursor: pointer; font-size: 14px;
-        }
-        .analytics-btn {
-            padding: 8px 16px; background: linear-gradient(135deg, #2449c6, #173aa8); color: white;
-            border: 1px solid #3159d1; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 650;
-            transition: background-color 0.2s, transform .16s;
-        }
-        .analytics-btn:hover:not(:disabled) { background: linear-gradient(135deg, #4d8ff0, #2449c6); transform: translateY(-1px); }
-        .analytics-btn:disabled { opacity: .7; cursor: default; }
-        .analytics-content { margin-top: 20px; }
-        .analytics-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;
-        }
-        .analytics-card {
-            background: rgba(77,143,240,.04); border: 1px solid var(--dash-line, rgba(153,174,214,.18));
-            border-radius: 12px; padding: 20px;
-        }
-        .analytics-card-wide { grid-column: 1 / -1; }
-        .analytics-card h5 { margin: 0 0 16px 0; font-size: 15px; font-weight: 700; color: var(--dash-text, #eef4ff); display: flex; align-items: center; gap: 8px; }
-        .analytics-card h5 i { color: var(--bcp-cyan-400, #62c9f5); }
-        .chart-container { position: relative; height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .chart-container canvas { max-height: 100%; }
-        .chart-placeholder { text-align: center; color: var(--dash-muted, #98a7c4); }
-        .chart-placeholder i { font-size: 48px; margin-bottom: 12px; color: rgba(153,174,214,.35); }
-        .chart-placeholder p { margin: 0; font-size: 14px; }
-        .analytics-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
-        .summary-item { display: flex; flex-direction: column; gap: 4px; }
-        .summary-label { font-size: 11px; color: var(--dash-muted, #98a7c4); font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
-        .summary-value { font-size: 22px; font-weight: 800; color: var(--dash-text, #eef4ff); }
+
 
         /* Course cards (.course-card-grid / .course-card) now live in the shared
            dashboard-layout.css so Faculty and Student render identically. */

@@ -100,4 +100,18 @@
         <a href="{{ route('student.courses.quizzes.index', $course) }}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> All Quizzes</a>
     </div>
 </div>
+
+{{-- The attempt is stored server-side now, so the browser safety copy is
+     obsolete. Clearing it here - not on the attempt page - is what makes a
+     cancelled submit confirmation harmless: nothing is removed until the
+     student has actually landed on the submitted results. --}}
+@if($attempt->submitted_at)
+    <script>
+        try {
+            localStorage.removeItem('quizAnswers_{{ $attempt->id }}');
+        } catch (e) {
+            // Storage may be blocked; the attempt itself is already stored.
+        }
+    </script>
+@endif
 @endsection

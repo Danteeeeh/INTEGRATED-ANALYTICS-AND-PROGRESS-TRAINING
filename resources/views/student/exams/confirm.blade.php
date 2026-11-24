@@ -79,6 +79,29 @@
             @endif
         </div>
 
+        @if($exam->requires_proctoring || $exam->proctoring_method || $exam->proctoring_instructions || $exam->detect_tab_switch || $exam->detect_copy_paste)
+            <div class="bg-orange-50 border border-orange-200 p-5 rounded-lg mb-6">
+                <div class="flex items-start">
+                    <i class="fa-solid fa-shield-halved text-orange-600 mr-3 mt-1 text-xl"></i>
+                    <div>
+                        <div class="font-semibold text-orange-800 text-lg">Proctored Exam</div>
+                        @if($exam->proctoringMethodLabel())
+                            <div class="text-sm text-orange-700 mt-1"><strong>Method:</strong> {{ $exam->proctoringMethodLabel() }}</div>
+                        @endif
+                        @if($exam->proctoring_instructions)
+                            <div class="text-sm text-orange-700 mt-2 whitespace-pre-wrap">{{ $exam->proctoring_instructions }}</div>
+                        @endif
+                        @if($exam->detect_tab_switch || $exam->detect_copy_paste)
+                            <ul class="text-sm text-orange-700 mt-2 space-y-1">
+                                @if($exam->detect_tab_switch)<li>• Tab switches and leaving the page are recorded</li>@endif
+                                @if($exam->detect_copy_paste)<li>• Copying, cutting and pasting are recorded</li>@endif
+                            </ul>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
             <div class="flex items-start">
                 <i class="fa-solid fa-exclamation-circle text-red-600 mr-2 mt-1"></i>

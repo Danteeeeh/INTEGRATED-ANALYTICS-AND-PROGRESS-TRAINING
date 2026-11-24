@@ -31,7 +31,9 @@
             <h3>All Enrollments (view only)</h3>
         </div>
 
-        {{-- Bulk auto-enroll retired from the admin UI — enrollment comes from Sync from AA now. Routes and tests remain live; kept commented for reference.
+        {{-- Bulk auto-enroll was retired together with its route — enrollment now
+             comes from Sync from AA. Dead markup kept only for reference; do not
+             re-enable without restoring the route and controller method.
         <div id="bulk-enroll-form" style="display:none;padding:20px;margin-bottom:20px;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(99,102,241,.08));border:1px solid rgba(139,92,246,.3);border-radius:12px;">
             <h4 style="margin:0 0 16px;color:#6366f1;font-size:.95rem;"><i class="fa-solid fa-users-gear"></i> Bulk Auto-Enroll Students</h4>
             <p style="margin:0 0 16px;color:#64748b;font-size:.8rem;">Automatically enroll all active students based on selected criteria. Select at least one filter.</p>
@@ -226,9 +228,10 @@
                         <td>{{ $enrollment->final_grade ?? '-' }}</td>
                         <td>{{ $enrollment->enrolled_at->format('M d, Y') }}</td>
                         <td class="actions-cell action-buttons">
-                            {{-- Enrollment management (approve/reject/drop/edit/delete) is
-                                 retired from the admin UI — enrollment now comes from
-                                 "Sync from AA". Routes remain live for tests; kept commented. --}}
+                            {{-- Enrollment management (approve/reject/drop/edit/delete) was
+                                 retired together with its routes — enrollment now comes
+                                 from "Sync from AA". Do not re-enable this markup without
+                                 restoring those routes. --}}
                             <a href="{{ route('admin.enrollments.show', $enrollment) }}" class="btn-icon btn-view" title="View">
                                 <i class="fa-solid fa-eye"></i>
                             </a>

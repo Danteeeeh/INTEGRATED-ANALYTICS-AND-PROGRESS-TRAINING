@@ -201,10 +201,6 @@
     font-weight: 600;
 }
 
-.badge-draft { background: #95a5a6; color: white; }
-.badge-published { background: #2ecc71; color: white; }
-.badge-archived { background: #e74c3c; color: white; }
-
 .action-buttons {
     display: flex;
     gap: 5px;

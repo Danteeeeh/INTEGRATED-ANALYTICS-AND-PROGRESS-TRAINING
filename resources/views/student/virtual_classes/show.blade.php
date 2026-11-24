@@ -87,7 +87,7 @@
                 <form action="{{ route('student.classes.virtual_classes.join', [$class, $virtualClass]) }}" method="POST" style="display: inline;">
                     @csrf
                     <button type="submit" class="btn-add" style="background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; border: none;">
-                        <i class="fa-solid fa-sign-in-alt"></i> Join Meeting
+                        <i class="fa-solid fa-sign-in-alt"></i> Join Classroom
                     </button>
                 </form>
             @elseif($startsLater || $awaitingInstructor)
@@ -429,7 +429,7 @@ END:VCALENDAR`;
                 button.type = 'submit';
                 button.className = 'btn-add';
                 button.style.cssText = 'background:#22c55e;color:white;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600;border:none;';
-                button.innerHTML = '<i class="fa-solid fa-sign-in-alt"></i> Join Meeting';
+                button.innerHTML = '<i class="fa-solid fa-sign-in-alt"></i> Join Classroom';
                 form.appendChild(button);
 
                 return form;

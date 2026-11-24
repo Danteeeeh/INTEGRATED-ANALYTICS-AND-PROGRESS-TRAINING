@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\VirtualClass;
 use App\Services\LiveKitTokenService;
+use App\Services\VirtualClassPresence;
+use App\Services\VirtualClassRoomTimeline;
+use App\Services\VirtualClassSessionCloser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,6 +17,30 @@ use Illuminate\Support\Str;
 
 class VirtualClassController extends Controller
 {
+    /**
+     * Every virtual class across this instructor's classes.
+     */
+    public function all(LiveKitTokenService $tokens): View
+    {
+        $this->authorize('viewAny', VirtualClass::class);
+
+        $classIds = ClassModel::where('instructor_id', auth()->id())->pluck('id');
+
+        $virtualClasses = VirtualClass::whereIn('class_id', $classIds)
+            ->with(['course', 'class', 'instructor', 'attendees'])
+            ->orderByDesc('meeting_date')
+            ->orderByDesc('start_time')
+            ->paginate(20);
+
+        $virtualClasses->getCollection()->each->syncStatus();
+
+        $livekitProblem = $tokens->diagnoseForClasses(
+            VirtualClass::whereIn('class_id', $classIds)->orderBy('meeting_date')->get()
+        );
+
+        return view('instructor.virtual_classes.all', compact('virtualClasses', 'livekitProblem'));
+    }
+
     public function index(ClassModel $class, LiveKitTokenService $tokens): View
     {
         $this->authorize('viewAny', VirtualClass::class);
@@ -205,8 +233,62 @@ class VirtualClassController extends Controller
 
         $virtualClass->update(['status' => VirtualClass::STATUS_COMPLETED]);
 
+        // Delete the LiveKit room so anyone still inside is disconnected now,
+        // and seal the open attendance rows that no leave beacon will close.
+        app(VirtualClassSessionCloser::class)->close($virtualClass);
+
         return redirect()->route('instructor.classes.virtual_classes.show', [$class, $virtualClass])
             ->with('success', 'Virtual class ended and closed.');
+    }
+
+    /**
+     * Live headcount, roster and session trend for the dashboard poll.
+     *
+     * `history`/`peak`/`now`/`events` come from the LMS attendance rows (the
+     * shape of the session); `count`/`exact`/`participants` come from LiveKit
+     * when it answers and fall back to attendance when it does not.
+     */
+    public function liveCount(
+        ClassModel $class,
+        VirtualClass $virtualClass,
+        VirtualClassPresence $presence,
+        VirtualClassRoomTimeline $timeline
+    ): JsonResponse {
+        $this->authorize('view', $virtualClass);
+
+        abort_if($class->instructor_id !== auth()->id(), 403);
+        abort_if($virtualClass->class_id !== $class->id, 404);
+
+        // A session whose end time passed is already over, even if its status
+        // has not been flipped yet.
+        $virtualClass->syncStatus();
+
+        if (! $virtualClass->isLiveNow()) {
+            return response()->json([
+                'live' => false,
+                'count' => 0,
+                'exact' => false,
+                'participants' => [],
+                'history' => [],
+                'peak' => 0,
+                'now' => 0,
+                'events' => [],
+            ])->header('Cache-Control', 'no-store, max-age=0');
+        }
+
+        $snapshot = $presence->snapshot($virtualClass);
+        $trend = $timeline->snapshot($virtualClass);
+
+        return response()->json([
+            'live' => true,
+            'count' => $snapshot['count'],
+            'exact' => $snapshot['exact'],
+            'participants' => $snapshot['participants'],
+            'history' => $trend['points'],
+            'peak' => $trend['peak'],
+            'now' => $trend['now'],
+            'events' => $trend['events'],
+        ])->header('Cache-Control', 'no-store, max-age=0');
     }
 
     /**

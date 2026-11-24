@@ -122,13 +122,10 @@ return [
     // Which entities run, in this order, when the Super Admin clicks Sync.
     'sync_order' => ['departments', 'programs', 'sections', 'students', 'faculty', 'classes', 'enrollments'],
 
-    // Default accounts for new students/faculty created by the sync.
-    'default_student_password' => env('AA_SYNC_DEFAULT_PASSWORD', 'Welcome@123'),
-    'default_faculty_password' => env('AA_SYNC_FACULTY_PASSWORD', 'Welcome@123'),
-
-    // Force-reset the password of every synced account on each sync.
-    // Off by default so accounts created once are not churned every sync.
-    'reset_passwords' => false,
+    // Every newly created account gets its own random password. There is no
+    // shared-password override: the account receives an automatic password-set
+    // email, and "Forgot password" remains available if the link expires.
+    // Existing accounts are never re-passworded by a sync.
 
     // Never touch these email domains as students during sync.
     'skip_emails' => [],

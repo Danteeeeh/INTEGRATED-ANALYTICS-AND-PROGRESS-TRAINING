@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\LmsPasswordReset;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -123,6 +124,14 @@ class User extends Authenticatable
     public function getNameAttribute(): string
     {
         return $this->full_name;
+    }
+
+    /**
+     * Use the LMS-branded setup/reset email instead of Laravel's generic one.
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new LmsPasswordReset($token));
     }
 
     public function hasRole(string ...$slugs): bool

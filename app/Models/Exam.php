@@ -173,7 +173,7 @@ class Exam extends Model
     {
         return $this->belongsToMany(Question::class, 'exam_questions')
             ->withPivot('order', 'points', 'is_required', 'pool_size', 'random_from_pool')
-            ->orderBy('pivot_order');
+            ->orderBy('exam_questions.order');
     }
 
     /**
@@ -309,6 +309,20 @@ class Exam extends Model
     public function isProctored(): bool
     {
         return $this->requires_proctoring;
+    }
+
+    /**
+     * Human-readable proctoring method for the student and instructor screens.
+     */
+    public function proctoringMethodLabel(): ?string
+    {
+        return match ($this->proctoring_method) {
+            'in_person' => 'In person',
+            'online' => 'Online',
+            'ai_proctor' => 'AI proctored',
+            'hybrid' => 'Hybrid',
+            default => null,
+        };
     }
 
     public function getQuestionCount(): int
